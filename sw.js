@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v1.02'; // Versión altísima para forzar el cambio
+const CACHE_NAME = 'gastos-v1.03'; // Versión altísima para forzar el cambio
 
 const urlsToCache = [
     '/',
