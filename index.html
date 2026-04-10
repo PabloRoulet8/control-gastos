@@ -123,5 +123,22 @@
             });
         }
     </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            // 1. Cazador de Zombies: Desinstala cualquier versión vieja atascada
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+
+            // 2. Forzamos la descarga del nuevo engañando al caché con "?v=100"
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js?v=100').then(reg => {
+                    console.log('¡Service Worker forzado y registrado!');
+                });
+            });
+        }
+    </script>
 </body>
 </html>
