@@ -15,10 +15,11 @@ const db = getFirestore(app);
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. CATEGORÍAS (Actualizado a las nuevas keys mostri y mostrina)
+    // 1. CATEGORÍAS (Actualizado para coincidir con el HTML)
     const categorias = {
         general: ['Alquiler', 'Expensas', 'Gas', 'EPE', 'WiFi', 'Agua', 'TGI', 'Supermercado', 'Carnicería', 'Verdulería', 'Salidas', 'Otros'],
-        mostri: ['Cuota Handball', 'Campo', 'Otros'],
-        mostrina: ['Monotributo', 'Crédito Mercado Pago', 'Otros']
+        mostri: ['Cuota Handball', 'Campo', 'Otros'], // Cambiado de 'pablo' a 'mostri'
+        mostrina: ['Monotributo', 'Crédito Mercado Pago', 'Otros'] // Cambiado de 'yanet' a 'mostrina'
     };
 
     const tipoGeneral = document.getElementById('tipo-general');

@@ -1,40 +1,52 @@
-const CACHE_NAME = 'gastos-v1.0';
+const CACHE_NAME = 'gastos-v99'; // Versión altísima para forzar el cambio
 
-// Instalación: Guardamos los archivos clave en la memoria del celular
-self.addEventListener('install', (event) => {
+const urlsToCache = [
+    '/',
+    '/index.html',
+    '/resumen.html',
+    '/historial.html',
+    '/css/styles.css',
+    '/js/main_v2.js',
+    '/js/resumen_v2.js',
+    '/js/historial.js'
+];
+
+// 1. INSTALACIÓN: Obligamos a instalar al instante
+self.addEventListener('install', event => {
+    self.skipWaiting(); 
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll([
-                './',
-                './index.html',
-                './manifest.json'
-            ]);
-        })
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('Abriendo caché y guardando archivos nuevos');
+                return cache.addAll(urlsToCache);
+            })
     );
-    self.skipWaiting(); // Obliga a que se actualice al instante
 });
 
-// Activación: Borramos versiones viejas de la memoria
-self.addEventListener('activate', (event) => {
+// 2. ACTIVACIÓN: El exterminador de cachés zombies
+self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
+        caches.keys().then(cacheNames => {
             return Promise.all(
-                cacheNames.map((cache) => {
-                    if (cache !== CACHE_NAME) {
-                        return caches.delete(cache);
+                cacheNames.map(cacheName => {
+                    // Si el caché no es el v99, LO BORRA.
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('Borrando caché zombie:', cacheName);
+                        return caches.delete(cacheName);
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim()) // Toma el control de la pantalla inmediatamente
     );
-    self.clients.claim();
 });
 
-// Fetch: Cuando la app pide algo, buscamos primero en la memoria, y si no, en internet
-self.addEventListener('fetch', (event) => {
+// 3. INTERCEPTOR DE RED
+self.addEventListener('fetch', event => {
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
-        })
+        caches.match(event.request)
+            .then(response => {
+                // Si el archivo está en el caché nuevo, lo usa. Si no, lo baja de internet.
+                return response || fetch(event.request);
+            })
     );
 });
