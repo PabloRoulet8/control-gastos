@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Estado normal azulado
                 valFondo.style.color = "#01579b";
-                labelFondo.textContent = "Fondo Comestibles (Quedan de $300.000)";
+                labelFondo.textContent = "Fondo Comestibles";
                 labelFondo.style.color = "#0277bd";
                 contenedorFondo.style.backgroundColor = "#e3f2fd";
                 contenedorFondo.style.border = "1px solid #bbdefb";
