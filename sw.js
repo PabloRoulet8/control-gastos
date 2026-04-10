@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v6';
+const CACHE_NAME = 'gastos-v15';
 
 // Instalación: Guardamos los archivos clave en la memoria del celular
 self.addEventListener('install', (event) => {
