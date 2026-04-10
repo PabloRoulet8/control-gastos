@@ -39,17 +39,29 @@
         <section class="card dashboard-card">
             <h2>Balance de la Casa</h2>
             <div class="monto-total">
-                <span class="label">Total Gastado (General + Individual)</span>
+                <span class="label">Total Gastado (Todo el mes)</span>
                 <span class="valor">$ 0</span>
             </div>
-            <div class="split-gastos">
-                <div class="split-item">
-                    <span class="label">Generales</span>
-                    <span class="valor">$ 0</span>
+            
+            <div class="split-gastos" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                <div class="split-item" style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #c8e6c9;">
+                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Pablo</span>
+                    <span class="valor pablo-total" style="color: #1b5e20; font-size: 1.2rem;">$ 0</span>
                 </div>
-                <div class="split-item">
-                    <span class="label">Individuales</span>
-                    <span class="valor">$ 0</span>
+                <div class="split-item" style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #ffe0b2;">
+                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Yanet</span>
+                    <span class="valor yanet-total" style="color: #1b5e20; font-size: 1.2rem;">$ 0</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="color: #555; font-size: 0.9rem;">🛒 Súper, Carne y Verdura:</span>
+                    <span class="valor-alimentacion" style="font-weight: bold; color: #333;">$ 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #555; font-size: 0.9rem;">🏠 Casa y Servicios (Fijos):</span>
+                    <span class="valor-fijos" style="font-weight: bold; color: #333;">$ 0</span>
                 </div>
             </div>
         </section>
@@ -66,9 +78,22 @@
             <h2 style="display: flex; justify-content: space-between; align-items: center;">
                 Stock Mensual Acumulado <span>🛒</span>
             </h2>
-            <ul id="lista-inventario-mensual" style="list-style: none; padding: 0; margin: 0;">
+            
+            <h3 style="font-size: 1rem; color: #2e7d32; margin-bottom: 10px;">Mes Actual</h3>
+            <ul id="lista-inventario-mensual" style="list-style: none; padding: 0; margin: 0; margin-bottom: 20px;">
                 <li style="text-align: center; color: #888; font-size: 0.9rem; padding: 10px;">Cargando stock...</li>
             </ul>
+
+            <button id="btn-toggle-inventario-ant" style="width: 100%; padding: 10px; background: #f4f6f8; border: 1px solid #ddd; border-radius: 8px; color: #555; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
+                Ver stock del mes pasado ⬇️
+            </button>
+            
+            <div id="contenedor-inventario-ant" style="display: none; border-top: 1px dashed #ccc; padding-top: 15px;">
+                <h3 style="font-size: 1rem; color: #555; margin-bottom: 10px;">Mes Anterior</h3>
+                <ul id="lista-inventario-anterior" style="list-style: none; padding: 0; margin: 0;">
+                    <li style="text-align: center; color: #888; font-size: 0.9rem; padding: 10px;">Cargando stock anterior...</li>
+                </ul>
+            </div>
         </section>
     </main>
 
