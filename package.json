@@ -1,0 +1,25 @@
+{
+  "name": "control-gastos",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sass": "sass --watch scss/styles.scss css/styles.css"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PabloRoulet8/control-gastos.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/PabloRoulet8/control-gastos/issues"
+  },
+  "homepage": "https://github.com/PabloRoulet8/control-gastos#readme",
+  "devDependencies": {
+    "sass": "^1.99.0"
+  }
+}

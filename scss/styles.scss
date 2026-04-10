@@ -1,0 +1,342 @@
+@import 'variables';
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: $font-stack;
+    background-color: $bg-color;
+    color: $text-main;
+    -webkit-font-smoothing: antialiased;
+}
+
+.header {
+    background-color: $primary-color;
+    color: $surface-color;
+    padding: $padding-standard;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+    h1 {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .nav-link {
+        color: $surface-color;
+        text-decoration: none;
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+}
+
+.container {
+    padding: $padding-standard;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.card {
+    background-color: $surface-color;
+    border-radius: $border-radius;
+    padding: $padding-standard;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.form-group {
+    margin-bottom: 20px;
+
+    label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    input[type="number"],
+    input[type="file"],
+    select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid $border-color;
+        border-radius: 8px;
+        font-size: 1rem;
+        background-color: #fafafa;
+        
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            background-color: $surface-color;
+        }
+    }
+
+    small {
+        display: block;
+        margin-top: 6px;
+        color: $text-muted;
+        font-size: 0.8rem;
+    }
+}
+
+// Estilos para el selector General/Individual
+.toggle-group {
+    display: flex;
+    gap: 10px;
+
+    input[type="radio"] {
+        display: none;
+    }
+
+    label {
+        flex: 1;
+        text-align: center;
+        padding: 12px;
+        background-color: #eee;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin: 0;
+    }
+
+    input[type="radio"]:checked + label {
+        background-color: $primary-color;
+        color: $surface-color;
+        font-weight: bold;
+    }
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    background-color: $primary-color;
+    color: $surface-color;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(46, 125, 50, 0.2);
+    
+    &:active {
+        transform: translateY(2px);
+    }
+}
+
+// ==========================================
+// ESTILOS DEL DASHBOARD (RESUMEN)
+// ==========================================
+
+.dashboard-card {
+    margin-bottom: 20px;
+
+    h2 {
+        font-size: 1.1rem;
+        color: $text-muted;
+        margin-bottom: 15px;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: 8px;
+    }
+
+    .label {
+        display: block;
+        font-size: 0.9rem;
+        color: $text-muted;
+        margin-bottom: 4px;
+    }
+
+    .valor {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: $text-main;
+    }
+}
+
+.monto-total {
+    text-align: center;
+    margin-bottom: 20px;
+    
+    .valor {
+        font-size: 2rem;
+        color: $primary-color;
+    }
+}
+
+.split-gastos {
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid $border-color;
+    padding-top: 15px;
+
+    .split-item {
+        text-align: center;
+        flex: 1;
+
+        &:first-child {
+            border-right: 1px solid $border-color;
+        }
+
+        .valor {
+            font-size: 1.2rem;
+        }
+    }
+}
+
+// Tarjeta destacada para el pago
+.highlight-card {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border: 1px solid #a5d6a7;
+
+    h2 {
+        color: #2e7d32;
+        border-bottom-color: #a5d6a7;
+    }
+}
+
+.deuda-principal {
+    text-align: center;
+    margin-bottom: 15px;
+
+    p {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #1b5e20;
+        margin-bottom: 5px;
+    }
+
+    .valor-deuda {
+        display: block;
+        font-size: 2.4rem;
+        font-weight: 800;
+        color: #2e7d32;
+    }
+}
+
+.desglose-deuda {
+    list-style: none;
+    font-size: 0.9rem;
+    color: #388e3c;
+
+    li {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed #a5d6a7;
+
+        &:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        span {
+            font-weight: 600;
+        }
+    }
+}
+
+.monto-tarjeta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .valor {
+        font-size: 1.5rem;
+    }
+}
+
+// ==========================================
+// ESTILOS DEL HISTORIAL
+// ==========================================
+
+.gasto-item {
+    background-color: $surface-color;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border-left: 5px solid $primary-color;
+
+    // Si el gasto es individual, podemos cambiarle el color del borde
+    &.individual-pablo { border-left-color: #1976d2; } // Azul para vos
+    &.individual-yanet { border-left-color: #e91e63; } // Rosa/Rojo para ella
+
+    .gasto-info {
+        display: flex;
+        flex-direction: column;
+        
+        strong {
+            font-size: 1rem;
+            color: $text-main;
+            text-transform: capitalize;
+        }
+
+        .fecha {
+            font-size: 0.8rem;
+            color: $text-muted;
+            margin-top: 2px;
+        }
+    }
+
+    .gasto-acciones {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+
+        .monto {
+            font-weight: 700;
+            color: $text-main;
+            font-size: 1.05rem;
+        }
+
+        .btn-eliminar {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s;
+
+            &:active {
+                transform: scale(1.2);
+            }
+        }
+    }
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: $surface-color;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+
+    .nav-item {
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: $text-muted;
+        font-size: 0.8rem;
+        
+        .icon { font-size: 1.4rem; margin-bottom: 2px; }
+        
+        &.active { color: $primary-color; font-weight: bold; }
+    }
+}
+
+// Ajuste para que el contenido no quede tapado por el navbar
+body { padding-bottom: 70px; }

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cargar Gasto</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2e7d32">
+</head>
+<body>
+    <header class="header">
+        <h1>Nuevo Gasto</h1>
+        <div style="width: 50px;"></div> 
+    </header>
+
+    <button id="btn-instalar" style="display: none; width: 100%; padding: 15px; background-color: #ff9800; color: white; border: none; font-weight: bold; font-size: 1.1rem;">📲 INSTALAR APP</button>
+
+    <main class="container">
+        <form id="expense-form" class="card">
+            
+            <div class="form-group toggle-group">
+                <input type="radio" id="tipo-general" name="tipoGasto" value="general" checked>
+                <label for="tipo-general">General</label>
+
+                <input type="radio" id="tipo-individual" name="tipoGasto" value="individual">
+                <label for="tipo-individual">Individual</label>
+            </div>
+
+            <div class="form-group" id="responsable-group">
+                <label>¿Quién lo pagó?</label>
+                <select id="responsable" name="responsable">
+                    <option value="pablo">Pablo</option>
+                    <option value="yanet">Yanet</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="categoria">Categoría</label>
+                <select id="categoria" name="categoria" required>
+                    <option value="" disabled selected>Seleccioná una categoría</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="metodo-pago">Método de Pago</label>
+                <select id="metodo-pago" name="metodoPago" required>
+                    <option value="efectivo">Efectivo / Transferencia</option>
+                    <option value="tarjeta-credito">Tarjeta de Crédito (Yanet)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px dashed #ccc;">
+                <label for="ticket-foto">📸 Escanear Ticket (Opcional)</label>
+                <input type="file" id="ticket-foto" accept="image/*" capture="environment">
+                <div id="ocr-status" style="color: #2e7d32; font-weight: bold; margin-top: 10px; display: none;">
+                    ⏳ Leyendo ticket, esperá un momento...
+                </div>
+                <textarea id="ticket-texto" rows="6" style="display: none; margin-top: 10px; font-size: 0.85rem; width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; max-height: 250px; overflow-y: auto;" placeholder="Acá aparecerá el texto de ayuda..."></textarea>            </div>
+
+            <div class="form-group" style="border-top: 2px solid #eee; padding-top: 20px; margin-top: 20px;">
+                <label style="color: #2e7d32; font-weight: bold;">🛒 Carga de Inventario (Opcional)</label>
+                <small style="margin-bottom: 10px;">Agregá productos para llevar control de cantidades.</small>
+                
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 8px; margin-bottom: 8px;">
+                    <input type="text" id="inv-prod" placeholder="Producto (ej. Carne)">
+                    <input type="number" id="inv-cant" placeholder="Cant." step="0.01">
+                    <select id="inv-unid">
+                        <option value="kg">KG</option>
+                        <option value="unid">Unid.</option>
+                        <option value="latas">Latas</option>
+                        <option value="lts">Litros</option>
+                        <option value="pack">Pack</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                    <input type="number" id="inv-precio" placeholder="Precio Total ($)" style="flex: 2;">
+                    <button type="button" id="btn-add-inv" style="flex: 1; background: #2e7d32; color: white; border: none; border-radius: 8px; font-weight: bold;">Agregar</button>
+                </div>
+
+                <ul id="lista-inventario" style="list-style: none; padding: 0; margin-bottom: 15px;"></ul>
+            </div>
+
+            <div class="form-group" style="background: #e8f5e9; padding: 15px; border-radius: 8px; border: 1px solid #a5d6a7;">
+                <label for="monto" style="color: #1b5e20; font-size: 1.1rem;">Monto Total ($)</label>
+                <input type="number" id="monto" name="monto" placeholder="0.00" required style="font-size: 1.5rem; font-weight: bold; color: #2e7d32;">
+                <small id="monto-help">Si agregás productos arriba, este total se calcula solo.</small>
+            </div>
+
+            <button type="submit" class="btn-primary">Guardar Gasto Definitivo</button>
+        </form>
+    </main>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-item active">
+            <span class="icon">➕</span>
+            <span class="label">Cargar</span>
+        </a>
+        <a href="historial.html" class="nav-item">
+            <span class="icon">📜</span>
+            <span class="label">Historial</span>
+        </a>
+        <a href="resumen.html" class="nav-item">
+            <span class="icon">📊</span>
+            <span class="label">Resumen</span>
+        </a>
+    </nav>
+
+    <script type="module" src="js/main.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('Service Worker registrado!', reg);
+                }).catch(err => {
+                    console.log('Fallo el Service Worker:', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

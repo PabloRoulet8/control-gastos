@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Resumen Mensual</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2e7d32">
+</head>
+<body>
+    <header class="header">
+        <a href="index.html" class="nav-link">← Cargar</a>
+        <h1>Resumen de Abril</h1>
+        <div style="width: 50px;"></div> </header>
+
+    <main class="container">
+        
+        <section class="card dashboard-card highlight-card">
+            <h2>Ajuste de Cuentas</h2>
+            <div class="deuda-principal">
+                <p>Pablo transfiere a Yanet:</p>
+                <span class="valor-deuda">$ 0</span>
+            </div>
+            <ul class="desglose-deuda">
+                <li>Por mitad de generales pendientes: <span>$ 0</span></li>
+                <li>Por individuales en tarjeta: <span>$ 0</span></li>
+            </ul>
+
+            <div id="contenedor-deuda-anterior" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #a5d6a7;">
+                <p style="font-size: 0.85rem; color: #2e7d32; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">Arrastre del mes pasado:</p>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span id="txt-deuda-anterior" style="font-weight: 600; color: #1b5e20;"></span>
+                    <span id="val-deuda-anterior" style="font-weight: 800; font-size: 1.2rem; color: #d32f2f;"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card dashboard-card">
+            <h2>Balance de la Casa</h2>
+            <div class="monto-total">
+                <span class="label">Total Gastado (General + Individual)</span>
+                <span class="valor">$ 0</span>
+            </div>
+            <div class="split-gastos">
+                <div class="split-item">
+                    <span class="label">Generales</span>
+                    <span class="valor">$ 0</span>
+                </div>
+                <div class="split-item">
+                    <span class="label">Individuales</span>
+                    <span class="valor">$ 0</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card dashboard-card">
+            <h2>Proyección Tarjeta (Yanet)</h2>
+            <div class="monto-tarjeta">
+                <span class="label">Cierre estimado del resumen</span>
+                <span class="valor">$ 0</span>
+            </div>
+        </section>
+
+        <section class="card dashboard-card">
+            <h2 style="display: flex; justify-content: space-between; align-items: center;">
+                Stock Mensual Acumulado <span>🛒</span>
+            </h2>
+            <ul id="lista-inventario-mensual" style="list-style: none; padding: 0; margin: 0;">
+                <li style="text-align: center; color: #888; font-size: 0.9rem; padding: 10px;">Cargando stock...</li>
+            </ul>
+        </section>
+    </main>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-item">
+            <span class="icon">➕</span>
+            <span class="label">Cargar</span>
+        </a>
+        <a href="historial.html" class="nav-item">
+            <span class="icon">📜</span>
+            <span class="label">Historial</span>
+        </a>
+        <a href="resumen.html" class="nav-item">
+            <span class="icon">📊</span>
+            <span class="label">Resumen</span>
+        </a>
+    </nav>
+
+    <script type="module" src="js/resumen.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('Service Worker registrado!', reg);
+                }).catch(err => {
+                    console.log('Fallo el Service Worker:', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
