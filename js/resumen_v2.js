@@ -20,6 +20,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const valAlimentacion = document.querySelector('.valor-alimentacion');
     const valFijos = document.querySelector('.valor-fijos');
     
+    // NUEVO SELECTOR: El fondo de compras
+    const valFondo = document.querySelector('.valor-fondo');
+    
     const valTarjeta = document.querySelector('.monto-tarjeta .valor');
     const valDeuda = document.querySelector('.valor-deuda');
     const txtDeuda = document.querySelector('.deuda-principal p');
@@ -58,6 +61,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let pagoEfectivoGeneralAntMostri = 0, individualEnTarjetaAntMostri = 0;
     let inventarioAcumuladoAnt = {}; 
 
+    // CONSTANTE: El monto definido para el fondo de comestibles
+    const FONDO_INICIAL = 300000;
+
     const fechaHoy = new Date();
     const mesActual = fechaHoy.toISOString().slice(0, 7); 
     fechaHoy.setMonth(fechaHoy.getMonth() - 1); 
@@ -68,7 +74,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            // Compatibilidad hacia atrás (interpreta pablo como mostri y yanet como mostrina)
             const esMostri = (data.responsable === 'pablo' || data.responsable === 'mostri');
             const esMostrina = (data.responsable === 'yanet' || data.responsable === 'mostrina');
             
@@ -140,23 +145,50 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // --- CÁLCULO DE DEUDAS Y TOTALES CORREGIDO --- 
+        // --- CÁLCULOS ---
         let deudaGeneralMostri = (totalGeneral / 2) - pagoEfectivoGeneralMostri; 
         let deudaTotalMostri = deudaGeneralMostri + individualEnTarjetaMostri;
         let deudaTotalMostriAnt = ((totalGeneralAnt / 2) - pagoEfectivoGeneralAntMostri) + individualEnTarjetaAntMostri;
 
-        // MATEMÁTICA EXACTA: (Total General de la casa dividido 2) + los gastos individuales propios de cada uno
         let gastoTotalMostri = (totalGeneral / 2) + individualPropioMostri;
         let gastoTotalMostrina = (totalGeneral / 2) + individualPropioMostrina;
 
+        // NUEVO: Cálculo del Fondo de Comestibles
+        let fondoRestante = FONDO_INICIAL - gastoAlimentacion;
+
         const formatoARS = (num) => '$ ' + num.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
+        // --- PINTAR DATOS EN PANTALLA ---
         valTotal.textContent = formatoARS(totalGeneral + totalIndividual);
         if(valTotalMostri) valTotalMostri.textContent = formatoARS(gastoTotalMostri);
         if(valTotalMostrina) valTotalMostrina.textContent = formatoARS(gastoTotalMostrina);
         if(valAlimentacion) valAlimentacion.textContent = formatoARS(gastoAlimentacion);
         if(valFijos) valFijos.textContent = formatoARS(gastoFijos);
         valTarjeta.textContent = formatoARS(proyeccionTarjeta);
+
+        // Lógica visual para el fondo de compras
+        if (valFondo) {
+            valFondo.textContent = formatoARS(fondoRestante);
+            
+            const contenedorFondo = document.querySelector('.monto-fondo');
+            const labelFondo = document.querySelector('.monto-fondo .label');
+            
+            if (fondoRestante < 0) {
+                // Si se pasaron de los 300 mil, se pone todo en alerta roja
+                valFondo.style.color = "#c62828";
+                labelFondo.textContent = "Fondo Comestibles (¡Se pasaron!)";
+                labelFondo.style.color = "#d32f2f";
+                contenedorFondo.style.backgroundColor = "#ffebee";
+                contenedorFondo.style.border = "1px solid #ffcdd2";
+            } else {
+                // Estado normal azulado
+                valFondo.style.color = "#01579b";
+                labelFondo.textContent = "Fondo Comestibles (Quedan de $300.000)";
+                labelFondo.style.color = "#0277bd";
+                contenedorFondo.style.backgroundColor = "#e3f2fd";
+                contenedorFondo.style.border = "1px solid #bbdefb";
+            }
+        }
 
         if (deudaTotalMostri > 0) {
             txtDeuda.textContent = "Mostri transfiere a Mostrina:";
