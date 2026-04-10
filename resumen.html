@@ -19,7 +19,7 @@
         <section class="card dashboard-card highlight-card">
             <h2>Ajuste de Cuentas</h2>
             <div class="deuda-principal">
-                <p>Pablo transfiere a Yanet:</p>
+                <p>Mostri transfiere a Mostrina:</p>
                 <span class="valor-deuda">$ 0</span>
             </div>
             <ul class="desglose-deuda">
@@ -45,11 +45,11 @@
             
             <div class="split-gastos" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
                 <div class="split-item" style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #c8e6c9;">
-                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Pablo</span>
+                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Mostri</span>
                     <span class="valor pablo-total" style="color: #1b5e20; font-size: 1.2rem;">$ 0</span>
                 </div>
                 <div class="split-item" style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #ffe0b2;">
-                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Yanet</span>
+                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Mostrina</span>
                     <span class="valor yanet-total" style="color: #1b5e20; font-size: 1.2rem;">$ 0</span>
                 </div>
             </div>
@@ -67,7 +67,7 @@
         </section>
 
         <section class="card dashboard-card">
-            <h2>Proyección Tarjeta (Yanet)</h2>
+            <h2>Proyección Tarjeta (Mostrina)</h2>
             <div class="monto-tarjeta">
                 <span class="label">Cierre estimado del resumen</span>
                 <span class="valor">$ 0</span>
@@ -113,16 +113,5 @@
     </nav>
 
     <script type="module" src="js/resumen.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').then(reg => {
-                    console.log('Service Worker registrado!', reg);
-                }).catch(err => {
-                    console.log('Fallo el Service Worker:', err);
-                });
-            });
-        }
-    </script>
 </body>
 </html>

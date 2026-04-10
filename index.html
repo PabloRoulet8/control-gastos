@@ -31,8 +31,8 @@
             <div class="form-group" id="responsable-group">
                 <label>¿Quién lo pagó?</label>
                 <select id="responsable" name="responsable">
-                    <option value="pablo">Pablo</option>
-                    <option value="yanet">Yanet</option>
+                    <option value="mostri">Mostri</option>
+                    <option value="mostrina">Mostrina</option>
                 </select>
             </div>
 
@@ -52,7 +52,7 @@
                 <label for="metodo-pago">Método de Pago</label>
                 <select id="metodo-pago" name="metodoPago" required>
                     <option value="efectivo">Efectivo / Transferencia</option>
-                    <option value="tarjeta-credito">Tarjeta de Crédito (Yanet)</option>
+                    <option value="tarjeta-credito">Tarjeta de Crédito (Mostrina)</option>
                 </select>
             </div>
 
@@ -116,7 +116,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(reg => {
-                    console.log('Service Worker registrado!', reg);
+                    console.log('Service Worker registrado!');
                 }).catch(err => {
                     console.log('Fallo el Service Worker:', err);
                 });

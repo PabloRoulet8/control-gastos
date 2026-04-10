@@ -14,11 +14,11 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. CATEGORÍAS Y CAMPOS DINÁMICOS
+    // 1. CATEGORÍAS (Actualizado a las nuevas keys mostri y mostrina)
     const categorias = {
         general: ['Alquiler', 'Expensas', 'Gas', 'EPE', 'WiFi', 'Agua', 'TGI', 'Supermercado', 'Carnicería', 'Verdulería', 'Salidas', 'Otros'],
-        pablo: ['Cuota Handball', 'Campo', 'Otros'],
-        yanet: ['Monotributo', 'Crédito Mercado Pago', 'Otros']
+        mostri: ['Cuota Handball', 'Campo', 'Otros'],
+        mostrina: ['Monotributo', 'Crédito Mercado Pago', 'Otros']
     };
 
     const tipoGeneral = document.getElementById('tipo-general');
@@ -26,37 +26,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectResponsable = document.getElementById('responsable');
     const selectCategoria = document.getElementById('categoria');
     
-    // Capturamos las secciones que se ocultan/muestran
     const seccionInventario = document.getElementById('seccion-inventario');
     const grupoReferencia = document.getElementById('referencia-group');
     const inputReferencia = document.getElementById('referencia');
     
-    // Función maestra para mostrar/ocultar campos según categoría
+    // Función maestra reparada
     const manejarCamposDinamicos = () => {
-        // Si no hay categoría, ocultamos todo
         if (selectCategoria.selectedIndex <= 0) {
             if(seccionInventario) seccionInventario.style.display = 'none';
             if(grupoReferencia) grupoReferencia.style.display = 'none';
             return;
         }
 
-        const categoriaElegida = selectCategoria.options[selectCategoria.selectedIndex].text.toLowerCase();
-        const catNormalizada = categoriaElegida.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        // Usamos el 'value' directamente (ej: "otros", "campo", "supermercado")
+        const catValue = selectCategoria.value; 
 
-        // A. Lógica para el Inventario
+        // Inventario
         const categoriasConInventario = ['supermercado', 'verduleria', 'carniceria'];
         if (seccionInventario) {
-            seccionInventario.style.display = categoriasConInventario.includes(catNormalizada) ? 'block' : 'none';
+            seccionInventario.style.display = categoriasConInventario.includes(catValue) ? 'block' : 'none';
         }
 
-        // B. Lógica para la Referencia (Otros y Campo)
+        // Referencia
         const categoriasConReferencia = ['otros', 'campo'];
         if (grupoReferencia) {
-            if (categoriasConReferencia.includes(catNormalizada)) {
+            if (categoriasConReferencia.includes(catValue)) {
                 grupoReferencia.style.display = 'block';
             } else {
                 grupoReferencia.style.display = 'none';
-                inputReferencia.value = ''; // Limpiamos lo que se haya escrito si cambian de opinión
+                inputReferencia.value = ''; 
             }
         }
     };
@@ -68,7 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
         selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
         listaActiva.forEach(cat => {
             const option = document.createElement('option');
-            option.value = cat.toLowerCase().replace(/ /g, '-');
+            // Quitamos acentos y pasamos a minusculas para el value (ej: Carnicería -> carniceria)
+            option.value = cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ /g, '-');
             option.textContent = cat;
             selectCategoria.appendChild(option);
         });
@@ -102,11 +101,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await Tesseract.recognize(file, 'spa');
                 textareaTexto.value = result.data.text;
                 textareaTexto.style.display = 'block';
-                ocrStatus.innerHTML = '✅ ¡Ticket leído! Usalo de guía abajo.';
+                ocrStatus.innerHTML = '✅ ¡Ticket leído!';
                 textareaTexto.style.height = 'auto'; 
                 textareaTexto.style.height = textareaTexto.scrollHeight + 'px';
             } catch (error) {
-                ocrStatus.innerHTML = '❌ Error al leer. Podés cargar manual.';
+                ocrStatus.innerHTML = '❌ Error al leer.';
                 ocrStatus.style.color = 'red';
             } finally {
                 botonGuardar.disabled = false;
@@ -158,16 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const precio = parseFloat(document.getElementById('inv-precio').value);
 
             if (!prod || !cant || !precio) {
-                alert("Completá Producto, Cantidad y Precio para agregarlo a la lista.");
+                alert("Completá Producto, Cantidad y Precio.");
                 return;
             }
 
             arrayInventario.push({ producto: prod, cantidad: cant, unidad: unid, precio: precio });
-            
             document.getElementById('inv-prod').value = '';
             document.getElementById('inv-cant').value = '';
             document.getElementById('inv-precio').value = '';
-            
             actualizarVistaInventario();
         });
     }
@@ -189,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 monto: parseFloat(inputMontoGlobal.value),
                 metodo_pago: document.getElementById('metodo-pago').value,
                 detalle_inventario: arrayInventario,
-                // NUEVO: Agregamos la referencia a la base de datos
                 referencia: inputReferencia ? inputReferencia.value.trim() : ""
             };
 
@@ -204,12 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(textareaTexto) textareaTexto.style.display = 'none';
                 if(ocrStatus) ocrStatus.style.display = 'none';
                 if(seccionInventario) seccionInventario.style.display = 'none';
-                // Volvemos a ocultar la referencia
                 if(grupoReferencia) grupoReferencia.style.display = 'none';
                 
             } catch (error) {
-                console.error("Error al guardar: ", error);
-                alert('Hubo un error al guardar. Intentá de nuevo.');
+                console.error("Error:", error);
+                alert('Error al guardar.');
             } finally {
                 botonGuardar.textContent = "Guardar Gasto Definitivo";
                 botonGuardar.disabled = false;
@@ -217,24 +212,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-// PWA Instalación
-let eventoInstalacion;
-const btnInstalar = document.getElementById('btn-instalar');
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    eventoInstalacion = e;
-    if(btnInstalar) btnInstalar.style.display = 'block';
-});
-if(btnInstalar) {
-    btnInstalar.addEventListener('click', async () => {
-        if (eventoInstalacion) {
-            eventoInstalacion.prompt();
-            const { outcome } = await eventoInstalacion.userChoice;
-            if (outcome === 'accepted') {
-                btnInstalar.style.display = 'none';
-            }
-            eventoInstalacion = null;
-        }
-    });
-}
