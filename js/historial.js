@@ -1,17 +1,5 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyDKqmEWdxbUZKDPdUIghdrtgGkGdEudFr8",
-    authDomain: "control-gastos-cf09c.firebaseapp.com",
-    projectId: "control-gastos-cf09c",
-    storageBucket: "control-gastos-cf09c.firebasestorage.app",
-    messagingSenderId: "350200153131",
-    appId: "1:350200153131:web:e11a4b4fc5e5ba0310966e"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+import { db } from "./firebase-config.js";
+import { collection, getDocs, doc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
     const listaGastos = document.getElementById('lista-gastos');
@@ -20,7 +8,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         listaGastos.innerHTML = '<p style="text-align:center; padding:20px;">Cargando movimientos...</p>';
         
         try {
-            // Traemos los gastos ordenados por el más reciente arriba
             const q = query(collection(db, "gastos"), orderBy("timestamp", "desc"));
             const querySnapshot = await getDocs(q);
             
@@ -36,8 +23,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const id = documento.id;
                 
                 const item = document.createElement('div');
-                // Clase dinámica según el tipo de gasto
-                let claseTipo = data.tipo === 'individual' ? `individual-${data.responsable}` : 'general';
+                // Utilizamos los colores correctos para la interfaz
+                const esMostri = (data.responsable === 'pablo' || data.responsable === 'mostri');
+                let claseTipo = data.tipo === 'individual' ? (esMostri ? 'individual-pablo' : 'individual-yanet') : 'general';
                 item.className = `gasto-item ${claseTipo}`;
                 
                 item.innerHTML = `
@@ -53,7 +41,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 listaGastos.appendChild(item);
             });
 
-            // Lógica para el botón de eliminar
             document.querySelectorAll('.btn-eliminar').forEach(boton => {
                 boton.addEventListener('click', async (e) => {
                     const idGasto = e.currentTarget.getAttribute('data-id');
@@ -62,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (confirmar) {
                         try {
                             await deleteDoc(doc(db, "gastos", idGasto));
-                            cargarHistorial(); // Refrescamos la lista automáticamente
+                            cargarHistorial(); 
                         } catch (error) {
                             alert("Error al borrar: " + error.message);
                         }
@@ -72,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error("Error:", error);
-            listaGastos.innerHTML = '<p>Error al conectar con la base de datos.</p>';
+            listaGastos.innerHTML = '<p>Error al conectar. Revisá tu conexión.</p>';
         }
     };
 

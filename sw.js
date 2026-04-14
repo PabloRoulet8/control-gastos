@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v1.03'; // Versión altísima para forzar el cambio
+const CACHE_NAME = 'gastos-v1.2'; 
 
 const urlsToCache = [
     '/',
@@ -6,8 +6,9 @@ const urlsToCache = [
     '/resumen.html',
     '/historial.html',
     '/css/styles.css',
-    '/js/main_v2.js',
-    '/js/resumen_v2.js',
+    '/js/firebase-config.js',
+    '/js/main_v4.js',
+    '/js/resumen_v4.js',
     '/js/historial.js'
 ];
 

@@ -340,3 +340,172 @@ body {
 
 // Ajuste para que el contenido no quede tapado por el navbar
 body { padding-bottom: 70px; }
+
+/* =========================================
+   ACORDEONES (Resumen y Stock)
+   ========================================= */
+.accordion-item {
+    margin-bottom: 8px;
+
+    .accordion-header {
+        width: 100%;
+        padding: 15px;
+        background: $accordion-bg;
+        border: 1px solid $border-color;
+        text-align: left;
+        font-weight: bold;
+        color: #333;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.2s ease;
+
+        &:hover {
+            background: darken($accordion-bg, 3%);
+        }
+        
+        // Animación de la flechita cuando se abre (opcional)
+        &.active span {
+            transform: rotate(180deg);
+            transition: transform 0.3s ease;
+        }
+    }
+
+    .accordion-content {
+        padding: 15px;
+        border: 1px solid $border-color;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        background: #fff;
+    }
+}
+
+/* =========================================
+   LISTAS MINIMALISTAS (Gastos Propios)
+   ========================================= */
+.lista-minimal {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.95rem;
+
+    li {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px dashed #eee;
+
+        // Quitamos el borde al último elemento
+        &:last-child {
+            border-bottom: none;
+        }
+
+        strong {
+            color: #1b5e20;
+        }
+    }
+}
+
+/* =========================================
+   TOASTS (Notificaciones emergentes)
+   ========================================= */
+.toast {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: $toast-bg;
+    color: $toast-text;
+    text-align: center;
+    border-radius: 8px;
+    padding: 16px;
+    position: fixed;
+    z-index: 1000;
+    left: 50%;
+    bottom: 80px; // Queda justo por encima del menú de navegación
+    transform: translateX(-50%);
+    box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
+
+    &.show {
+        visibility: visible;
+        animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    }
+}
+
+@keyframes fadein {
+    from { bottom: 0; opacity: 0; }
+    to { bottom: 80px; opacity: 1; }
+}
+
+@keyframes fadeout {
+    from { bottom: 80px; opacity: 1; }
+    to { bottom: 0; opacity: 0; }
+}
+
+/* =========================================
+   MODAL (Cartel personalizado)
+   ========================================= */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: $surface-color;
+    padding: 20px;
+    border-radius: $border-radius;
+    width: 90%;
+    max-width: 320px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    text-align: center;
+
+    h3 {
+        color: $primary-color;
+        margin-bottom: 10px;
+        font-size: 1.2rem;
+    }
+
+    p {
+        font-size: 0.9rem;
+        color: $text-muted;
+        margin-bottom: 15px;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid $border-color;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 1rem;
+        
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+        }
+    }
+
+    .modal-buttons {
+        display: flex;
+        gap: 10px;
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-secondary {
+            background: #eee;
+            color: $text-muted;
+        }
+    }
+}

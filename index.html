@@ -111,7 +111,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/main_v2.js"></script>
+    <script type="module" src="js/main_v4.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -140,5 +140,17 @@
             });
         }
     </script>
+    <div id="custom-prompt" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>Nueva Categoría</h3>
+            <p>Escribí el nombre para el nuevo gasto:</p>
+            <input type="text" id="custom-prompt-input" placeholder="Ej: Farmacia, Gimnasio...">
+            <div class="modal-buttons">
+                <button type="button" id="custom-prompt-cancel" class="btn-secondary">Cancelar</button>
+                <button type="button" id="custom-prompt-confirm" class="btn-primary" style="margin-top: 0;">Guardar</button>
+            </div>
+        </div>
+    </div>
+    <div id="toast-container" class="toast"></div>
 </body>
 </html>

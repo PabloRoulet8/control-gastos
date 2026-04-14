@@ -58,7 +58,7 @@ body {
 .form-group select {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 1rem;
   background-color: #fafafa;
@@ -123,7 +123,7 @@ body {
   font-size: 1.1rem;
   color: #666666;
   margin-bottom: 15px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #ddd;
   padding-bottom: 8px;
 }
 .dashboard-card .label {
@@ -150,7 +150,7 @@ body {
 .split-gastos {
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid #ddd;
   padding-top: 15px;
 }
 .split-gastos .split-item {
@@ -158,7 +158,7 @@ body {
   flex: 1;
 }
 .split-gastos .split-item:first-child {
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid #ddd;
 }
 .split-gastos .split-item .valor {
   font-size: 1.2rem;
@@ -304,4 +304,171 @@ body {
 
 body {
   padding-bottom: 70px;
-}/*# sourceMappingURL=styles.css.map */
+}
+
+/* =========================================
+   ACORDEONES (Resumen y Stock)
+   ========================================= */
+.accordion-item {
+  margin-bottom: 8px;
+}
+.accordion-item .accordion-header {
+  width: 100%;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  text-align: left;
+  font-weight: bold;
+  color: #333;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s ease;
+}
+.accordion-item .accordion-header:hover {
+  background: rgb(239.075, 241.35, 243.625);
+}
+.accordion-item .accordion-header.active span {
+  transform: rotate(180deg);
+  transition: transform 0.3s ease;
+}
+.accordion-item .accordion-content {
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: #fff;
+}
+
+/* =========================================
+   LISTAS MINIMALISTAS (Gastos Propios)
+   ========================================= */
+.lista-minimal {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.95rem;
+}
+.lista-minimal li {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed #eee;
+}
+.lista-minimal li:last-child {
+  border-bottom: none;
+}
+.lista-minimal li strong {
+  color: #1b5e20;
+}
+
+/* =========================================
+   TOASTS (Notificaciones emergentes)
+   ========================================= */
+.toast {
+  visibility: hidden;
+  min-width: 250px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 8px;
+  padding: 16px;
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
+}
+.toast.show {
+  visibility: visible;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+@keyframes fadein {
+  from {
+    bottom: 0;
+    opacity: 0;
+  }
+  to {
+    bottom: 80px;
+    opacity: 1;
+  }
+}
+@keyframes fadeout {
+  from {
+    bottom: 80px;
+    opacity: 1;
+  }
+  to {
+    bottom: 0;
+    opacity: 0;
+  }
+}
+/* =========================================
+   MODAL (Cartel personalizado)
+   ========================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+.modal-content h3 {
+  color: #2e7d32;
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+}
+.modal-content p {
+  font-size: 0.9rem;
+  color: #666666;
+  margin-bottom: 15px;
+}
+.modal-content input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
+.modal-content input:focus {
+  outline: none;
+  border-color: #2e7d32;
+}
+.modal-content .modal-buttons {
+  display: flex;
+  gap: 10px;
+}
+.modal-content .modal-buttons button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+}
+.modal-content .modal-buttons .btn-secondary {
+  background: #eee;
+  color: #666666;
+}
+
+/*# sourceMappingURL=styles.css.map */

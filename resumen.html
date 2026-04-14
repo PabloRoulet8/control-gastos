@@ -80,24 +80,25 @@
         </section>
 
         <section class="card dashboard-card">
-            <h2 style="display: flex; justify-content: space-between; align-items: center;">
-                Stock Mensual Acumulado <span>🛒</span>
-            </h2>
-            
-            <h3 style="font-size: 1rem; color: #2e7d32; margin-bottom: 10px;">Mes Actual</h3>
-            <ul id="lista-inventario-mensual" style="list-style: none; padding: 0; margin: 0; margin-bottom: 20px;">
-                <li style="text-align: center; color: #888; font-size: 0.9rem; padding: 10px;">Cargando stock...</li>
-            </ul>
+            <div class="accordion-item">
+                <button class="accordion-header" id="btn-stock">🛒 Stock Mensual Acumulado <span>⬇️</span></button>
+                <div class="accordion-content" id="content-stock" style="display: none;">
+                    <div id="lista-stock-categorizada"></div>
+                </div>
+            </div>
 
-            <button id="btn-toggle-inventario-ant" style="width: 100%; padding: 10px; background: #f4f6f8; border: 1px solid #ddd; border-radius: 8px; color: #555; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
-                Ver stock del mes pasado ⬇️
-            </button>
-            
-            <div id="contenedor-inventario-ant" style="display: none; border-top: 1px dashed #ccc; padding-top: 15px;">
-                <h3 style="font-size: 1rem; color: #555; margin-bottom: 10px;">Mes Anterior</h3>
-                <ul id="lista-inventario-anterior" style="list-style: none; padding: 0; margin: 0;">
-                    <li style="text-align: center; color: #888; font-size: 0.9rem; padding: 10px;">Cargando stock anterior...</li>
-                </ul>
+            <div class="accordion-item">
+                <button class="accordion-header" id="btn-mostri">👤 Gastos Propios Mostri <span>⬇️</span></button>
+                <div class="accordion-content" id="content-mostri" style="display: none;">
+                    <ul id="lista-gastos-mostri" class="lista-minimal"></ul>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header" id="btn-mostrina">👤 Gastos Propios Mostrina <span>⬇️</span></button>
+                <div class="accordion-content" id="content-mostrina" style="display: none;">
+                    <ul id="lista-gastos-mostrina" class="lista-minimal"></ul>
+                </div>
             </div>
         </section>
     </main>
@@ -117,7 +118,7 @@
         </a>
     </nav>
 
-    <script type="module" src="js/resumen_v2.js?v=fondo"></script>    
+    <script type="module" src="js/resumen_v4.js?v=fondo"></script>    
     <script>
         if ('serviceWorker' in navigator) {
             // 1. Cazador de Zombies: Desinstala cualquier versión vieja atascada
