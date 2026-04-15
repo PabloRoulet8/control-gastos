@@ -16,8 +16,26 @@
     </header>
 
     <main class="container">
-        <div id="lista-gastos">
+        <section class="card" style="margin-bottom: 15px; padding: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <select id="filtro-tipo" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.85rem;">
+                    <option value="todos">Todos los tipos</option>
+                    <option value="general">Generales</option>
+                    <option value="individual">Individuales</option>
+                </select>
+                <select id="filtro-responsable" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.85rem;">
+                    <option value="todos">Cualquier persona</option>
+                    <option value="mostri">Mostri</option>
+                    <option value="mostrina">Mostrina</option>
+                </select>
+                <select id="filtro-categoria" style="margin-top: 8px; padding: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.85rem;">
+                <option value="todas">Todas las categorías</option>
+            </select>
+                <input type="month" id="filtro-mes" style="margin-top: 8px; padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.85rem;">
             </div>
+        </section>
+
+        <div id="lista-gastos"></div>
     </main>
 
     <nav class="bottom-nav">
