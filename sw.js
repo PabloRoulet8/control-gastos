@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v1.2'; 
+const CACHE_NAME = 'gastos-v2.0';
 
 const urlsToCache = [
     '/',
@@ -7,9 +7,14 @@ const urlsToCache = [
     '/historial.html',
     '/css/styles.css',
     '/js/firebase-config.js',
-    '/js/main_v4.js',
-    '/js/resumen_v4.js',
-    '/js/historial.js'
+    '/js/api/GastoRepository.js',
+    '/js/services/ResumenService.js',
+    '/js/ui/ToastManager.js',
+    '/js/ui/ModalManager.js',
+    '/js/ui/ConfirmManager.js',
+    '/js/controller_carga.js',
+    '/js/controller_resumen.js',
+    '/js/controller_historial.js'
 ];
 
 // 1. INSTALACIÓN: Obligamos a instalar al instante

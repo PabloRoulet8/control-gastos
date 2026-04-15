@@ -1,75 +1,46 @@
-import { db } from "./firebase-config.js";
-import { collection, addDoc, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
-const showToast = (message) => {
-    const toast = document.getElementById('toast-container');
-    if(toast) {
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => { toast.classList.remove('show'); }, 3000);
-    } else {
-        alert(message);
-    }
-};
-
-// NUEVA FUNCIÓN: Cartel personalizado
-const solicitarNuevaCategoria = () => {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('custom-prompt');
-        const input = document.getElementById('custom-prompt-input');
-        const btnConfirm = document.getElementById('custom-prompt-confirm');
-        const btnCancel = document.getElementById('custom-prompt-cancel');
-
-        modal.style.display = 'flex';
-        input.value = '';
-        input.focus();
-
-        const cleanup = () => {
-            modal.style.display = 'none';
-            btnConfirm.removeEventListener('click', onConfirm);
-            btnCancel.removeEventListener('click', onCancel);
-        };
-
-        const onConfirm = () => {
-            cleanup();
-            resolve(input.value.trim());
-        };
-
-        const onCancel = () => {
-            cleanup();
-            resolve(null);
-        };
-
-        btnConfirm.addEventListener('click', onConfirm);
-        btnCancel.addEventListener('click', onCancel);
-    });
-};
+import { GastoRepository } from "./api/GastoRepository.js";
+import { ToastManager } from "./ui/ToastManager.js";
+import { ModalManager } from "./ui/ModalManager.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
-    let categorias = {
-        general: ['Alquiler', 'Expensas', 'Gas', 'EPE', 'WiFi', 'Agua', 'TGI', 'Supermercado', 'Carnicería', 'Verdulería', 'Salidas', 'Otros'],
-        mostri: ['Cuota Handball', 'Campo', 'Tarjeta de colectivo', 'Teléfono', 'Otros'],
-        mostrina: ['Monotributo', 'Crédito Mercado Pago', 'Tarjeta de colectivo', 'Teléfono', 'Otros']
-    };
+    // 1. Instanciamos nuestras capas de Datos y UI
+    const api = new GastoRepository();
+    const toast = new ToastManager();
+    const modalCategoria = new ModalManager('custom-prompt', 'custom-prompt-input', 'custom-prompt-confirm', 'custom-prompt-cancel');
 
-    const docRef = doc(db, "config", "categorias");
+    // 2. Estado de la aplicación
+    let categorias = {};
+    let arrayInventario = [];
 
-    const cargarCategoriasDesdeNube = async () => {
-        try {
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                categorias = docSnap.data();
-            } else {
-                await setDoc(docRef, categorias);
-            }
-        } catch (e) { console.error("Error cargando categorías:", e); }
+    // Selectores principales
+    const tipoGeneral = document.getElementById('tipo-general');
+    const tipoIndividual = document.getElementById('tipo-individual');
+    const selectResponsable = document.getElementById('responsable');
+    const selectCategoria = document.getElementById('categoria');
+    const inputReferencia = document.getElementById('referencia');
+    const inputMontoGlobal = document.getElementById('monto');
+    const formGasto = document.getElementById('expense-form');
+
+    // ==========================================
+    // LÓGICA DE CATEGORÍAS
+    // ==========================================
+    const inicializarCategorias = async () => {
+        const catNube = await api.obtenerCategorias();
+        if (catNube) {
+            categorias = catNube;
+        } else {
+            // Categorías por defecto si la base de datos está vacía
+            categorias = {
+                general: ['Alquiler', 'Expensas', 'Gas', 'EPE', 'WiFi', 'Agua', 'TGI', 'Supermercado', 'Carnicería', 'Verdulería', 'Salidas', 'Otros'],
+                mostri: ['Cuota Handball', 'Campo', 'Tarjeta de colectivo', 'Teléfono', 'Otros'],
+                mostrina: ['Monotributo', 'Crédito Mercado Pago', 'Tarjeta de colectivo', 'Teléfono', 'Otros']
+            };
+            await api.inicializarCategorias(categorias);
+        }
+        actualizarSelectUI();
     };
 
     const actualizarSelectUI = () => {
-        const tipoGeneral = document.getElementById('tipo-general');
-        const selectResponsable = document.getElementById('responsable');
-        const selectCategoria = document.getElementById('categoria');
-        
         let listaActiva = tipoGeneral.checked ? categorias.general : categorias[selectResponsable.value];
         
         selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
@@ -88,16 +59,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             optAdd.style.color = "#2e7d32";
             selectCategoria.appendChild(optAdd);
         }
-        
         manejarCamposDinamicos();
     };
 
-    const seccionInventario = document.getElementById('seccion-inventario');
-    const grupoReferencia = document.getElementById('referencia-group');
-    const inputReferencia = document.getElementById('referencia');
-
     const manejarCamposDinamicos = () => {
-        const selectCategoria = document.getElementById('categoria');
+        const seccionInventario = document.getElementById('seccion-inventario');
+        const grupoReferencia = document.getElementById('referencia-group');
+
         if (selectCategoria.selectedIndex <= 0) {
             if(seccionInventario) seccionInventario.style.display = 'none';
             if(grupoReferencia) grupoReferencia.style.display = 'none';
@@ -107,69 +75,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text.toLowerCase();
         const catNormalizada = catElegida.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-        const categoriasConInventario = ['supermercado', 'verduleria', 'carniceria'];
         if (seccionInventario) {
-            seccionInventario.style.display = categoriasConInventario.includes(catNormalizada) ? 'block' : 'none';
+            seccionInventario.style.display = ['supermercado', 'verduleria', 'carniceria'].includes(catNormalizada) ? 'block' : 'none';
         }
-
-        const tipoGeneral = document.getElementById('tipo-general').checked;
-        const categoriasGralConRef = ['otros', 'campo'];
         
         if (grupoReferencia) {
-            if (!tipoGeneral || categoriasGralConRef.includes(catNormalizada)) {
+            if (!tipoGeneral.checked || ['otros', 'campo'].includes(catNormalizada)) {
                 grupoReferencia.style.display = 'block';
             } else {
                 grupoReferencia.style.display = 'none';
-                inputReferencia.value = ''; 
+                if(inputReferencia) inputReferencia.value = ''; 
             }
         }
     };
 
-    await cargarCategoriasDesdeNube();
-    actualizarSelectUI();
-
-    const tipoGeneral = document.getElementById('tipo-general');
-    const tipoIndividual = document.getElementById('tipo-individual');
-    const selectResponsable = document.getElementById('responsable');
-    const selectCategoria = document.getElementById('categoria');
-
+    // Eventos de categorías
     tipoGeneral.addEventListener('change', actualizarSelectUI);
     tipoIndividual.addEventListener('change', actualizarSelectUI);
     selectResponsable.addEventListener('change', actualizarSelectUI);
-
-    // LÓGICA DE CATEGORÍA NUEVA ACTUALIZADA
+    
     selectCategoria.addEventListener('change', async (e) => {
         if (e.target.value === "nueva-categoria") {
-            const nuevaCat = await solicitarNuevaCategoria(); // Llamamos al cartel lindo
+            const nuevaCat = await modalCategoria.solicitarEntrada(); 
             
             if (nuevaCat && nuevaCat !== "") {
                 const resp = selectResponsable.value;
                 categorias[resp].push(nuevaCat);
                 
-                await updateDoc(docRef, categorias);
-                showToast("Categoría agregada con éxito");
+                await api.actualizarCategorias(categorias); // Delegamos a la API
+                toast.mostrar("Categoría agregada con éxito");
                 actualizarSelectUI();
                 
                 Array.from(selectCategoria.options).forEach((opt, idx) => {
                     if(opt.text === nuevaCat) selectCategoria.selectedIndex = idx;
                 });
-                manejarCamposDinamicos();
             } else {
                 e.target.selectedIndex = 0;
-                manejarCamposDinamicos();
             }
-        } else {
-            manejarCamposDinamicos();
         }
+        manejarCamposDinamicos();
     });
 
-    let arrayInventario = [];
-    const inputMontoGlobal = document.getElementById('monto');
-    const listaUI = document.getElementById('lista-inventario');
-    const btnAddInv = document.getElementById('btn-add-inv');
-
+    // ==========================================
+    // LÓGICA DE INVENTARIO
+    // ==========================================
     const actualizarVistaInventario = () => {
+        const listaUI = document.getElementById('lista-inventario');
         if (!listaUI) return;
+        
         listaUI.innerHTML = '';
         let totalAcumulado = 0;
 
@@ -189,8 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.querySelectorAll('.btn-borrar-item').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const idx = e.target.getAttribute('data-index');
-                arrayInventario.splice(idx, 1);
+                arrayInventario.splice(e.target.getAttribute('data-index'), 1);
                 actualizarVistaInventario();
             });
         });
@@ -206,6 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    const btnAddInv = document.getElementById('btn-add-inv');
     if(btnAddInv) {
         btnAddInv.addEventListener('click', () => {
             const prod = document.getElementById('inv-prod').value;
@@ -214,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const precio = parseFloat(document.getElementById('inv-precio').value);
 
             if (!prod || !cant || !precio) {
-                showToast("Completá Producto, Cantidad y Precio.");
+                toast.mostrar("Completá Producto, Cantidad y Precio.");
                 return;
             }
 
@@ -226,12 +179,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    const formGasto = document.getElementById('expense-form');
-    const botonGuardar = document.querySelector('.btn-primary');
-    
+    // ==========================================
+    // GUARDAR GASTO
+    // ==========================================
     if(formGasto) {
         formGasto.addEventListener('submit', async (e) => {
             e.preventDefault(); 
+            const botonGuardar = document.querySelector('.btn-primary');
             botonGuardar.textContent = "Guardando..."; 
             botonGuardar.disabled = true;
 
@@ -248,23 +202,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
 
             try {
-                await addDoc(collection(db, "gastos"), nuevoGasto);
-                showToast('¡Gasto guardado exitosamente! ☁️');
+                await api.guardarGasto(nuevoGasto); // Delegamos a la API
+                toast.mostrar('¡Gasto guardado exitosamente! ☁️');
                 
                 formGasto.reset();
                 arrayInventario = [];
                 actualizarVistaInventario();
                 actualizarSelectUI();
-                if(seccionInventario) seccionInventario.style.display = 'none';
-                if(grupoReferencia) grupoReferencia.style.display = 'none';
                 
             } catch (error) {
                 console.error("Error al guardar: ", error);
-                showToast('Error al guardar. Se subirá al recuperar conexión.');
+                toast.mostrar('Error al guardar. Se subirá al recuperar conexión.');
             } finally {
                 botonGuardar.textContent = "Guardar";
                 botonGuardar.disabled = false;
             }
         });
     }
+
+    // Inicializamos la app
+    await inicializarCategorias();
 });
