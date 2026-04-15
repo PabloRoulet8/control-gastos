@@ -3,22 +3,26 @@ export class ResumenService {
         this.fondoInicial = fondoInicial;
     }
 
-    calcularResumen(gastos, mesActual, estadoDeudas) {
+    calcularResumen(gastos, mesActual, mesAnterior, estadoDeudas) {
         let totales = { general: 0, mostri: 0, mostrina: 0, alimentacion: 0, fijos: 0, tarjeta: 0 };
         let inventario = {}; 
         let resumenIndividual = { mostri: {}, mostrina: {} }; 
-        let graficos = { general: {}, mostri: {}, mostrina: {} }; // Para Chart.js
-        let checklistFijos = { alquiler: false, expensas: false, epe: false, agua: false, tgi: false, gas: false, wifi: false };
         
+        // Estructura para gráfico de barras comparativo
+        let graficos = { general: {}, mostri: {}, mostrina: {}, servicios: {}, comestibles: {} }; 
+        
+        let checklistFijos = { alquiler: false, expensas: false, epe: false, agua: false, tgi: false, gas: false, wifi: false };
         let balancePorMes = {};
         let deudaHistoricaAcumulada = 0;
+        let deudaMesAnteriorReal = 0;
 
         gastos.forEach((data) => {
             const mesGasto = data.fecha.substring(0, 7);
-            const esMostri = (data.responsable === 'pablo' || data.responsable === 'mostri');
+            const esMostri = (data.responsable === 'mostri' || data.responsable === 'pablo');
             const respKey = esMostri ? 'mostri' : 'mostrina';
+            const catNorm = data.categoria ? data.categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
             
-            // 1. REGISTRO HISTÓRICO PARA CALCULAR DEUDA ACUMULADA
+            // 1. REGISTRO POR MES PARA DEUDAS
             if (!balancePorMes[mesGasto]) balancePorMes[mesGasto] = { general: 0, pagadoMostri: 0, tarjetaMostri: 0 };
             
             if (data.tipo === 'general') {
@@ -28,23 +32,32 @@ export class ResumenService {
                 balancePorMes[mesGasto].tarjetaMostri += data.monto;
             }
 
-            // 2. LÓGICA DEL MES ACTUAL (Gráficos, Checklist y Totales)
-            if (mesGasto === mesActual) {
-                const catNorm = data.categoria ? data.categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
+            // 2. LÓGICA DE GRÁFICOS COMPARATIVOS (Actual vs Anterior)
+            const procesarGrafico = (cajon, cat, monto, esMesActual) => {
+                if (!graficos[cajon][cat]) graficos[cajon][cat] = { actual: 0, anterior: 0 };
+                if (esMesActual) graficos[cajon][cat].actual += monto;
+                else graficos[cajon][cat].anterior += monto;
+            };
+
+            if (mesGasto === mesActual || mesGasto === mesAnterior) {
+                const esActual = (mesGasto === mesActual);
                 
-                // Preparar datos para Gráficos
                 if (data.tipo === 'general') {
-                    graficos.general[data.categoria] = (graficos.general[data.categoria] || 0) + data.monto;
+                    procesarGrafico('general', data.categoria, data.monto, esActual);
+                    if (['supermercado', 'carniceria', 'verduleria'].includes(catNorm)) {
+                        procesarGrafico('comestibles', data.categoria, data.monto, esActual);
+                    } else if (['expensas', 'gas', 'epe', 'wifi', 'agua', 'tgi'].includes(catNorm)) {
+                        procesarGrafico('servicios', data.categoria, data.monto, esActual);
+                    }
                 } else {
-                    graficos[respKey][data.categoria] = (graficos[respKey][data.categoria] || 0) + data.monto;
+                    procesarGrafico(respKey, data.categoria, data.monto, esActual);
                 }
+            }
 
-                // Checklist Automático de Servicios Fijos
-                if (data.tipo === 'general' && checklistFijos.hasOwnProperty(catNorm)) {
-                    checklistFijos[catNorm] = true;
-                }
+            // 3. DATOS EXCLUSIVOS DEL MES ACTUAL (Checklist, Stock y Totales)
+            if (mesGasto === mesActual) {
+                if (data.tipo === 'general' && checklistFijos.hasOwnProperty(catNorm)) checklistFijos[catNorm] = true;
 
-                // Stock (Solo Alimentos)
                 if (data.detalle_inventario && ['supermercado', 'carniceria', 'verduleria'].includes(catNorm)) {
                     if (!inventario[data.categoria]) inventario[data.categoria] = {};
                     data.detalle_inventario.forEach(item => {
@@ -54,15 +67,12 @@ export class ResumenService {
                     });
                 }
 
-                // Agrupar Individuales
                 if (data.tipo === 'individual') {
-                    if (!resumenIndividual[respKey][data.categoria]) resumenIndividual[respKey][data.categoria] = 0;
-                    resumenIndividual[respKey][data.categoria] += data.monto;
+                    resumenIndividual[respKey][data.categoria] = (resumenIndividual[respKey][data.categoria] || 0) + data.monto;
                     totales[respKey] += data.monto;
                     if (data.metodo_pago === 'tarjeta-credito') totales.tarjeta += data.monto;
                 }
 
-                // Totales Generales
                 if (data.tipo === 'general') {
                     totales.general += data.monto;
                     totales.mostri += (data.monto / 2);
@@ -75,19 +85,19 @@ export class ResumenService {
             }
         });
 
-        // 3. CÁLCULO FINAL DE DEUDA ACUMULADA
+        // 4. CÁLCULO DE DEUDA ACUMULADA Y ESPECÍFICA
         for (const [mes, bal] of Object.entries(balancePorMes)) {
-            // Si el switch está activado, ese mes NO suma deuda
-            if (estadoDeudas[mes] === true) continue; 
-            
             let deudaDelMes = ((bal.general / 2) - bal.pagadoMostri) + bal.tarjetaMostri;
+            if (mes === mesAnterior) deudaMesAnteriorReal = deudaDelMes;
+            if (estadoDeudas[mes] === true) continue; 
             deudaHistoricaAcumulada += deudaDelMes;
         }
 
         return {
             totales: { ...totales, fondoRestante: this.fondoInicial - totales.alimentacion },
             deudaAcumulada: deudaHistoricaAcumulada,
-            estadoMesActual: estadoDeudas[mesActual] || false,
+            deudaMesAnterior: deudaMesAnteriorReal,
+            estadoMesAnterior: estadoDeudas[mesAnterior] || false,
             graficos,
             checklist: checklistFijos,
             inventario,

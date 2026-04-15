@@ -26,7 +26,10 @@
             </div>
             
             <div style="margin-top: 20px; border-top: 1px solid #a5d6a7; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 0.9rem; color: #1b5e20; font-weight: bold;">¿El mes actual está saldado?</span>
+                <div style="display: flex; flex-direction: column;">
+                    <span id="label-switch-saldado" style="font-size: 0.9rem; color: #1b5e20; font-weight: bold;">Cargando estado...</span>
+                    <span id="val-deuda-mes-anterior" style="font-size: 1.1rem; font-weight: 800; color: #d32f2f; margin-top: 2px;">$ 0</span>
+                </div>
                 <label class="switch">
                     <input type="checkbox" id="switch-saldado">
                     <span class="slider round"></span>
@@ -73,12 +76,14 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
                 <h2 style="margin: 0; border: none; padding: 0;">Distribución</h2>
                 <select id="selector-grafico" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 0.85rem;">
-                    <option value="general">De la Casa (Gral)</option>
+                    <option value="general">De la Casa (Completo)</option>
+                    <option value="servicios">Solo Servicios y Expensas</option>
+                    <option value="comestibles">Solo Comestibles</option>
                     <option value="mostri">Propios Mostri</option>
                     <option value="mostrina">Propios Mostrina</option>
                 </select>
             </div>
-            <div style="position: relative; height: 250px; width: 100%;">
+            <div style="position: relative; height: 350px; width: 100%;">
                 <canvas id="graficoTorta"></canvas>
             </div>
         </section>
