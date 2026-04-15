@@ -1,0 +1,41 @@
+.card {
+    background-color: $surface-color;
+    border-radius: $border-radius;
+    padding: $padding-standard;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.dashboard-card {
+    margin-bottom: 20px;
+
+    h2 {
+        font-size: 1.1rem;
+        color: $text-muted;
+        margin-bottom: 15px;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: 8px;
+    }
+
+    .label {
+        display: block;
+        font-size: 0.9rem;
+        color: $text-muted;
+        margin-bottom: 4px;
+    }
+
+    .valor {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: $text-main;
+    }
+}
+
+.highlight-card {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border: 1px solid #a5d6a7;
+
+    h2 {
+        color: #2e7d32;
+        border-bottom-color: #a5d6a7;
+    }
+}

@@ -1,0 +1,21 @@
+// Importamos primero las variables para que estén disponibles en todo el proyecto
+@import 'base/_variables.scss';
+
+// Base
+@import 'base/reset';
+
+// Layout
+@import 'layout/header';
+@import 'layout/navigation';
+
+// Componentes
+@import 'components/cards';
+@import 'components/forms';
+@import 'components/buttons';
+@import 'components/accordions';
+@import 'components/modals';
+@import 'components/toasts';
+
+// Páginas
+@import 'pages/historial';
+@import 'pages/resumen';

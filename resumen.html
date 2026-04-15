@@ -14,33 +14,51 @@
         <h1>Resumen de Abril</h1>
         <div style="width: 50px;"></div> </header>
 
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <main class="container">
         
         <section class="card dashboard-card highlight-card">
-            <h2>Ajuste de Cuentas</h2>
+            <h2>Estado de Cuentas Acumulado</h2>
             <div class="deuda-principal">
-                <p>Mostri transfiere a Mostrina:</p>
-                <span class="valor-deuda">$ 0</span>
+                <p id="txt-deudor">Calculando deuda...</p>
+                <span class="valor-deuda" id="val-deuda">$ 0</span>
             </div>
-            <ul class="desglose-deuda">
-                <li>Por mitad de generales pendientes: <span>$ 0</span></li>
-                <li>Por individuales en tarjeta: <span>$ 0</span></li>
-            </ul>
-
-            <div id="contenedor-deuda-anterior" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #a5d6a7;">
-                <p style="font-size: 0.85rem; color: #2e7d32; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">Arrastre del mes pasado:</p>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span id="txt-deuda-anterior" style="font-weight: 600; color: #1b5e20;"></span>
-                    <span id="val-deuda-anterior" style="font-weight: 800; font-size: 1.2rem; color: #d32f2f;"></span>
-                </div>
+            
+            <div style="margin-top: 20px; border-top: 1px solid #a5d6a7; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.9rem; color: #1b5e20; font-weight: bold;">¿El mes actual está saldado?</span>
+                <label class="switch">
+                    <input type="checkbox" id="switch-saldado">
+                    <span class="slider round"></span>
+                </label>
             </div>
         </section>
 
         <section class="card dashboard-card">
-            <h2>Balance de la Casa</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
+                <h2 style="margin: 0; border: none; padding: 0;">Distribución</h2>
+                <select id="selector-grafico" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 0.85rem;">
+                    <option value="general">De la Casa (Gral)</option>
+                    <option value="mostri">Propios Mostri</option>
+                    <option value="mostrina">Propios Mostrina</option>
+                </select>
+            </div>
+            <div style="position: relative; height: 250px; width: 100%;">
+                <canvas id="graficoTorta"></canvas>
+            </div>
+        </section>
+
+        <section class="card dashboard-card">
+            <h2>Checklist de Fijos del Mes</h2>
+            <ul id="lista-checklist" class="lista-minimal" style="font-size: 1rem;">
+                </ul>
+        </section>
+
+        <section class="card dashboard-card">
+            <h2>Balance del Mes</h2>
             <div class="monto-total">
-                <span class="label">Total Gastado</span>
-                <span class="valor">$ 0</span>
+                <span class="label">Total de la Casa</span>
+                <span class="valor" id="val-total-casa">$ 0</span>
             </div>
 
             <div class="monto-fondo" style="margin-top: 15px; padding: 15px; background-color: #e3f2fd; border-radius: 8px; border: 1px solid #bbdefb; text-align: center;">
@@ -72,33 +90,17 @@
         </section>
 
         <section class="card dashboard-card">
-            <h2>Proyección Tarjeta (Mostrina)</h2>
-            <div class="monto-tarjeta">
-                <span class="label">Cierre estimado del resumen</span>
-                <span class="valor">$ 0</span>
-            </div>
-        </section>
-
-        <section class="card dashboard-card">
             <div class="accordion-item">
-                <button class="accordion-header" id="btn-stock">🛒 Stock Mensual Acumulado <span>⬇️</span></button>
-                <div class="accordion-content" id="content-stock" style="display: none;">
-                    <div id="lista-stock-categorizada"></div>
-                </div>
+                <button class="accordion-header" id="btn-stock">🛒 Stock Comestibles <span>⬇️</span></button>
+                <div class="accordion-content" id="content-stock" style="display: none;"><div id="lista-stock-categorizada"></div></div>
             </div>
-
             <div class="accordion-item">
                 <button class="accordion-header" id="btn-mostri">👤 Gastos Propios Mostri <span>⬇️</span></button>
-                <div class="accordion-content" id="content-mostri" style="display: none;">
-                    <ul id="lista-gastos-mostri" class="lista-minimal"></ul>
-                </div>
+                <div class="accordion-content" id="content-mostri" style="display: none;"><ul id="lista-gastos-mostri" class="lista-minimal"></ul></div>
             </div>
-
             <div class="accordion-item">
                 <button class="accordion-header" id="btn-mostrina">👤 Gastos Propios Mostrina <span>⬇️</span></button>
-                <div class="accordion-content" id="content-mostrina" style="display: none;">
-                    <ul id="lista-gastos-mostrina" class="lista-minimal"></ul>
-                </div>
+                <div class="accordion-content" id="content-mostrina" style="display: none;"><ul id="lista-gastos-mostrina" class="lista-minimal"></ul></div>
             </div>
         </section>
     </main>

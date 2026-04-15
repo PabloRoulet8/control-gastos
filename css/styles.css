@@ -9,6 +9,7 @@ body {
   background-color: #f4f6f8;
   color: #333333;
   -webkit-font-smoothing: antialiased;
+  padding-bottom: 70px;
 }
 
 .header {
@@ -37,11 +38,71 @@ body {
   margin: 0 auto;
 }
 
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #ffffff;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+.bottom-nav .nav-item {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #666666;
+  font-size: 0.8rem;
+}
+.bottom-nav .nav-item .icon {
+  font-size: 1.4rem;
+  margin-bottom: 2px;
+}
+.bottom-nav .nav-item.active {
+  color: #2e7d32;
+  font-weight: bold;
+}
+
 .card {
   background-color: #ffffff;
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-card {
+  margin-bottom: 20px;
+}
+.dashboard-card h2 {
+  font-size: 1.1rem;
+  color: #666666;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+}
+.dashboard-card .label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666666;
+  margin-bottom: 4px;
+}
+.dashboard-card .valor {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333333;
+}
+
+.highlight-card {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border: 1px solid #a5d6a7;
+}
+.highlight-card h2 {
+  color: #2e7d32;
+  border-bottom-color: #a5d6a7;
 }
 
 .form-group {
@@ -54,7 +115,7 @@ body {
   font-size: 0.95rem;
 }
 .form-group input[type=number],
-.form-group input[type=file],
+.form-group input[type=text],
 .form-group select {
   width: 100%;
   padding: 12px;
@@ -64,7 +125,7 @@ body {
   background-color: #fafafa;
 }
 .form-group input[type=number]:focus,
-.form-group input[type=file]:focus,
+.form-group input[type=text]:focus,
 .form-group select:focus {
   outline: none;
   border-color: #2e7d32;
@@ -100,6 +161,58 @@ body {
   font-weight: bold;
 }
 
+/* Switch Toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+}
+
+input:checked + .slider {
+  background-color: #2e7d32;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
 .btn-primary {
   width: 100%;
   padding: 14px;
@@ -115,200 +228,16 @@ body {
 .btn-primary:active {
   transform: translateY(2px);
 }
-
-.dashboard-card {
-  margin-bottom: 20px;
+.btn-primary:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
-.dashboard-card h2 {
-  font-size: 1.1rem;
+
+.btn-secondary {
+  background: #eee;
   color: #666666;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 8px;
-}
-.dashboard-card .label {
-  display: block;
-  font-size: 0.9rem;
-  color: #666666;
-  margin-bottom: 4px;
-}
-.dashboard-card .valor {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #333333;
 }
 
-.monto-total {
-  text-align: center;
-  margin-bottom: 20px;
-}
-.monto-total .valor {
-  font-size: 2rem;
-  color: #2e7d32;
-}
-
-.split-gastos {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid #ddd;
-  padding-top: 15px;
-}
-.split-gastos .split-item {
-  text-align: center;
-  flex: 1;
-}
-.split-gastos .split-item:first-child {
-  border-right: 1px solid #ddd;
-}
-.split-gastos .split-item .valor {
-  font-size: 1.2rem;
-}
-
-.highlight-card {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-  border: 1px solid #a5d6a7;
-}
-.highlight-card h2 {
-  color: #2e7d32;
-  border-bottom-color: #a5d6a7;
-}
-
-.deuda-principal {
-  text-align: center;
-  margin-bottom: 15px;
-}
-.deuda-principal p {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: #1b5e20;
-  margin-bottom: 5px;
-}
-.deuda-principal .valor-deuda {
-  display: block;
-  font-size: 2.4rem;
-  font-weight: 800;
-  color: #2e7d32;
-}
-
-.desglose-deuda {
-  list-style: none;
-  font-size: 0.9rem;
-  color: #388e3c;
-}
-.desglose-deuda li {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed #a5d6a7;
-}
-.desglose-deuda li:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-.desglose-deuda li span {
-  font-weight: 600;
-}
-
-.monto-tarjeta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.monto-tarjeta .valor {
-  font-size: 1.5rem;
-}
-
-.gasto-item {
-  background-color: #ffffff;
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  border-left: 5px solid #2e7d32;
-}
-.gasto-item.individual-pablo {
-  border-left-color: #1976d2;
-}
-.gasto-item.individual-yanet {
-  border-left-color: #e91e63;
-}
-.gasto-item .gasto-info {
-  display: flex;
-  flex-direction: column;
-}
-.gasto-item .gasto-info strong {
-  font-size: 1rem;
-  color: #333333;
-  text-transform: capitalize;
-}
-.gasto-item .gasto-info .fecha {
-  font-size: 0.8rem;
-  color: #666666;
-  margin-top: 2px;
-}
-.gasto-item .gasto-acciones {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-.gasto-item .gasto-acciones .monto {
-  font-weight: 700;
-  color: #333333;
-  font-size: 1.05rem;
-}
-.gasto-item .gasto-acciones .btn-eliminar {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 5px;
-  transition: transform 0.2s;
-}
-.gasto-item .gasto-acciones .btn-eliminar:active {
-  transform: scale(1.2);
-}
-
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background-color: #ffffff;
-  display: flex;
-  justify-content: space-around;
-  padding: 10px 0;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-}
-.bottom-nav .nav-item {
-  text-decoration: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #666666;
-  font-size: 0.8rem;
-}
-.bottom-nav .nav-item .icon {
-  font-size: 1.4rem;
-  margin-bottom: 2px;
-}
-.bottom-nav .nav-item.active {
-  color: #2e7d32;
-  font-weight: bold;
-}
-
-body {
-  padding-bottom: 70px;
-}
-
-/* =========================================
-   ACORDEONES (Resumen y Stock)
-   ========================================= */
 .accordion-item {
   margin-bottom: 8px;
 }
@@ -325,7 +254,6 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background-color 0.2s ease;
 }
 .accordion-item .accordion-header:hover {
   background: rgb(239.075, 241.35, 243.625);
@@ -342,14 +270,9 @@ body {
   background: #fff;
 }
 
-/* =========================================
-   LISTAS MINIMALISTAS (Gastos Propios)
-   ========================================= */
 .lista-minimal {
   list-style: none;
   padding: 0;
-  margin: 0;
-  font-size: 0.95rem;
 }
 .lista-minimal li {
   display: flex;
@@ -364,9 +287,45 @@ body {
   color: #1b5e20;
 }
 
-/* =========================================
-   TOASTS (Notificaciones emergentes)
-   ========================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+.modal-content h3 {
+  color: #2e7d32;
+  margin-bottom: 10px;
+}
+.modal-content p {
+  font-size: 0.9rem;
+  color: #666666;
+  margin-bottom: 15px;
+}
+.modal-content input {
+  margin-bottom: 20px;
+}
+.modal-content .modal-buttons {
+  display: flex;
+  gap: 10px;
+}
+
 .toast {
   visibility: hidden;
   min-width: 250px;
@@ -407,68 +366,88 @@ body {
     opacity: 0;
   }
 }
-/* =========================================
-   MODAL (Cartel personalizado)
-   ========================================= */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+.gasto-item {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  z-index: 2000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-left: 5px solid #2e7d32;
+}
+.gasto-item.individual-pablo {
+  border-left-color: #1976d2;
+}
+.gasto-item.individual-yanet {
+  border-left-color: #e91e63;
+}
+.gasto-item .gasto-info {
+  display: flex;
+  flex-direction: column;
+}
+.gasto-item .gasto-info strong {
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+.gasto-item .gasto-info .fecha {
+  font-size: 0.8rem;
+  color: #666666;
+}
+.gasto-item .gasto-acciones {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.gasto-item .gasto-acciones .monto {
+  font-weight: 700;
+}
+.gasto-item .gasto-acciones .btn-eliminar {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
 }
 
-.modal-content {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 320px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+.monto-total {
   text-align: center;
+  margin-bottom: 20px;
 }
-.modal-content h3 {
+.monto-total .valor {
+  font-size: 2rem;
   color: #2e7d32;
-  margin-bottom: 10px;
-  font-size: 1.2rem;
 }
-.modal-content p {
-  font-size: 0.9rem;
-  color: #666666;
+
+.deuda-principal {
+  text-align: center;
   margin-bottom: 15px;
 }
-.modal-content input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 1rem;
+.deuda-principal p {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #1b5e20;
 }
-.modal-content input:focus {
-  outline: none;
-  border-color: #2e7d32;
+.deuda-principal .valor-deuda {
+  display: block;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #2e7d32;
 }
-.modal-content .modal-buttons {
+
+.desglose-deuda {
+  list-style: none;
+  font-size: 0.9rem;
+  color: #388e3c;
+}
+.desglose-deuda li {
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #a5d6a7;
 }
-.modal-content .modal-buttons button {
-  flex: 1;
-  padding: 12px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  border: none;
-}
-.modal-content .modal-buttons .btn-secondary {
-  background: #eee;
-  color: #666666;
+.desglose-deuda li span {
+  font-weight: 600;
 }
 
 /*# sourceMappingURL=styles.css.map */

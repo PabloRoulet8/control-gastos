@@ -1,0 +1,42 @@
+.accordion-item {
+    margin-bottom: 8px;
+
+    .accordion-header {
+        width: 100%;
+        padding: 15px;
+        background: $accordion-bg;
+        border: 1px solid $border-color;
+        text-align: left;
+        font-weight: bold;
+        color: #333;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        &:hover { background: darken($accordion-bg, 3%); }
+        &.active span { transform: rotate(180deg); transition: transform 0.3s ease; }
+    }
+
+    .accordion-content {
+        padding: 15px;
+        border: 1px solid $border-color;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        background: #fff;
+    }
+}
+
+.lista-minimal {
+    list-style: none;
+    padding: 0;
+    li {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px dashed #eee;
+        &:last-child { border-bottom: none; }
+        strong { color: #1b5e20; }
+    }
+}

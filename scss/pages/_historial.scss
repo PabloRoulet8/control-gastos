@@ -1,0 +1,29 @@
+.gasto-item {
+    background-color: $surface-color;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border-left: 5px solid $primary-color;
+
+    &.individual-pablo { border-left-color: #1976d2; }
+    &.individual-yanet { border-left-color: #e91e63; }
+
+    .gasto-info {
+        display: flex;
+        flex-direction: column;
+        strong { font-size: 1rem; text-transform: capitalize; }
+        .fecha { font-size: 0.8rem; color: $text-muted; }
+    }
+
+    .gasto-acciones {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        .monto { font-weight: 700; }
+        .btn-eliminar { background: none; border: none; font-size: 1.2rem; cursor: pointer; }
+    }
+}

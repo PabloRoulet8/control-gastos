@@ -48,4 +48,16 @@ export class GastoRepository {
     async actualizarCategorias(nuevasCategorias) {
         await updateDoc(this.docCategorias, nuevasCategorias);
     }
+
+    // ==========================================
+    // MÉTODOS PARA ESTADO DE DEUDAS
+    // ==========================================
+    async obtenerEstadoDeudas() {
+        const docSnap = await getDoc(doc(db, "config", "estado_deudas"));
+        return docSnap.exists() ? docSnap.data() : {};
+    }
+
+    async guardarEstadoDeuda(mes, estaSaldado) {
+        await setDoc(doc(db, "config", "estado_deudas"), { [mes]: estaSaldado }, { merge: true });
+    }
 }
