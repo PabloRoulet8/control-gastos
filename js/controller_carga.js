@@ -21,6 +21,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputMontoGlobal = document.getElementById('monto');
     const formGasto = document.getElementById('expense-form');
 
+    // Selectores de Tarjeta de Crédito
+    const selectMetodoPago = document.getElementById('metodo-pago');
+    const panelTarjeta = document.getElementById('opciones-tarjeta');
+    const selectTitularTarjeta = document.getElementById('titular-tarjeta');
+    const inputCuotas = document.getElementById('cantidad-cuotas');
+    const selectImpacto = document.getElementById('impacto-cuota');
+
+    // Mostrar/Ocultar opciones de tarjeta
+    selectMetodoPago.addEventListener('change', (e) => {
+        if (e.target.value === 'tarjeta-credito') {
+            panelTarjeta.style.display = 'block';
+            selectTitularTarjeta.value = selectResponsable.value; 
+        } else {
+            panelTarjeta.style.display = 'none';
+        }
+    });
+
     // ==========================================
     // LÓGICA DE CATEGORÍAS
     // ==========================================
@@ -29,7 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (catNube) {
             categorias = catNube;
         } else {
-            // Categorías por defecto si la base de datos está vacía
             categorias = {
                 general: ['Alquiler', 'Expensas', 'Gas', 'EPE', 'WiFi', 'Agua', 'TGI', 'Supermercado', 'Carnicería', 'Verdulería', 'Salidas', 'Otros'],
                 mostri: ['Cuota Handball', 'Campo', 'Tarjeta de colectivo', 'Teléfono', 'Otros'],
@@ -89,7 +105,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Eventos de categorías
     tipoGeneral.addEventListener('change', actualizarSelectUI);
     tipoIndividual.addEventListener('change', actualizarSelectUI);
     selectResponsable.addEventListener('change', actualizarSelectUI);
@@ -102,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const resp = selectResponsable.value;
                 categorias[resp].push(nuevaCat);
                 
-                await api.actualizarCategorias(categorias); // Delegamos a la API
+                await api.actualizarCategorias(categorias); 
                 toast.mostrar("Categoría agregada con éxito");
                 actualizarSelectUI();
                 
@@ -180,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // GUARDAR GASTO
+    // GUARDAR GASTO (CON SISTEMA DE CUOTAS)
     // ==========================================
     if(formGasto) {
         formGasto.addEventListener('submit', async (e) => {
@@ -189,30 +204,63 @@ document.addEventListener('DOMContentLoaded', async () => {
             botonGuardar.textContent = "Guardando..."; 
             botonGuardar.disabled = true;
 
-            const nuevoGasto = {
-                fecha: new Date().toISOString().split('T')[0],
-                timestamp: new Date(),
-                tipo: tipoGeneral.checked ? 'general' : 'individual',
-                responsable: selectResponsable.value,
-                categoria: selectCategoria.options[selectCategoria.selectedIndex].text,
-                monto: parseFloat(inputMontoGlobal.value),
-                metodo_pago: document.getElementById('metodo-pago').value,
-                detalle_inventario: arrayInventario,
-                referencia: inputReferencia ? inputReferencia.value.trim() : ""
-            };
+            const montoTotal = parseFloat(inputMontoGlobal.value);
+            const esTarjeta = selectMetodoPago.value === 'tarjeta-credito';
+            
+            const cuotas = esTarjeta ? parseInt(inputCuotas.value) : 1;
+            const montoPorCuota = montoTotal / cuotas;
+            
+            const refOriginal = inputReferencia ? inputReferencia.value.trim() : "";
+            const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text;
 
             try {
-                await api.guardarGasto(nuevoGasto); // Delegamos a la API
-                toast.mostrar('¡Gasto guardado exitosamente! ☁️');
+                let promesasGuardado = [];
+
+                for (let i = 1; i <= cuotas; i++) {
+                    let fechaCuota = new Date();
+                    
+                    let mesesASumar = (i - 1);
+                    if (esTarjeta && selectImpacto.value === 'proximo-mes') {
+                        mesesASumar += 1;
+                    }
+                    
+                    fechaCuota.setMonth(fechaCuota.getMonth() + mesesASumar);
+                    const fechaFormateada = fechaCuota.toISOString().split('T')[0];
+
+                    let referenciaFinal = refOriginal;
+                    if (cuotas > 1) {
+                        referenciaFinal = refOriginal ? `${refOriginal} (Cuota ${i}/${cuotas})` : `(Cuota ${i}/${cuotas})`;
+                    }
+
+                    const nuevoGasto = {
+                        fecha: fechaFormateada,
+                        timestamp: new Date(), 
+                        tipo: tipoGeneral.checked ? 'general' : 'individual',
+                        responsable: selectResponsable.value,
+                        categoria: catElegida,
+                        monto: montoPorCuota,
+                        metodo_pago: selectMetodoPago.value,
+                        titular_tarjeta: esTarjeta ? selectTitularTarjeta.value : null,
+                        detalle_inventario: arrayInventario,
+                        referencia: referenciaFinal
+                    };
+
+                    promesasGuardado.push(api.guardarGasto(nuevoGasto));
+                }
+
+                await Promise.all(promesasGuardado);
+                
+                toast.mostrar(cuotas > 1 ? `¡${cuotas} cuotas guardadas exitosamente! ☁️` : '¡Gasto guardado exitosamente! ☁️');
                 
                 formGasto.reset();
                 arrayInventario = [];
                 actualizarVistaInventario();
                 actualizarSelectUI();
+                panelTarjeta.style.display = 'none';
                 
             } catch (error) {
                 console.error("Error al guardar: ", error);
-                toast.mostrar('Error al guardar. Se subirá al recuperar conexión.');
+                toast.mostrar('Error al guardar. Revisá tu conexión.');
             } finally {
                 botonGuardar.textContent = "Guardar";
                 botonGuardar.disabled = false;
@@ -220,6 +268,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Inicializamos la app
     await inicializarCategorias();
 });
