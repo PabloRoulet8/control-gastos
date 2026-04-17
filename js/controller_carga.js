@@ -1,14 +1,14 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { ModalManager } from "./ui/ModalManager.js";
+import { auth } from "./firebase-config.js"; 
+import { onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Instanciamos nuestras capas de Datos y UI
     const api = new GastoRepository();
     const toast = new ToastManager();
     const modalCategoria = new ModalManager('custom-prompt', 'custom-prompt-input', 'custom-prompt-confirm', 'custom-prompt-cancel');
 
-    // 2. Estado de la aplicación
     let categorias = {};
     let arrayInventario = [];
 
@@ -20,26 +20,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputReferencia = document.getElementById('referencia');
     const inputMontoGlobal = document.getElementById('monto');
     const formGasto = document.getElementById('expense-form');
-
-    // Selectores de Tarjeta de Crédito
     const selectMetodoPago = document.getElementById('metodo-pago');
     const panelTarjeta = document.getElementById('opciones-tarjeta');
     const selectTitularTarjeta = document.getElementById('titular-tarjeta');
     const inputCuotas = document.getElementById('cantidad-cuotas');
     const selectImpacto = document.getElementById('impacto-cuota');
-
-    // Mostrar/Ocultar opciones de tarjeta
-    selectMetodoPago.addEventListener('change', (e) => {
-        if (e.target.value === 'tarjeta-credito') {
-            panelTarjeta.style.display = 'block';
-            selectTitularTarjeta.value = selectResponsable.value; 
-        } else {
-            panelTarjeta.style.display = 'none';
-        }
-    });
+    const grupoResponsable = document.getElementById('responsable-group');
 
     // ==========================================
-    // LÓGICA DE CATEGORÍAS
+    // 1. DEFINICIÓN DE FUNCIONES (Para que JS las conozca)
     // ==========================================
     const inicializarCategorias = async () => {
         const catNube = await api.obtenerCategorias();
@@ -54,28 +43,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             await api.inicializarCategorias(categorias);
         }
         actualizarSelectUI();
-    };
-
-    const actualizarSelectUI = () => {
-        let listaActiva = tipoGeneral.checked ? categorias.general : categorias[selectResponsable.value];
-        
-        selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
-        listaActiva.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ /g, '-');
-            option.textContent = cat;
-            selectCategoria.appendChild(option);
-        });
-
-        if (!tipoGeneral.checked) {
-            const optAdd = document.createElement('option');
-            optAdd.value = "nueva-categoria";
-            optAdd.textContent = "➕ AGREGAR NUEVA...";
-            optAdd.style.fontWeight = "bold";
-            optAdd.style.color = "#2e7d32";
-            selectCategoria.appendChild(optAdd);
-        }
-        manejarCamposDinamicos();
     };
 
     const manejarCamposDinamicos = () => {
@@ -105,35 +72,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    tipoGeneral.addEventListener('change', actualizarSelectUI);
-    tipoIndividual.addEventListener('change', actualizarSelectUI);
-    selectResponsable.addEventListener('change', actualizarSelectUI);
-    
-    selectCategoria.addEventListener('change', async (e) => {
-        if (e.target.value === "nueva-categoria") {
-            const nuevaCat = await modalCategoria.solicitarEntrada(); 
-            
-            if (nuevaCat && nuevaCat !== "") {
-                const resp = selectResponsable.value;
-                categorias[resp].push(nuevaCat);
-                
-                await api.actualizarCategorias(categorias); 
-                toast.mostrar("Categoría agregada con éxito");
-                actualizarSelectUI();
-                
-                Array.from(selectCategoria.options).forEach((opt, idx) => {
-                    if(opt.text === nuevaCat) selectCategoria.selectedIndex = idx;
-                });
-            } else {
-                e.target.selectedIndex = 0;
-            }
+    const actualizarSelectUI = () => {
+        let listaActiva = tipoGeneral.checked ? categorias.general : categorias[selectResponsable.value];
+        
+        selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
+        listaActiva.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ /g, '-');
+            option.textContent = cat;
+            selectCategoria.appendChild(option);
+        });
+
+        if (!tipoGeneral.checked) {
+            const optAdd = document.createElement('option');
+            optAdd.value = "nueva-categoria";
+            optAdd.textContent = "➕ AGREGAR NUEVA...";
+            optAdd.style.fontWeight = "bold";
+            optAdd.style.color = "#2e7d32";
+            selectCategoria.appendChild(optAdd);
         }
         manejarCamposDinamicos();
-    });
+    };
 
-    // ==========================================
-    // LÓGICA DE INVENTARIO
-    // ==========================================
+    const actualizarVistaTipoGasto = () => {
+        if (tipoIndividual.checked) {
+            grupoResponsable.style.display = 'none'; 
+        } else {
+            grupoResponsable.style.display = 'block'; 
+        }
+        actualizarSelectUI();
+    };
+
     const actualizarVistaInventario = () => {
         const listaUI = document.getElementById('lista-inventario');
         if (!listaUI) return;
@@ -173,6 +142,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    // ==========================================
+    // 2. ASIGNACIÓN DE EVENTOS (Ahora sí, JS ya conoce las funciones)
+    // ==========================================
+    tipoGeneral.addEventListener('change', actualizarVistaTipoGasto);
+    tipoIndividual.addEventListener('change', actualizarVistaTipoGasto);
+    selectResponsable.addEventListener('change', actualizarSelectUI);
+
+    selectMetodoPago.addEventListener('change', (e) => {
+        if (e.target.value === 'tarjeta-credito') {
+            panelTarjeta.style.display = 'block';
+            selectTitularTarjeta.value = selectResponsable.value; 
+        } else {
+            panelTarjeta.style.display = 'none';
+        }
+    });
+
+    selectCategoria.addEventListener('change', async (e) => {
+        if (e.target.value === "nueva-categoria") {
+            const nuevaCat = await modalCategoria.solicitarEntrada(); 
+            
+            if (nuevaCat && nuevaCat !== "") {
+                const resp = selectResponsable.value;
+                categorias[resp].push(nuevaCat);
+                
+                await api.actualizarCategorias(categorias); 
+                toast.mostrar("Categoría agregada con éxito");
+                actualizarSelectUI();
+                
+                Array.from(selectCategoria.options).forEach((opt, idx) => {
+                    if(opt.text === nuevaCat) selectCategoria.selectedIndex = idx;
+                });
+            } else {
+                e.target.selectedIndex = 0;
+            }
+        }
+        manejarCamposDinamicos();
+    });
+
     const btnAddInv = document.getElementById('btn-add-inv');
     if(btnAddInv) {
         btnAddInv.addEventListener('click', () => {
@@ -194,9 +201,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ==========================================
-    // GUARDAR GASTO (CON SISTEMA DE CUOTAS)
-    // ==========================================
     if(formGasto) {
         formGasto.addEventListener('submit', async (e) => {
             e.preventDefault(); 
@@ -206,12 +210,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const montoTotal = parseFloat(inputMontoGlobal.value);
             const esTarjeta = selectMetodoPago.value === 'tarjeta-credito';
-            
             const cuotas = esTarjeta ? parseInt(inputCuotas.value) : 1;
             const montoPorCuota = montoTotal / cuotas;
-            
             const refOriginal = inputReferencia ? inputReferencia.value.trim() : "";
             const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text;
+
+            // Define quién paga usando el Auth o el Select
+            const responsableFinal = tipoGeneral.checked ? selectResponsable.value : (auth.currentUser.displayName || "Usuario");
 
             try {
                 let promesasGuardado = [];
@@ -236,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         fecha: fechaFormateada,
                         timestamp: new Date(), 
                         tipo: tipoGeneral.checked ? 'general' : 'individual',
-                        responsable: selectResponsable.value,
+                        responsable: responsableFinal, 
                         categoria: catElegida,
                         monto: montoPorCuota,
                         metodo_pago: selectMetodoPago.value,
@@ -268,5 +273,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // ==========================================
+    // 3. PERFIL Y ARRANQUE (BOOTSTRAP)
+    // ==========================================
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            const saludoUI = document.getElementById('saludo-usuario');
+            
+            if (!user.displayName) {
+                const modalPerfil = document.getElementById('perfil-prompt');
+                const inputPerfil = document.getElementById('perfil-prompt-input');
+                const btnPerfil = document.getElementById('perfil-prompt-confirm');
+                
+                modalPerfil.style.display = 'flex';
+                if(saludoUI) saludoUI.textContent = "¡Bienvenido!";
+                
+                btnPerfil.addEventListener('click', async () => {
+                    const nombre = inputPerfil.value.trim();
+                    if (nombre) {
+                        btnPerfil.textContent = "Guardando...";
+                        await updateProfile(user, { displayName: nombre });
+                        toast.mostrar(`¡Hola, ${nombre}! 👋`);
+                        modalPerfil.style.display = 'none';
+                        if(saludoUI) saludoUI.textContent = `Hola, ${nombre}`;
+                    }
+                });
+            } else {
+                // Si ya tiene nombre, le escribimos el saludo directamente
+                if(saludoUI) saludoUI.textContent = `Hola, ${user.displayName}`;
+                console.log(`Logueado como: ${user.displayName}`);
+            }
+        }
+    });
+
     await inicializarCategorias();
+    actualizarVistaTipoGasto(); // Llamada inicial para ocultar o mostrar según lo que esté checkeado
 });

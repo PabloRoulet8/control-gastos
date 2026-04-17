@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDKqmEWdxbUZKDPdUIghdrtgGkGdEudFr8",
@@ -10,16 +11,16 @@ const firebaseConfig = {
     appId: "1:350200153131:web:e11a4b4fc5e5ba0310966e"
 };
 
+// 1. Inicializamos la App
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
-// OPTIMIZACIÓN: Persistencia Offline (Permite cargar gastos sin internet)
-enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code == 'failed-precondition') {
-        console.log("Múltiples pestañas abiertas, persistencia deshabilitada.");
-    } else if (err.code == 'unimplemented') {
-        console.log("El navegador no soporta persistencia.");
-    }
+// 2. Inicializamos Autenticación
+const auth = getAuth(app); 
+
+// 3. Inicializamos Base de Datos (con la nueva sintaxis para caché offline)
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
 });
 
-export { db };
+// Exportamos auth y db para que el resto de la app los use
+export { db, auth };

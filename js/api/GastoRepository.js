@@ -1,4 +1,4 @@
-import { db } from "../firebase-config.js";
+import { db, auth } from "../firebase-config.js"; 
 import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class GastoRepository {
@@ -11,10 +11,27 @@ export class GastoRepository {
     // MÉTODOS PARA GASTOS
     // ==========================================
     async guardarGasto(nuevoGasto) {
-        return await addDoc(this.coleccionGastos, nuevoGasto);
+        // 1. Verificamos que haya un usuario logueado
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) {
+            throw new Error("Acceso denegado: No hay usuario autenticado.");
+        }
+
+        // 2. Le estampamos la firma digital secreta al gasto
+        const gastoFirmado = {
+            ...nuevoGasto,
+            usuario_id: usuarioActual.uid,       
+            creador_email: usuarioActual.email,  
+            hogar_id: "hogar_default_1"          
+        };
+
+        return await addDoc(this.coleccionGastos, gastoFirmado);
     }
 
     async obtenerGastos(filtros = null) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) return [];
+
         let q = this.coleccionGastos;
         
         // Si le pasamos filtros, arma la consulta automáticamente
@@ -25,8 +42,22 @@ export class GastoRepository {
         }
         
         const snapshot = await getDocs(q);
-        // Devuelve un array limpio con los datos y el ID, sin objetos raros de Firebase
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+       // FILTRO DE SEGURIDAD EN EL CLIENTE
+        const gastosFiltrados = snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(gasto => {
+                // Aceptamos el hogar nuevo o los que no tienen hogar (viejos)
+                const esDeMiHogar = gasto.hogar_id === "hogar_default_1" || !gasto.hogar_id; 
+                const esGastoGeneral = gasto.tipo === 'general';
+                // Aceptamos los míos o los viejos que no tienen ID
+                const esMiGastoIndividual = gasto.tipo === 'individual' && (gasto.usuario_id === usuarioActual.uid || !gasto.usuario_id);
+                
+                return esDeMiHogar && (esGastoGeneral || esMiGastoIndividual);
+            });
+            
+        // ¡LA LÍNEA MÁGICA QUE FALTABA!
+        return gastosFiltrados; 
     }
 
     async eliminarGasto(idGasto) {
@@ -34,7 +65,7 @@ export class GastoRepository {
     }
 
     // ==========================================
-    // MÉTODOS PARA CATEGORÍAS
+    // MÉTODOS PARA CATEGORÍAS Y DEUDAS (Sin cambios)
     // ==========================================
     async obtenerCategorias() {
         const docSnap = await getDoc(this.docCategorias);
@@ -49,9 +80,6 @@ export class GastoRepository {
         await updateDoc(this.docCategorias, nuevasCategorias);
     }
 
-    // ==========================================
-    // MÉTODOS PARA ESTADO DE DEUDAS
-    // ==========================================
     async obtenerEstadoDeudas() {
         const docSnap = await getDoc(doc(db, "config", "estado_deudas"));
         return docSnap.exists() ? docSnap.data() : {};

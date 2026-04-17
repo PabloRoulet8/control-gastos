@@ -1,6 +1,9 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { ConfirmManager } from "./ui/ConfirmManager.js";
+// NUEVO: Importamos herramientas de Auth
+import { auth } from "./firebase-config.js"; 
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
     const repositorio = new GastoRepository();
@@ -8,8 +11,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const confirmacion = new ConfirmManager();
     
     const listaGastosUI = document.getElementById('lista-gastos');
-    
-    // Selectores de filtros
     const filtroTipo = document.getElementById('filtro-tipo');
     const filtroResponsable = document.getElementById('filtro-responsable');
     const filtroCategoria = document.getElementById('filtro-categoria');
@@ -17,22 +18,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let todosLosGastos = [];
 
-    // Función para poblar el select de categorías dinámicamente
     const cargarFiltroCategorias = async () => {
         const categoriasMap = await repositorio.obtenerCategorias();
         if (!categoriasMap) return;
 
-        // Unimos todas las listas (general, mostri, mostrina) y quitamos duplicados
-        const todasLasCats = [
-            ...categoriasMap.general,
-            ...categoriasMap.mostri,
-            ...categoriasMap.mostrina
-        ];
+        const todasLasCats = [...categoriasMap.general, ...categoriasMap.mostri, ...categoriasMap.mostrina];
         const catsUnicas = [...new Set(todasLasCats)].sort();
 
         catsUnicas.forEach(cat => {
             const option = document.createElement('option');
-            option.value = cat; // Filtramos por el nombre exacto que se guarda en el gasto
+            option.value = cat; 
             option.textContent = cat;
             filtroCategoria.appendChild(option);
         });
@@ -45,8 +40,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const cumpleTipo = filtroTipo.value === 'todos' || gasto.tipo === filtroTipo.value;
             const cumpleResp = filtroResponsable.value === 'todos' || gasto.responsable === filtroResponsable.value;
             const cumpleMes = !filtroMes.value || gasto.fecha.startsWith(filtroMes.value);
-            
-            // LÓGICA DE FILTRO POR CATEGORÍA
             const cumpleCat = filtroCategoria.value === 'todas' || gasto.categoria === filtroCategoria.value;
             
             return cumpleTipo && cumpleResp && cumpleMes && cumpleCat;
@@ -59,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         gastosFiltrados.forEach((gasto) => {
             const item = document.createElement('div');
-            const esMostri = (gasto.responsable === 'pablo' || gasto.responsable === 'mostri');
+            const esMostri = (gasto.responsable === 'pablo' || gasto.responsable === 'mostri' || gasto.responsable === auth.currentUser?.displayName);
             let claseTipo = gasto.tipo === 'individual' ? (esMostri ? 'individual-pablo' : 'individual-yanet') : 'general';
             
             item.className = `gasto-item ${claseTipo}`;
@@ -76,7 +69,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             listaGastosUI.appendChild(item);
         });
 
-        // Eventos de eliminar
         document.querySelectorAll('.btn-eliminar').forEach(boton => {
             boton.addEventListener('click', async (e) => {
                 const idGasto = e.currentTarget.getAttribute('data-id');
@@ -99,17 +91,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             todosLosGastos = await repositorio.obtenerGastos({ ordenPor: "timestamp", ordenDireccion: "desc" });
             renderizarHistorial();
         } catch (error) {
-            listaGastosUI.innerHTML = '<p>Error de conexión.</p>';
+            console.error(error);
+            listaGastosUI.innerHTML = '<p style="text-align:center;">Error de conexión. Revisá tus reglas de Firebase.</p>';
         }
     };
 
-    // Escuchar cambios en los filtros
     filtroTipo.addEventListener('change', renderizarHistorial);
     filtroResponsable.addEventListener('change', renderizarHistorial);
     filtroCategoria.addEventListener('change', renderizarHistorial);
     filtroMes.addEventListener('change', renderizarHistorial);
 
-    // Inicialización
-    await cargarFiltroCategorias();
-    await cargarDatosIniciales();
+    // NUEVO: Esperamos que Firebase Auth esté listo antes de pedir datos
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            await cargarFiltroCategorias();
+            await cargarDatosIniciales();
+        }
+    });
 });
