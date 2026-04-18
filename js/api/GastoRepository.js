@@ -1,91 +1,172 @@
 import { db, auth } from "../firebase-config.js"; 
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class GastoRepository {
     constructor() {
         this.coleccionGastos = collection(db, "gastos");
-        this.docCategorias = doc(db, "config", "categorias");
+        this.coleccionHogares = collection(db, "hogares");
     }
 
-    // ==========================================
-    // MÉTODOS PARA GASTOS
-    // ==========================================
-    async guardarGasto(nuevoGasto) {
-        // 1. Verificamos que haya un usuario logueado
+    async guardarGasto(nuevoGasto, contexto) {
         const usuarioActual = auth.currentUser;
-        if (!usuarioActual) {
-            throw new Error("Acceso denegado: No hay usuario autenticado.");
-        }
+        if (!usuarioActual) throw new Error("Acceso denegado.");
 
-        // 2. Le estampamos la firma digital secreta al gasto
-        const gastoFirmado = {
+        let gastoFirmado = {
             ...nuevoGasto,
             usuario_id: usuarioActual.uid,       
             creador_email: usuarioActual.email,  
-            hogar_id: "hogar_default_1"          
+            timestamp: serverTimestamp(), 
         };
+
+        if (contexto.tipo === 'personal') {
+            gastoFirmado.ambito = 'personal'; 
+        } else if (contexto.tipo === 'hogar') {
+            gastoFirmado.ambito = 'hogar';
+            gastoFirmado.hogar_id = contexto.id;
+        }
 
         return await addDoc(this.coleccionGastos, gastoFirmado);
     }
 
-    async obtenerGastos(filtros = null) {
+    async obtenerGastos(ambito, filtros = null) {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) return [];
 
         let q = this.coleccionGastos;
         
-        // Si le pasamos filtros, arma la consulta automáticamente
-        if (filtros && filtros.desde) {
-            q = query(q, where("fecha", ">=", filtros.desde));
-        } else if (filtros && filtros.ordenPor) {
+        if (ambito === 'personal') {
+            q = query(q, where("ambito", "==", "personal"), where("usuario_id", "==", usuarioActual.uid));
+        } else {
+            q = query(q, where("ambito", "==", "hogar"), where("hogar_id", "==", ambito));
+        }
+
+        if (filtros && filtros.ordenPor) {
             q = query(q, orderBy(filtros.ordenPor, filtros.ordenDireccion || "desc"));
+        } else {
+            q = query(q, orderBy("timestamp", "desc")); 
         }
         
         const snapshot = await getDocs(q);
-        
-       // FILTRO DE SEGURIDAD EN EL CLIENTE
-        const gastosFiltrados = snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(gasto => {
-                // Aceptamos el hogar nuevo o los que no tienen hogar (viejos)
-                const esDeMiHogar = gasto.hogar_id === "hogar_default_1" || !gasto.hogar_id; 
-                const esGastoGeneral = gasto.tipo === 'general';
-                // Aceptamos los míos o los viejos que no tienen ID
-                const esMiGastoIndividual = gasto.tipo === 'individual' && (gasto.usuario_id === usuarioActual.uid || !gasto.usuario_id);
-                
-                return esDeMiHogar && (esGastoGeneral || esMiGastoIndividual);
-            });
-            
-        // ¡LA LÍNEA MÁGICA QUE FALTABA!
-        return gastosFiltrados; 
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
     async eliminarGasto(idGasto) {
         return await deleteDoc(doc(db, "gastos", idGasto));
     }
 
-    // ==========================================
-    // MÉTODOS PARA CATEGORÍAS Y DEUDAS (Sin cambios)
-    // ==========================================
-    async obtenerCategorias() {
-        const docSnap = await getDoc(this.docCategorias);
+    async obtenerCategorias(contextoId, tipo) {
+        const docRef = doc(db, "config", `${tipo}_categories_${contextoId}`);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists() ? docSnap.data().lista : null;
+    }
+
+    async guardarCategorias(contextoId, tipo, listaCategorias) {
+        const docRef = doc(db, "config", `${tipo}_categories_${contextoId}`);
+        await setDoc(docRef, { lista: listaCategorias });
+    }
+    
+    async obtenerConfiguracionHogar(hogarId) {
+        const docSnap = await getDoc(doc(db, "config", `hogar_config_${hogarId}`));
         return docSnap.exists() ? docSnap.data() : null;
     }
 
-    async inicializarCategorias(categoriasDefault) {
-        await setDoc(this.docCategorias, categoriasDefault);
+    async guardarConfiguracionHogar(hogarId, dataConfig) {
+        await setDoc(doc(db, "config", `hogar_config_${hogarId}`), dataConfig, { merge: true });
     }
 
-    async actualizarCategorias(nuevasCategorias) {
-        await updateDoc(this.docCategorias, nuevasCategorias);
+    async obtenerMisHogares() {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) return [];
+        const q = query(this.coleccionHogares, where("miembros", "array-contains", usuarioActual.uid));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
-    async obtenerEstadoDeudas() {
-        const docSnap = await getDoc(doc(db, "config", "estado_deudas"));
+    async crearHogar(nombreHogar) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        const codigoGenerado = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        const nuevoHogar = {
+            nombre: nombreHogar,
+            creador_id: usuarioActual.uid,
+            miembros: [usuarioActual.uid], 
+            fecha_creacion: serverTimestamp(),
+            codigo_invitacion: codigoGenerado
+        };
+
+        const docRef = await addDoc(this.coleccionHogares, nuevoHogar);
+
+        await this.guardarConfiguracionHogar(docRef.id, { fondo_comun: 0 });
+        await this.guardarCategorias(docRef.id, 'hogar', ['Alquiler', 'Expensas', 'Gas', 'EPE', 'WiFi', 'Agua', 'TGI', 'Supermercado', 'Carnicería', 'Verdulería', 'Salidas', 'Otros']);
+
+        return { id: docRef.id, codigo: codigoGenerado };
+    }
+
+    async unirseAHogar(codigoStr) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        const codigoLimpio = codigoStr.trim().toUpperCase();
+
+        const q = query(this.coleccionHogares, where("codigo_invitacion", "==", codigoLimpio));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            throw new Error("Código inválido. Revisá bien lo que escribiste.");
+        }
+
+        const hogarDoc = snapshot.docs[0];
+        const hogarData = hogarDoc.data();
+
+        if (hogarData.miembros.includes(usuarioActual.uid)) {
+            throw new Error("Ya sos miembro de este hogar.");
+        }
+
+        const nuevosMiembros = [...hogarData.miembros, usuarioActual.uid];
+        await updateDoc(doc(db, "hogares", hogarDoc.id), { miembros: nuevosMiembros });
+
+        return hogarData.nombre;
+    }
+
+    async obtenerEstadoDeudas(contextoId) {
+        const docSnap = await getDoc(doc(db, "config", `estado_deudas_${contextoId}`));
         return docSnap.exists() ? docSnap.data() : {};
     }
 
-    async guardarEstadoDeuda(mes, estaSaldado) {
-        await setDoc(doc(db, "config", "estado_deudas"), { [mes]: estaSaldado }, { merge: true });
+    async guardarEstadoDeuda(contextoId, mes, estaSaldado) {
+        await setDoc(doc(db, "config", `estado_deudas_${contextoId}`), { [mes]: estaSaldado }, { merge: true });
+    }
+
+    // ==========================================
+    // HERRAMIENTA DE RESCATE DE DATOS VIEJOS
+    // ==========================================
+    async migrarDatosViejos(hogarIdDestino) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        // Traemos TODOS los gastos de la base de datos (sin filtros)
+        const snapshot = await getDocs(this.coleccionGastos);
+        let promesas = [];
+        let contador = 0;
+
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            // Si NO tiene el campo "ambito", es un gasto de la versión anterior
+            if (!data.ambito) {
+                const ref = doc(db, "gastos", docSnap.id);
+                // Le estampamos los sellos nuevos para que pertenezca al hogar
+                promesas.push(updateDoc(ref, {
+                    ambito: 'hogar',
+                    hogar_id: hogarIdDestino,
+                    usuario_id: usuarioActual.uid
+                }));
+                contador++;
+            }
+        });
+
+        await Promise.all(promesas);
+        return contador;
     }
 }

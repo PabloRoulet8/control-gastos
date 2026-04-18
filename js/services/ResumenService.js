@@ -7,8 +7,6 @@ export class ResumenService {
         let totales = { general: 0, mostri: 0, mostrina: 0, alimentacion: 0, fijos: 0, tarjeta: 0 };
         let inventario = {}; 
         let resumenIndividual = { mostri: {}, mostrina: {} }; 
-        
-        // Estructura para gráfico de barras comparativo
         let graficos = { general: {}, mostri: {}, mostrina: {}, servicios: {}, comestibles: {} }; 
         
         let checklistFijos = { alquiler: false, expensas: false, epe: false, agua: false, tgi: false, gas: false, wifi: false };
@@ -22,17 +20,26 @@ export class ResumenService {
             const respKey = esMostri ? 'mostri' : 'mostrina';
             const catNorm = data.categoria ? data.categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
             
+            let usaFondo = data.pagado_con_fondo === true;
+
+            // Parche para gastos viejos (si no tiene el sello, pero es de comida, asume fondo)
+            if (data.pagado_con_fondo === undefined && data.tipo === 'general' && ['supermercado', 'carniceria', 'verduleria'].includes(catNorm)) {
+                usaFondo = true;
+            }
+
             // 1. REGISTRO POR MES PARA DEUDAS
             if (!balancePorMes[mesGasto]) balancePorMes[mesGasto] = { general: 0, pagadoMostri: 0, tarjetaMostri: 0 };
             
             if (data.tipo === 'general') {
-                balancePorMes[mesGasto].general += data.monto;
-                if (data.metodo_pago !== 'tarjeta-credito' && esMostri) balancePorMes[mesGasto].pagadoMostri += data.monto;
+                if (!usaFondo) {
+                    balancePorMes[mesGasto].general += data.monto;
+                    if (data.metodo_pago !== 'tarjeta-credito' && esMostri) balancePorMes[mesGasto].pagadoMostri += data.monto;
+                }
             } else if (data.tipo === 'individual' && data.metodo_pago === 'tarjeta-credito' && esMostri) {
                 balancePorMes[mesGasto].tarjetaMostri += data.monto;
             }
 
-            // 2. LÓGICA DE GRÁFICOS COMPARATIVOS (Actual vs Anterior)
+            // 2. LÓGICA DE GRÁFICOS
             const procesarGrafico = (cajon, cat, monto, esMesActual) => {
                 if (!graficos[cajon][cat]) graficos[cajon][cat] = { actual: 0, anterior: 0 };
                 if (esMesActual) graficos[cajon][cat].actual += monto;
@@ -41,12 +48,11 @@ export class ResumenService {
 
             if (mesGasto === mesActual || mesGasto === mesAnterior) {
                 const esActual = (mesGasto === mesActual);
-                
                 if (data.tipo === 'general') {
                     procesarGrafico('general', data.categoria, data.monto, esActual);
-                    if (['supermercado', 'carniceria', 'verduleria'].includes(catNorm)) {
+                    if (['supermercado', 'carniceria', 'verduleria', 'limpieza'].includes(catNorm)) {
                         procesarGrafico('comestibles', data.categoria, data.monto, esActual);
-                    } else if (['expensas', 'gas', 'epe', 'wifi', 'agua', 'tgi'].includes(catNorm)) {
+                    } else if (['expensas', 'gas', 'epe', 'wifi', 'agua', 'tgi', 'alquiler'].includes(catNorm)) {
                         procesarGrafico('servicios', data.categoria, data.monto, esActual);
                     }
                 } else {
@@ -54,7 +60,7 @@ export class ResumenService {
                 }
             }
 
-            // 3. DATOS EXCLUSIVOS DEL MES ACTUAL (Checklist, Stock y Totales)
+            // 3. DATOS EXCLUSIVOS DEL MES ACTUAL
             if (mesGasto === mesActual) {
                 if (data.tipo === 'general' && checklistFijos.hasOwnProperty(catNorm)) checklistFijos[catNorm] = true;
 
@@ -80,12 +86,13 @@ export class ResumenService {
                     if (data.metodo_pago === 'tarjeta-credito') totales.tarjeta += data.monto;
                 }
 
-                if (['supermercado', 'carniceria', 'verduleria'].includes(catNorm)) totales.alimentacion += data.monto;
+                // ACÁ SEPARAMOS: Fijos por un lado, consumibles por otro
+                if (['supermercado', 'carniceria', 'verduleria', 'limpieza', 'farmacia'].includes(catNorm)) totales.alimentacion += data.monto;
                 if (['alquiler', 'expensas', 'gas', 'epe', 'wifi', 'agua', 'tgi'].includes(catNorm)) totales.fijos += data.monto;
             }
         });
 
-        // 4. CÁLCULO DE DEUDA ACUMULADA Y ESPECÍFICA
+        // 4. CÁLCULO DE DEUDA
         for (const [mes, bal] of Object.entries(balancePorMes)) {
             let deudaDelMes = ((bal.general / 2) - bal.pagadoMostri) + bal.tarjetaMostri;
             if (mes === mesAnterior) deudaMesAnteriorReal = deudaDelMes;

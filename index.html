@@ -3,124 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cargar Gasto</title>
+    <title>Inicio - Finanzas</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2e7d32">
+    <style>
+        .avatar-square { width: 60px; height: 60px; background-color: #2e7d32; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; box-shadow: 0 4px 6px rgba(46, 125, 50, 0.3); }
+        .dashboard-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .grid-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .dashboard-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s; text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 130px; }
+        .dashboard-card:hover { border-color: #2e7d32; }
+        .dashboard-card .icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .card-add { border: 2px dashed #ccc; background: transparent; box-shadow: none; }
+        .card-add:hover { border-color: #2e7d32; background: #e8f5e9; }
+    </style>
 </head>
 <body>
-    <header class="header">
-        <h1>Nuevo Gasto</h1>
+    <header class="header" style="justify-content: flex-end; padding-right: 20px;">
         <button onclick="cerrarSesion()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem;" title="Cerrar Sesión">🚪</button>
-        <div style="width: 50px;"></div> 
     </header>
 
-    <button id="btn-instalar" style="display: none; width: 100%; padding: 15px; background-color: #ff9800; color: white; border: none; font-weight: bold; font-size: 1.1rem;">📲 INSTALAR APP</button>
-
-    <main class="container">
-        <div style="text-align: center; margin-top: 10px; margin-bottom: 20px;">
-            <h2 id="saludo-usuario" style="color: #2e7d32; font-size: 1.6rem; margin-bottom: 5px;">Hola...</h2>
-            <p style="color: #555; font-size: 1.1rem; margin: 0;">¿Qué gasto querés anotar?</p>
+    <main class="container" style="padding-top: 10px;">
+        <div class="dashboard-header">
+            <div class="avatar-square" id="user-avatar">?</div>
+            <div>
+                <h2 id="saludo-usuario" style="color: #2e7d32; margin: 0; font-size: 1.5rem;">Cargando...</h2>
+                <p style="color: #666; margin: 0; font-size: 0.95rem;">¿Dónde vamos a anotar hoy?</p>
+            </div>
         </div>
 
-        <form id="expense-form" class="card">
+        <div class="grid-cards" id="contenedor-hogares">
             
-            <div class="form-group toggle-group">
-                <input type="radio" id="tipo-general" name="tipoGasto" value="general" checked>
-                <label for="tipo-general">General</label>
+            <a href="carga.html?ambito=personal" class="dashboard-card">
+                <span class="icon">👤</span>
+                <strong style="font-size: 1.05rem;">Mis Gastos Personales</strong>
+            </a>
+            
+            <a href="nuevo_hogar.html" class="dashboard-card card-add" id="btn-add-hogar">
+                <span class="icon" style="color: #2e7d32;">➕</span>
+                <strong style="color: #555; font-size: 0.95rem;">Nuevo Hogar</strong>
+            </a>
 
-                <input type="radio" id="tipo-individual" name="tipoGasto" value="individual">
-                <label for="tipo-individual">Individual</label>
-            </div>
-
-            <div class="form-group" id="responsable-group">
-                <label>¿Quién lo pagó?</label>
-                <select id="responsable" name="responsable">
-                    <option value="mostri">Mostri</option>
-                    <option value="mostrina">Mostrina</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="categoria">Categoría</label>
-                <select id="categoria" name="categoria" required>
-                    <option value="" disabled selected>Seleccioná una categoría</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="referencia-group" style="display: none;">
-                <label for="referencia">Referencia / Detalle</label>
-                <input type="text" id="referencia" name="referencia" placeholder="Ej: Regalo cumpleaños, Peaje, etc." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
-            </div>
-
-            <div class="form-group">
-                <label for="metodo-pago">Método de Pago</label>
-                <select id="metodo-pago" name="metodoPago" required>
-                    <option value="efectivo">Efectivo / Transferencia</option>
-                    <option value="tarjeta-credito">Tarjeta de Crédito</option>
-                </select>
-            </div>
-
-            <div id="opciones-tarjeta" style="display: none; background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2; margin-bottom: 20px;">
-                <div class="form-group">
-                    <label style="color: #e65100;">¿De quién es la tarjeta? 💳</label>
-                    <select id="titular-tarjeta" style="border-color: #ffb74d;">
-                        <option value="mostri">Mostri</option>
-                        <option value="mostrina">Mostrina</option>
-                    </select>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label style="color: #e65100;">Cuotas</label>
-                        <input type="number" id="cantidad-cuotas" value="1" min="1" max="24" style="border-color: #ffb74d;">
-                    </div>
-                    <div class="form-group" style="flex: 2;">
-                        <label style="color: #e65100;">1ra cuota ingresa:</label>
-                        <select id="impacto-cuota" style="border-color: #ffb74d;">
-                            <option value="este-mes">Este mes</option>
-                            <option value="proximo-mes">Próximo mes (Ya cerró)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div id="seccion-inventario" class="form-group" style="display: none; border-top: 2px solid #eee; padding-top: 20px; margin-top: 20px;">
-                <label style="color: #2e7d32; font-weight: bold;">🛒 Carga de Inventario</label>
-                <small style="margin-bottom: 10px;">Agregá productos para llevar control de cantidades.</small>
-                
-                <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 8px; margin-bottom: 8px;">
-                    <input type="text" id="inv-prod" placeholder="Producto (ej. Carne)">
-                    <input type="number" id="inv-cant" placeholder="Cant." step="0.01">
-                    <select id="inv-unid">
-                        <option value="kg">KG</option>
-                        <option value="unid">Unid.</option>
-                        <option value="latas">Latas</option>
-                        <option value="lts">Litros</option>
-                        <option value="pack">Pack</option>
-                    </select>
-                </div>
-                <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-                    <input type="number" id="inv-precio" placeholder="Precio Total ($)" style="flex: 2;">
-                    <button type="button" id="btn-add-inv" style="flex: 1; background: #2e7d32; color: white; border: none; border-radius: 8px; font-weight: bold;">Agregar</button>
-                </div>
-
-                <ul id="lista-inventario" style="list-style: none; padding: 0; margin-bottom: 15px;"></ul>
-            </div>
-
-            <div class="form-group" style="background: #e8f5e9; padding: 15px; border-radius: 8px; border: 1px solid #a5d6a7;">
-                <label for="monto" style="color: #1b5e20; font-size: 1.1rem;">Monto Total ($)</label>
-                <input type="number" id="monto" name="monto" placeholder="0.00" required style="font-size: 1.5rem; font-weight: bold; color: #2e7d32;">
-                <small id="monto-help">Si agregás productos arriba, este total se calcula solo.</small>
-            </div>
-
-            <button type="submit" class="btn-primary">Guardar</button>
-        </form>
+        </div>
     </main>
 
     <nav class="bottom-nav">
         <a href="index.html" class="nav-item active">
-            <span class="icon">➕</span>
-            <span class="label">Cargar</span>
+            <span class="icon">🏠</span>
+            <span class="label">Inicio</span>
         </a>
         <a href="historial.html" class="nav-item">
             <span class="icon">📜</span>
@@ -133,43 +63,6 @@
     </nav>
 
     <script type="module" src="js/auth_guard.js"></script>
-    <script type="module" src="js/controller_carga.js"></script>    
-    
-    <script>
-        if ('serviceWorker' in navigator) {
-            // Cazador de Zombies y forzado de actualización
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                }
-            });
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=100').then(reg => {
-                    console.log('¡Service Worker forzado y registrado!');
-                });
-            });
-        }
-    </script>
-
-    <div id="custom-prompt" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <h3>Nueva Categoría</h3>
-            <p>Escribí el nombre para el nuevo gasto:</p>
-            <input type="text" id="custom-prompt-input" placeholder="Ej: Farmacia, Gimnasio...">
-            <div class="modal-buttons">
-                <button type="button" id="custom-prompt-cancel" class="btn-secondary">Cancelar</button>
-                <button type="button" id="custom-prompt-confirm" class="btn-primary" style="margin-top: 0;">Guardar</button>
-            </div>
-        </div>
-    </div>
-    <div id="perfil-prompt" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <h3 style="color: #2e7d32;">¡Bienvenido a la App! 🎉</h3>
-            <p>¿Cómo te llamás o cómo querés que te digamos?</p>
-            <input type="text" id="perfil-prompt-input" placeholder="Ej: Mostri, Yane, Pablo..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 15px;">
-            <button type="button" id="perfil-prompt-confirm" class="btn-primary">Guardar mi nombre</button>
-        </div>
-    </div>
-    <div id="toast-container" class="toast"></div>
+    <script type="module" src="js/controller_dashboard.js"></script>
 </body>
 </html>
