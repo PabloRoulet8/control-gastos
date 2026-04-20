@@ -39,3 +39,36 @@
         &:hover { border-color: $verde-primario; background: $verde-claro; }
     }
 }
+
+.dashboard-card-wrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.dashboard-card-link {
+  width: 100%; // Asegura que la tarjeta ocupe todo el espacio
+}
+
+.btn-config-gear {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+  border: 1px solid #ddd;
+  
+  &:hover {
+    background: #f9f9f9;
+    transform: scale(1.1);
+  }
+}

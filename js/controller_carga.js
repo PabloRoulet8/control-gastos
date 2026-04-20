@@ -1,14 +1,12 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ToastManager } from "./ui/ToastManager.js";
-import { ModalManager } from "./ui/ModalManager.js";
 import { auth, db } from "./firebase-config.js"; 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
     const toast = new ToastManager();
-    const modalCategoria = new ModalManager('custom-prompt', 'custom-prompt-input', 'custom-prompt-confirm', 'custom-prompt-cancel');
 
     const urlParams = new URLSearchParams(window.location.search);
     const ambitoActual = urlParams.get('ambito') || 'personal'; 
@@ -26,9 +24,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let arrayInventario = [];
     let nombreUsuarioGlobal = "Usuario"; 
     let fondosPersonales = []; 
+    let miembrosHogar = []; // Guardará los nombres de los integrantes
 
     const tituloHeader = document.getElementById('titulo-header');
-    const selectorTipoGasto = document.getElementById('selector-tipo-gasto');
     const tipoGeneral = document.getElementById('tipo-general');
     const tipoIndividual = document.getElementById('tipo-individual');
     const selectResponsable = document.getElementById('responsable');
@@ -38,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const formGasto = document.getElementById('expense-form');
     const selectMetodoPago = document.getElementById('metodo-pago');
     const panelTarjeta = document.getElementById('opciones-tarjeta');
-    const selectTitularTarjeta = document.getElementById('titular-tarjeta');
     const inputCuotas = document.getElementById('cantidad-cuotas');
     const selectImpacto = document.getElementById('impacto-cuota');
     
@@ -79,20 +76,57 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectMetodoPago.appendChild(option);
         });
 
+        // --- LÓGICA PARA LEER HOGARES REALES ---
         if (ambitoActual === 'hogar') {
-            const catNube = await api.obtenerCategorias(contextoId, ambitoActual);
-            if (catNube) {
-                listaCategorias = catNube;
+            // Obtenemos el documento del hogar
+            const snapHogar = await getDoc(doc(db, "hogares", hogarId));
+            if (snapHogar.exists()) {
+                const dataHogar = snapHogar.data();
+                const uidsMiembros = dataHogar.miembros || [];
+                
+                // Buscamos los nombres de cada UID
+                for (const uid of uidsMiembros) {
+                    const snapUser = await getDoc(doc(db, "usuarios", uid));
+                    if (snapUser.exists()) {
+                        miembrosHogar.push(snapUser.data().nombre);
+                    }
+                }
+
+                // 🌟 LA LÍNEA MÁGICA: Extraemos las categorías directo del documento del hogar
+                // Así nos aseguramos de leer exactamente lo que guardaste en el Panel de Control
+                listaCategorias = dataHogar.categorias_compartidas || [];
             }
+
+            // Llenamos el select de responsables
+            if (selectResponsable && miembrosHogar.length > 0) {
+                selectResponsable.innerHTML = '';
+                miembrosHogar.forEach(nombre => {
+                    const opt = document.createElement('option');
+                    opt.value = nombre;
+                    opt.textContent = nombre;
+                    // Preseleccionar al usuario actual
+                    if (nombre === nombreUsuarioGlobal) opt.selected = true;
+                    selectResponsable.appendChild(opt);
+                });
+            }
+
+            // (Nota: Eliminamos la llamada vieja a api.obtenerCategorias porque ya no la necesitamos)
         }
 
         actualizarSelectUI();
+        actualizarVistaTipoGasto();
+
+        actualizarSelectUI();
+        actualizarVistaTipoGasto();
     };
 
     const actualizarSelectUI = () => {
         selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
         
-        listaCategorias.sort((a, b) => {
+        // ¡FILTRAMOS LAS INACTIVAS ANTES DE MOSTRARLAS!
+        const categoriasVisibles = listaCategorias.filter(c => typeof c === 'string' || c.activa !== false);
+
+        categoriasVisibles.sort((a, b) => {
             const nA = typeof a === 'string' ? a : a.nombre;
             const nB = typeof b === 'string' ? b : b.nombre;
             return nA.localeCompare(nB);
@@ -102,31 +136,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             const option = document.createElement('option');
             option.value = c.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ /g, '-');
             option.textContent = c.nombre;
-            // Guardamos el interruptor oculto
             option.dataset.llevaStock = c.lleva_stock; 
             selectCategoria.appendChild(option);
         });
-
-        if (ambitoActual === 'hogar') {
-            const optAdd = document.createElement('option');
-            optAdd.value = "nueva-categoria";
-            optAdd.textContent = "➕ AGREGAR NUEVA...";
-            optAdd.style.fontWeight = "bold";
-            optAdd.style.color = "#2e7d32";
-            selectCategoria.appendChild(optAdd);
-        }
 
         manejarCamposDinamicos();
     };
 
     const actualizarVistaTipoGasto = () => {
-        if (selectorTipoGasto) selectorTipoGasto.style.display = 'none';
-
         if (ambitoActual === 'personal') {
             if (grupoResponsable) grupoResponsable.style.display = 'none';
             if (grupoFondo) grupoFondo.style.display = 'none'; 
             if (tipoIndividual) tipoIndividual.checked = true;
         } else {
+            // En el hogar mostramos quién pagó
             if (grupoResponsable) grupoResponsable.style.display = 'block';
             if (tipoGeneral) tipoGeneral.checked = true;
         }
@@ -144,7 +167,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const optionElegida = selectCategoria.options[selectCategoria.selectedIndex];
-        // Revisamos el interruptor directamente de la base de datos
         const llevaStock = optionElegida.dataset.llevaStock === "true";
 
         if (seccionInventario) {
@@ -177,28 +199,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const textoElegido = selectMetodoPago.options[selectMetodoPago.selectedIndex].text.toLowerCase();
         if (textoElegido.includes('tarjeta') || textoElegido.includes('crédito') || textoElegido.includes('credito')) {
             if(panelTarjeta) panelTarjeta.style.display = 'block';
-            if(ambitoActual === 'hogar' && selectTitularTarjeta) selectTitularTarjeta.value = selectResponsable.value; 
         } else {
             if(panelTarjeta) panelTarjeta.style.display = 'none';
         }
     });
 
-    if (selectCategoria) selectCategoria.addEventListener('change', async (e) => {
-        if (e.target.value === "nueva-categoria" && ambitoActual === 'hogar') {
-            const nuevaCat = await modalCategoria.solicitarEntrada(); 
-            if (nuevaCat && nuevaCat !== "") {
-                const nuevoObjCat = { nombre: nuevaCat, es_fijo: false, lleva_stock: false };
-                listaCategorias.push(nuevoObjCat);
-                await api.guardarCategorias(hogarId, ambitoActual, listaCategorias); 
-                toast.mostrar("Categoría agregada con éxito");
-                actualizarSelectUI();
-                Array.from(selectCategoria.options).forEach((opt, idx) => {
-                    if(opt.text === nuevaCat) selectCategoria.selectedIndex = idx;
-                });
-            } else { e.target.selectedIndex = 0; }
-        }
-        manejarCamposDinamicos();
-    });
+    if (selectCategoria) selectCategoria.addEventListener('change', manejarCamposDinamicos);
 
     const btnAddInv = document.getElementById('btn-add-inv');
     if(btnAddInv) {
@@ -242,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const refOriginal = inputReferencia ? inputReferencia.value.trim() : "";
             const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text;
             
+            // Asignamos el responsable según Firebase
             const responsableFinal = ambitoActual === 'personal' ? nombreUsuarioGlobal : selectResponsable.value;
             const tipoFinal = ambitoActual === 'personal' ? 'individual' : 'general';
 
@@ -276,7 +283,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         categoria: catElegida,
                         monto: montoPorCuota,
                         metodo_pago: textoElegido,
-                        titular_tarjeta: esTarjeta ? selectTitularTarjeta.value : null,
+                        // Simplificamos: El titular de la tarjeta asume ser el que pagó
+                        titular_tarjeta: esTarjeta ? responsableFinal : null,
                         detalle_inventario: arrayInventario,
                         referencia: referenciaFinal,
                         pagado_con_fondo: usaFondo,
@@ -293,6 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setTimeout(() => window.location.href = 'index.html', 1500); 
                 
             } catch (error) { 
+                console.error(error);
                 toast.mostrar('Error al guardar. Revisá tu conexión.'); 
             } finally { 
                 botonGuardar.textContent = "Guardar"; botonGuardar.disabled = false; 
@@ -302,7 +311,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            actualizarVistaTipoGasto();
             await inicializarDatosPerfilYCategorias(user.uid);
         }
     });

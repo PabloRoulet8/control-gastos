@@ -148,6 +148,27 @@ body {
   border-bottom: none;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.m-0 {
+  margin: 0 !important;
+}
+
+.pt-10 {
+  padding-top: 10px !important;
+}
+
+.mb-10 {
+  margin-bottom: 10px !important;
+}
+
+.span-full {
+  grid-column: 1/-1;
+  font-size: 0.9rem;
+}
+
 .btn-primary, .btn-secondary {
   width: 100%;
   padding: 12px;
@@ -205,6 +226,20 @@ body {
 }
 .btn-google img {
   width: 20px;
+}
+
+.btn-success {
+  background-color: #2e7d32 !important;
+  color: white;
+}
+
+.btn-danger {
+  background-color: #d32f2f !important;
+  color: white;
+}
+
+.btn-no-margin {
+  margin-top: 0 !important;
 }
 
 .card {
@@ -692,6 +727,38 @@ body {
   background: #e8f5e9;
 }
 
+.dashboard-card-wrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.dashboard-card-link {
+  width: 100%;
+}
+
+.btn-config-gear {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+  border: 1px solid #ddd;
+}
+.btn-config-gear:hover {
+  background: #f9f9f9;
+  transform: scale(1.1);
+}
+
 .gasto-item {
   display: flex;
   justify-content: space-between;
@@ -785,6 +852,42 @@ body {
   position: relative;
   height: 350px;
   width: 100%;
+}
+
+.label-admin {
+  display: block;
+  text-align: left;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #555;
+}
+
+.grid-admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.grid-admin-header .text-center-flex {
+  flex: 1;
+  text-align: center;
+}
+.grid-admin-header .spacer-40 {
+  width: 40px;
+}
+
+.grid-checkbox-fondos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
 }
 
 /*# sourceMappingURL=styles.css.map */

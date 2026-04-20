@@ -57,16 +57,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function renderizarHogares() {
-        const linksViejos = contenedorHogares.querySelectorAll('.dashboard-card-link');
-        linksViejos.forEach(link => link.remove());
+        // 1. Limpiamos el contenedor por completo
+        contenedorHogares.innerHTML = '';
 
+        // 2. CREAMOS TU TARJETA INDIVIDUAL
+        const cardPersonal = document.createElement('a');
+        cardPersonal.href = `carga.html?ambito=individual`; 
+        cardPersonal.className = 'dashboard-card-link';
+        cardPersonal.innerHTML = `
+            <span class="icon">👤</span>
+            <span class="title">Mis Gastos</span>
+        `;
+        contenedorHogares.appendChild(cardPersonal);
+
+        // 3. Traemos los hogares compartidos
         const misHogares = await api.obtenerMisHogares();
+        
+        // 4. Dibujamos las tarjetas de los hogares ya creados
         misHogares.forEach(hogar => {
-            const card = document.createElement('a');
-            card.href = `carga.html?ambito=hogar&id=${hogar.id}&nombre=${encodeURIComponent(hogar.nombre)}`;
-            card.className = 'dashboard-card-link';
-            card.innerHTML = `<span class="icon">🏘️</span><span class="title">${hogar.nombre}</span>`;
-            contenedorHogares.insertBefore(card, btnAddHogar);
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'dashboard-card-wrapper'; 
+
+            // Verificamos si el usuario actual está en la lista de admins
+            const esAdmin = hogar.administradores && hogar.administradores.includes(auth.currentUser.uid);
+
+            cardWrapper.innerHTML = `
+                <a href="carga.html?ambito=hogar&id=${hogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
+                    <span class="icon">🏘️</span>
+                    <span class="title">${hogar.nombre}</span>
+                </a>
+                ${esAdmin ? `<a href="config_hogar.html?id=${hogar.id}" class="btn-config-gear" title="Panel de Control">⚙️</a>` : ''}
+            `;
+            // Agregamos la tarjeta al final de la lista actual
+            contenedorHogares.appendChild(cardWrapper);
         });
+
+        // 5. CREAMOS EL BOTÓN DE "+ NUEVO HOGAR" AL FINAL DE TODO
+        const btnAddNuevo = document.createElement('a');
+        btnAddNuevo.href = 'admin_hogar.html?id=nuevo';
+        btnAddNuevo.className = 'dashboard-card-link card-add';
+        btnAddNuevo.id = 'btn-add-hogar'; 
+        btnAddNuevo.innerHTML = `
+            <span class="icon">➕</span>
+            <span class="title">Nuevo Hogar</span>
+        `;
+        contenedorHogares.appendChild(btnAddNuevo);
     }
 });

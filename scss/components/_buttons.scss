@@ -37,3 +37,18 @@
     align-items: center; justify-content: center; gap: 10px;
     img { width: 20px; } // El iconito de la G
 }
+
+// Variantes de estado para los botones
+.btn-success {
+  background-color: $green-primary !important;
+  color: white;
+}
+
+.btn-danger {
+  background-color: $red-danger !important;
+  color: white;
+}
+
+.btn-no-margin {
+  margin-top: 0 !important;
+}

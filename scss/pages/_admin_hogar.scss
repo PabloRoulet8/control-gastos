@@ -1,0 +1,38 @@
+// Estructuras específicas de la vista de Administración de Hogar
+.label-admin {
+  display: block;
+  text-align: left;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #555;
+}
+
+.grid-admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: bold;
+  text-transform: uppercase;
+
+  .text-center-flex {
+    flex: 1;
+    text-align: center;
+  }
+
+  .spacer-40 {
+    width: 40px;
+  }
+}
+
+.grid-checkbox-fondos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  background: $gray-light;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid $border-color;
+}

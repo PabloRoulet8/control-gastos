@@ -20,8 +20,9 @@
 @import 'layout/header';
 @import 'layout/navigation';
 
-// ESTILOS ESPECÍFICOS DE PÁGINAS (Último, sobreescribe si es necesario)
+// ESTILOS ESPECÍFICOS DE PÁGINAS 
 @import 'pages/login';
 @import 'pages/dashboard';
 @import 'pages/historial';
 @import 'pages/resumen';
+@import 'pages/admin_hogar';
