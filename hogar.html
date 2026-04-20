@@ -8,30 +8,29 @@
     <meta name="theme-color" content="#2e7d32">
 </head>
 <body>
-    <header class="header">
-        <button onclick="window.history.back()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem;">← Volver</button>
+    <header class="header flex-between">
+        <button onclick="window.history.back()" class="btn-icon-white">← Volver</button>
         <h1>Mi Hogar</h1>
-        <div style="width: 50px;"></div>
+        <div class="header-spacer"></div>
     </header>
 
     <main class="container">
-        <div class="card" style="border-top: 5px solid #ff9800;">
-            <h2 style="color: #e65100; margin-bottom: 5px;">🏦 Fondo Común</h2>
-            <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">Dinero aportado entre ambos a principio de mes para Supermercado, Carnicería y Verdulería.</p>
+        <div class="card card-top-orange">
+            <h2 class="card-title-orange">🏦 Fondo Común</h2>
+            <p class="card-subtitle">Dinero aportado entre ambos a principio de mes para Supermercado, Carnicería y Verdulería.</p>
             
             <form id="fondo-form">
                 <div class="form-group">
                     <label>Monto Total del Fondo ($)</label>
-                    <input type="number" id="input-fondo" required placeholder="Ej: 300000" style="font-size: 1.2rem; font-weight: bold; color: #e65100; border-color: #ffb74d;">
+                    <input type="number" id="input-fondo" required placeholder="Ej: 300000" class="form-control text-orange">
                 </div>
-                <button type="submit" class="btn-primary" style="background-color: #f57c00;" id="btn-guardar-fondo">Guardar Configuración</button>
-            </form>
+                <button type="submit" class="btn-primary bg-dark-orange" id="btn-guardar-fondo">Guardar Configuración</button>            </form>
         </div>
 
-        <div class="card" style="opacity: 0.7; margin-top: 20px;">
-            <h3 style="color: #555;">🔗 Vincular Cuentas (Próximamente)</h3>
-            <p style="font-size: 0.9rem;">Acá va a aparecer tu código secreto para que Yane se una a este mismo Hogar y compartan la misma base de datos.</p>
-            <button class="btn-secondary" disabled>Generar Código</button>
+        <div class="card mt-15 opacity-70">
+            <h3 class="text-muted">🔗 Vincular Cuentas (Próximamente)</h3>
+            <p class="card-subtitle">Acá va a aparecer tu código secreto para que Yane se una a este mismo Hogar y compartan la misma base de datos.</p>
+            <button class="btn-secondary w-100" disabled>Generar Código</button>
         </div>
     </main>
 

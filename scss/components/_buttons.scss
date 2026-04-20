@@ -1,20 +1,39 @@
-.btn-primary {
-    width: 100%;
-    padding: 14px;
-    background-color: $primary-color;
-    color: $surface-color;
-    border: none;
-    border-radius: 8px;
-    font-size: 1.1rem;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(46, 125, 50, 0.2);
-    
-    &:active { transform: translateY(2px); }
-    &:disabled { background-color: #ccc; cursor: not-allowed; }
+// ==========================================
+// ESTILOS DE BOTONES
+// ==========================================
+
+// Estructura base compartida entre botones primarios y secundarios
+.btn-primary, .btn-secondary {
+    width: 100%; padding: 12px; border-radius: 8px; font-weight: bold;
+    font-size: 1.1rem; cursor: pointer; border: none; margin-top: 10px;
 }
 
-.btn-secondary {
-    background: #eee;
-    color: $text-muted;
+// Coloración del botón principal (verde por defecto)
+.btn-primary {
+    background-color: $verde-primario; color: white;
+    
+    // Variantes de color usando "&" (hace referencia a .btn-primary)
+    // Ejemplo: class="btn-primary bg-orange"
+    &.bg-orange { background-color: $naranja-primario; }
+    &.bg-dark-orange { background-color: $naranja-oscuro; }
+    &.bg-blue { background-color: $azul-primario; }
+}
+
+// Coloración del botón secundario (gris para cancelar/volver)
+.btn-secondary { background-color: #ddd; color: #333; }
+
+// Botoncitos sutiles sin fondo (ej. la casita del header o la flecha de volver)
+.btn-icon-white {
+    background: none; border: none; color: white;
+    cursor: pointer; font-size: 1.2rem; padding: 0;
+    text-decoration: none;
+}
+
+// Estilo súper específico para cumplir con los estándares visuales de Google
+.btn-google {
+    width: 100%; padding: 12px; background-color: #ffffff; color: #444;
+    border: 1px solid #ccc; font-weight: bold; font-size: 1.1rem;
+    border-radius: 8px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 10px;
+    img { width: 20px; } // El iconito de la G
 }

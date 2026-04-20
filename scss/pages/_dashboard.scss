@@ -1,0 +1,41 @@
+// ==========================================
+// ESPECÍFICO DE LA PANTALLA DE INICIO (HOME)
+// ==========================================
+
+// La cabecera blanca grande que te saluda
+.dashboard-header {
+    display: flex; align-items: center; gap: 15px; margin-bottom: 30px;
+    background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+
+    // El cuadradito verde con tu inicial
+    .avatar-square {
+        width: 60px; height: 60px; background-color: $verde-primario; color: white;
+        border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        font-size: 2rem; font-weight: bold; text-transform: uppercase;
+        box-shadow: 0 4px 6px rgba(46, 125, 50, 0.3);
+    }
+    .greeting-text { color: $verde-primario; margin: 0; font-size: 1.5rem; }
+    .subtitle-text { color: $gris-texto; margin: 0; font-size: 0.95rem; }
+}
+
+// Grilla para acomodar las tarjetas de los Hogares en dos columnas
+.grid-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+// Las tarjetas cuadradas de Hogares o Gastos Personales
+.dashboard-card-link {
+    background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s;
+    text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; min-height: 130px;
+
+    &:hover { border-color: $verde-primario; }
+    .icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .title { font-size: 1.05rem; font-weight: bold; }
+
+    // Variante visual para la tarjeta punteada de "Nuevo Hogar"
+    &.card-add {
+        border: 2px dashed #ccc; background: transparent; box-shadow: none;
+        .title { color: #555; font-size: 0.95rem; }
+        &:hover { border-color: $verde-primario; background: $verde-claro; }
+    }
+}

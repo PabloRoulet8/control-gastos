@@ -9,10 +9,11 @@
     <meta name="theme-color" content="#2e7d32">
 </head>
 <body>
-    <header class="header">
-        <a href="index.html" class="nav-link">← Cargar</a>
-        <h1>Resumen de Abril</h1>
-        <div style="width: 50px;"></div> </header>
+    <header class="header flex-between">
+        <button onclick="window.history.back()" class="btn-icon-white">← Volver</button>
+        <h1 class="text-center flex-1">Resumen Mensual</h1>
+        <div class="header-spacer"></div> 
+    </header>
 
    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -25,10 +26,10 @@
                 <span class="valor-deuda" id="val-deuda">$ 0</span>
             </div>
             
-            <div style="margin-top: 20px; border-top: 1px solid #a5d6a7; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; flex-direction: column;">
-                    <span id="label-switch-saldado" style="font-size: 0.9rem; color: #1b5e20; font-weight: bold;">Cargando estado...</span>
-                    <span id="val-deuda-mes-anterior" style="font-size: 1.1rem; font-weight: 800; color: #d32f2f; margin-top: 2px;">$ 0</span>
+            <div class="flex-between border-top-green">
+                <div>
+                    <span id="label-switch-saldado" class="text-sm-green-bold">Cargando estado...</span>
+                    <div id="val-deuda-mes-anterior" class="text-lg-red-bold">$ 0</div>
                 </div>
                 <label class="switch">
                     <input type="checkbox" id="switch-saldado">
@@ -44,38 +45,38 @@
                 <span class="valor" id="val-total-casa">$ 0</span>
             </div>
 
-            <div class="monto-fondo" style="margin-top: 15px; padding: 15px; background-color: #e3f2fd; border-radius: 8px; border: 1px solid #bbdefb; text-align: center;">
-                <span class="label" style="color: #0277bd; display: block; margin-bottom: 5px; font-weight: bold;">Fondo Comestibles</span>
-                <span class="valor-fondo" style="color: #01579b; font-size: 1.5rem; font-weight: 800;">$ 0</span>
+            <div class="mt-15 box-info text-center" style="display: none;">
+                <span class="box-info-label">Fondo Comestibles</span>
+                <span class="box-info-value valor-fondo">$ 0</span>
             </div>
             
-            <div class="split-gastos" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-                <div class="split-item" style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #c8e6c9;">
-                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Mostri</span>
-                    <span class="valor pablo-total" style="color: #1b5e20; font-size: 1.2rem;">$ 0</span>
+            <div class="grid-2-col mt-15">
+                <div class="alert-success-box text-center">
+                    <span class="text-sm-green-bold">Total Mostri</span>
+                    <span class="valor pablo-total text-bold-dark">$ 0</span>
                 </div>
-                <div class="split-item" style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #c8e6c9;">
-                    <span class="label" style="color: #2e7d32; display: block; margin-bottom: 5px; font-weight: bold;">Total Mostrina</span>
-                    <span class="valor yanet-total" style="color: #1b5e20; font-size: 1.2rem;">$ 0</span>
+                <div class="alert-success-box text-center">
+                    <span class="text-sm-green-bold">Total Mostrina</span>
+                    <span class="valor yanet-total text-bold-dark">$ 0</span>
                 </div>
             </div>
 
-            <div style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="color: #555; font-size: 0.9rem;">🛒 Súper, Carne y Verdura:</span>
-                    <span class="valor-alimentacion" style="font-weight: bold; color: #333;">$ 0</span>
+            <div class="border-top-dashed">
+                <div class="flex-between mb-15">
+                    <span class="text-sm-gray">🛒 Súper, Carne y Verdura:</span>
+                    <span class="valor-alimentacion text-bold-dark">$ 0</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: #555; font-size: 0.9rem;">🏠 Casa y Servicios (Fijos):</span>
-                    <span class="valor-fijos" style="font-weight: bold; color: #333;">$ 0</span>
+                <div class="flex-between">
+                    <span class="text-sm-gray">🏠 Casa y Servicios (Fijos):</span>
+                    <span class="valor-fijos text-bold-dark">$ 0</span>
                 </div>
             </div>
         </section>
 
         <section class="card dashboard-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
-                <h2 style="margin: 0; border: none; padding: 0;">Distribución</h2>
-                <select id="selector-grafico" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 0.85rem;">
+            <div class="flex-between border-bottom-gray mb-15">
+                <h2>Distribución</h2>
+                <select id="selector-grafico" class="form-select-sm">
                     <option value="general">De la Casa (Completo)</option>
                     <option value="servicios">Solo Servicios y Expensas</option>
                     <option value="comestibles">Solo Comestibles</option>
@@ -83,29 +84,21 @@
                     <option value="mostrina">Propios Mostrina</option>
                 </select>
             </div>
-            <div style="position: relative; height: 350px; width: 100%;">
+            <div class="chart-container">
                 <canvas id="graficoTorta"></canvas>
             </div>
         </section>
 
         <section class="card dashboard-card">
             <h2>Checklist de Fijos del Mes</h2>
-            <ul id="lista-checklist" class="lista-minimal" style="font-size: 1rem;">
-                </ul>
+            <ul id="lista-checklist" class="lista-minimal">
+            </ul>
         </section>
 
         <section class="card dashboard-card">
             <div class="accordion-item">
                 <button class="accordion-header" id="btn-stock">🛒 Stock Comestibles <span>⬇️</span></button>
                 <div class="accordion-content" id="content-stock" style="display: none;"><div id="lista-stock-categorizada"></div></div>
-            </div>
-            <div class="accordion-item">
-                <button class="accordion-header" id="btn-mostri">👤 Gastos Propios Mostri <span>⬇️</span></button>
-                <div class="accordion-content" id="content-mostri" style="display: none;"><ul id="lista-gastos-mostri" class="lista-minimal"></ul></div>
-            </div>
-            <div class="accordion-item">
-                <button class="accordion-header" id="btn-mostrina">👤 Gastos Propios Mostrina <span>⬇️</span></button>
-                <div class="accordion-content" id="content-mostrina" style="display: none;"><ul id="lista-gastos-mostrina" class="lista-minimal"></ul></div>
             </div>
         </section>
     </main>
@@ -119,7 +112,7 @@
             <span class="icon">📜</span>
             <span class="label">Historial</span>
         </a>
-        <a href="resumen.html" class="nav-item">
+        <a href="resumen.html" class="nav-item active">
             <span class="icon">📊</span>
             <span class="label">Resumen</span>
         </a>
@@ -127,22 +120,5 @@
 
     <script type="module" src="js/auth_guard.js"></script>
     <script type="module" src="js/controller_resumen.js"></script>    
-    <script>
-        if ('serviceWorker' in navigator) {
-            // 1. Cazador de Zombies: Desinstala cualquier versión vieja atascada
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                }
-            });
-
-            // 2. Forzamos la descarga del nuevo engañando al caché con "?v=100"
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=100').then(reg => {
-                    console.log('¡Service Worker forzado y registrado!');
-                });
-            });
-        }
-    </script>
 </body>
 </html>

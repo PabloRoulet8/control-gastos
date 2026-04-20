@@ -1,27 +1,14 @@
+// ==========================================
+// BARRA SUPERIOR
+// ==========================================
+
 .header {
-    background-color: $primary-color;
-    color: $surface-color;
-    padding: $padding-standard;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-
-    h1 {
-        font-size: 1.2rem;
-        font-weight: 600;
-    }
-
-    .nav-link {
-        color: $surface-color;
-        text-decoration: none;
-        font-size: 0.9rem;
-        opacity: 0.9;
-    }
-}
-
-.container {
-    padding: $padding-standard;
-    max-width: 600px;
-    margin: 0 auto;
+    background-color: $verde-primario; color: white; padding: 15px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 100; // La clava arriba al hacer scroll
+    h1 { margin: 0; font-size: 1.2rem; }
+    
+    // Un bloque invisible para equilibrar el espacio ocupado por el botón de volver
+    // y lograr que el título (h1) quede perfectamente centrado
+    .header-spacer { width: 50px; } 
 }

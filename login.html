@@ -3,21 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ingresar - Control de Gastos</title>
+    <title>Ingresar - Finanzas</title>
     <link rel="stylesheet" href="css/styles.css">
     <meta name="theme-color" content="#2e7d32">
-    <style>
-        /* Unos estilos rápidos para centrar el login */
-        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding-bottom: 0; background-color: #f5f5f5; }
-        .login-container { width: 100%; max-width: 400px; padding: 20px; }
-        .logo-app { text-align: center; margin-bottom: 30px; }
-        .logo-app h1 { color: #2e7d32; font-size: 2rem; margin-bottom: 5px; }
-        .logo-app p { color: #666; }
-        .toggle-form { text-align: center; margin-top: 20px; font-size: 0.9rem; }
-        .toggle-form a { color: #2e7d32; font-weight: bold; text-decoration: none; cursor: pointer; }
-    </style>
 </head>
-<body>
+<body class="login-page">
 
     <div class="login-container">
         <div class="logo-app">
@@ -26,7 +16,7 @@
         </div>
 
         <div class="card">
-            <h2 id="form-title" style="text-align: center; margin-bottom: 20px;">Iniciar Sesión</h2>
+            <h2 id="form-title" class="text-center mb-20">Iniciar Sesión</h2>
             
             <form id="auth-form">
                 <div class="form-group">
@@ -39,7 +29,14 @@
                     <input type="password" id="password" required placeholder="********">
                 </div>
 
-                <button type="submit" class="btn-primary" id="btn-submit">Ingresar</button>
+                <button type="submit" class="btn-primary" id="btn-accion">Ingresar</button>
+
+                <div class="text-center mb-15" style="color: #666;">O</div>
+
+                <button type="button" id="btn-google" class="btn-google">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                    Continuar con Google
+                </button>            
             </form>
 
             <div class="toggle-form">
@@ -50,7 +47,6 @@
     </div>
 
     <div id="toast-container" class="toast"></div>
-
     <script type="module" src="js/controller_login.js"></script>
 </body>
 </html>

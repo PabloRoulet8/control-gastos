@@ -1,42 +1,29 @@
+@use "sass:color";
+
+// ==========================================
+// ACORDEONES (Listas desplegables)
+// ==========================================
+
 .accordion-item {
-    margin-bottom: 8px;
-
-    .accordion-header {
-        width: 100%;
-        padding: 15px;
-        background: $accordion-bg;
-        border: 1px solid $border-color;
-        text-align: left;
-        font-weight: bold;
-        color: #333;
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        &:hover { background: darken($accordion-bg, 3%); }
-        &.active span { transform: rotate(180deg); transition: transform 0.3s ease; }
-    }
-
-    .accordion-content {
-        padding: 15px;
-        border: 1px solid $border-color;
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        background: #fff;
-    }
+    border: 1px solid #eee; border-radius: 8px;
+    margin-bottom: 10px; overflow: hidden;
 }
 
-.lista-minimal {
-    list-style: none;
-    padding: 0;
-    li {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px dashed #eee;
-        &:last-child { border-bottom: none; }
-        strong { color: #1b5e20; }
-    }
+// El botón gris que tocás para desplegar (ej. "Gastos de Mostri")
+.accordion-header {
+    width: 100%; padding: 15px; background: #f9f9f9; border: none;
+    text-align: left; font-weight: bold; color: #333; display: flex;
+    justify-content: space-between; cursor: pointer; transition: 0.3s;
+    
+    // Función moderna de Sass para oscurecer el fondo al pasar el mouse
+    &:hover { background: color.adjust(#f9f9f9, $lightness: -3%); }
+    
+    // Gira la flechita cuando se abre
+    &.active span { transform: rotate(180deg); }
+    span { transition: transform 0.3s ease; }
+}
+
+// El contenido que está escondido adentro
+.accordion-content {
+    padding: 15px; background: white; border-top: 1px solid #eee;
 }

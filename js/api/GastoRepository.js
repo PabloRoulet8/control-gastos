@@ -98,10 +98,11 @@ export class GastoRepository {
 
         const docRef = await addDoc(this.coleccionHogares, nuevoHogar);
 
+        // Guardamos configuración inicial
         await this.guardarConfiguracionHogar(docRef.id, { fondo_comun: 0 });
-        await this.guardarCategorias(docRef.id, 'hogar', ['Alquiler', 'Expensas', 'Gas', 'EPE', 'WiFi', 'Agua', 'TGI', 'Supermercado', 'Carnicería', 'Verdulería', 'Salidas', 'Otros']);
-
-        return { id: docRef.id, codigo: codigoGenerado };
+        
+        // Retornamos el ID para poder redirigir al usuario inmediatamente
+        return { id: docRef.id, nombre: nombreHogar };
     }
 
     async unirseAHogar(codigoStr) {

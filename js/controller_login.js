@@ -1,5 +1,12 @@
 import { auth } from "./firebase-config.js";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    sendEmailVerification, 
+    signOut,
+    GoogleAuthProvider,
+    signInWithPopup
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { ToastManager } from "./ui/ToastManager.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -7,14 +14,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('auth-form');
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
-    const btnSubmit = document.getElementById('btn-submit');
+    const btnSubmit = document.getElementById('btn-accion'); // <-- Corregido para que coincida con tu HTML
     const btnToggle = document.getElementById('btn-toggle-mode');
     const toggleText = document.getElementById('toggle-text');
     const formTitle = document.getElementById('form-title');
+    const btnGoogle = document.getElementById('btn-google');
 
     let isLoginMode = true; // Empieza en modo Login
 
-    // Lógica para alternar entre Login y Registro
+    // ==========================================
+    // ALTERNAR ENTRE LOGIN Y REGISTRO
+    // ==========================================
     btnToggle.addEventListener('click', () => {
         isLoginMode = !isLoginMode;
         if (isLoginMode) {
@@ -30,7 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Lógica al enviar el formulario
+    // ==========================================
+    // INGRESO Y REGISTRO CLÁSICO (Correo/Contraseña)
+    // ==========================================
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = emailInput.value.trim();
@@ -46,15 +58,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (isLoginMode) {
-                // Iniciar sesión
+                // INICIAR SESIÓN
                 await signInWithEmailAndPassword(auth, email, password);
                 toast.mostrar("¡Sesión iniciada! 👋");
                 setTimeout(() => { window.location.href = 'index.html'; }, 1000);
             } else {
-                // Registrarse
-                await createUserWithEmailAndPassword(auth, email, password);
-                toast.mostrar("¡Cuenta creada exitosamente! 🎉");
-                setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+                // REGISTRARSE
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                
+                // 1. Mandamos el mail de verificación
+                await sendEmailVerification(userCredential.user);
+                
+                // 2. Avisamos y cerramos la sesión temporalmente para obligarlo a verificar
+                alert("¡Cuenta creada! Por favor, revisá tu correo (y la carpeta de SPAM) para verificar tu cuenta antes de ingresar.");
+                await signOut(auth);
+                
+                // 3. Limpiamos el formulario y lo devolvemos a la pantalla de "Iniciar Sesión"
+                form.reset(); 
+                btnToggle.click(); // Simula un clic para cambiar la vista a Login automáticamente
             }
         } catch (error) {
             console.error("Auth error:", error);
@@ -75,4 +96,28 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubmit.textContent = isLoginMode ? 'Ingresar' : 'Registrarse';
         }
     });
+
+    // ==========================================
+    // INICIO DE SESIÓN CON GOOGLE
+    // ==========================================
+    if (btnGoogle) {
+        btnGoogle.addEventListener('click', async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                // Abre la ventanita emergente de Google
+                const resultado = await signInWithPopup(auth, provider);
+                
+                // Las cuentas de Google ya vienen verificadas, pasan directo
+                toast.mostrar("¡Sesión iniciada con Google! 👋");
+                setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+            } catch (error) {
+                console.error("Error con Google:", error);
+                
+                // Evitamos mostrar error si el usuario simplemente se arrepintió y cerró la ventanita
+                if (error.code !== 'auth/popup-closed-by-user') {
+                    toast.mostrar("No se pudo iniciar sesión con Google.");
+                }
+            }
+        });
+    }
 });

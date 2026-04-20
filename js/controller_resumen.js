@@ -1,239 +1,224 @@
 import { GastoRepository } from "./api/GastoRepository.js";
-import { ResumenService } from "./services/ResumenService.js";
-import { ToastManager } from "./ui/ToastManager.js";
-import { auth } from "./firebase-config.js"; 
+import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const api = new GastoRepository();
-    const calculador = new ResumenService();
-    const toast = new ToastManager();
-
+    
     const urlParams = new URLSearchParams(window.location.search);
     const ambitoActual = urlParams.get('ambito') || 'personal';
     const hogarId = urlParams.get('id');
-    const hogarNombre = urlParams.get('nombre');
 
     document.querySelectorAll('.bottom-nav a').forEach(link => {
         const baseHref = link.getAttribute('href').split('?')[0];
         if (baseHref !== 'index.html') {
-            link.href = `${baseHref}?ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}${hogarNombre ? `&nombre=${encodeURIComponent(hogarNombre)}` : ''}`;
+            link.href = `${baseHref}?ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}`;
         }
     });
 
-    const txtDeudor = document.getElementById('txt-deudor');
-    const valDeuda = document.getElementById('val-deuda');
-    const switchSaldado = document.getElementById('switch-saldado');
-    const labelSwitch = document.getElementById('label-switch-saldado');
-    const valDeudaAnteriorDetalle = document.getElementById('val-deuda-mes-anterior');
-    let selectorGrafico = document.getElementById('selector-grafico');
-    const listaChecklist = document.getElementById('lista-checklist');
     const valTotalCasa = document.getElementById('val-total-casa');
-    const valFondo = document.querySelector('.valor-fondo');
-    const valTotalMostri = document.querySelector('.pablo-total');
-    const valTotalMostrina = document.querySelector('.yanet-total');
-    const valAlimentacion = document.querySelector('.valor-alimentacion');
-    const valFijos = document.querySelector('.valor-fijos');
+    const contenedorFondo = document.querySelector('.box-info'); 
+    const listaChecklist = document.getElementById('lista-checklist');
     const listaStockUI = document.getElementById('lista-stock-categorizada');
-    const listaMostriUI = document.getElementById('lista-gastos-mostri');
-    const listaMostrinaUI = document.getElementById('lista-gastos-mostrina');
-    const tituloHeader = document.querySelector('header h1');
 
-    if (tituloHeader) {
-        tituloHeader.textContent = ambitoActual === 'hogar' ? `Resumen: ${hogarNombre}` : 'Mi Resumen Personal';
-    }
+    let miNombre = "Usuario";
 
-    document.querySelectorAll('.accordion-header').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const content = btn.nextElementSibling;
-            const isOpen = content.style.display === 'block';
-            content.style.display = isOpen ? 'none' : 'block';
-            btn.classList.toggle('active', !isOpen);
+    document.querySelectorAll('.accordion-header').forEach(button => {
+        button.addEventListener('click', () => {
+            button.classList.toggle('active');
+            const content = button.nextElementSibling;
+            content.style.display = content.style.display === "block" ? "none" : "block";
         });
     });
 
-    const formatoARS = (num) => '$ ' + num.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    let miGrafico = null;
-    let datosGraficoActuales = {}; 
-
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            try {
-                // Identificamos quién es el usuario logueado para mostrar sus datos personales
-                const nombreUsuario = user.displayName ? user.displayName.toLowerCase() : '';
-                const esMostri = (nombreUsuario === 'mostri' || nombreUsuario === 'pablo');
-                const miClavePersonal = esMostri ? 'mostri' : 'mostrina';
+            const userRef = doc(db, "usuarios", user.uid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) miNombre = userSnap.data().nombre || user.displayName || "Usuario";
 
-                const contextoConsulta = ambitoActual === 'hogar' ? hogarId : 'personal';
-                const contextoId = ambitoActual === 'hogar' ? hogarId : user.uid;
-
-                const fechaHoy = new Date();
-                const mesActual = fechaHoy.toISOString().slice(0, 7); 
-                const fechaAnterior = new Date();
-                fechaAnterior.setMonth(fechaAnterior.getMonth() - 1);
-                const mesAnterior = fechaAnterior.toISOString().slice(0, 7);
-
-                if (ambitoActual === 'hogar') {
-                    const configHogar = await api.obtenerConfiguracionHogar(hogarId);
-                    if (configHogar && configHogar.fondo_comun) {
-                        calculador.fondoInicial = parseFloat(configHogar.fondo_comun);
-                    }
-                }
-
-                const gastos = await api.obtenerGastos(contextoConsulta);
-                const estadoDeudas = await api.obtenerEstadoDeudas(contextoId);
-                const res = calculador.calcularResumen(gastos, mesActual, mesAnterior, estadoDeudas);
-
-                if (ambitoActual === 'personal') {
-                    // ==========================================
-                    // MUNDO PERSONAL
-                    // ==========================================
-                    if(txtDeudor) txtDeudor.textContent = "Total Gastado este mes:";
-                    
-                    const miTotalPersonal = res.totales[miClavePersonal]; 
-                    if(valDeuda) {
-                        valDeuda.textContent = formatoARS(miTotalPersonal);
-                        valDeuda.style.color = "#2e7d32"; 
-                    }
-
-                    if(switchSaldado) switchSaldado.closest('.card').style.display = 'none'; 
-                    if(valTotalCasa) valTotalCasa.closest('.card').style.display = 'none'; 
-                    if(listaChecklist) listaChecklist.closest('.card').style.display = 'none'; 
-                    if(listaStockUI) listaStockUI.closest('.card').style.display = 'none'; 
-
-                    const renderList = (datos, ui) => {
-                        if(!ui) return;
-                        ui.innerHTML = Object.keys(datos).length ? '' : '<li>Sin gastos</li>';
-                        Object.entries(datos).sort().forEach(([cat, val]) => {
-                            ui.innerHTML += `<li><span>${cat}</span> <strong>${formatoARS(val)}</strong></li>`;
-                        });
-                    };
-                    
-                    // Mostramos SOLO mi propia lista
-                    renderList(res.individuales[miClavePersonal], listaMostriUI);
-                    if(listaMostriUI) {
-                        const tituloAcordeon = listaMostriUI.closest('.accordion-item').querySelector('.accordion-header span');
-                        if (tituloAcordeon) tituloAcordeon.textContent = "Mis Gastos Detallados";
-                    }
-                    if(listaMostrinaUI && listaMostrinaUI.closest('.accordion-item')) listaMostrinaUI.closest('.accordion-item').style.display = 'none'; 
-
-                } else {
-                    // ==========================================
-                    // MUNDO HOGAR
-                    // ==========================================
-                    if(valTotalCasa) {
-                        // SUMA EXCLUSIVA DE GASTOS DE LA CASA (Fijos + Comestibles)
-                        valTotalCasa.textContent = formatoARS(res.totales.fijos + res.totales.alimentacion);
-                        const tituloCasa = valTotalCasa.previousElementSibling;
-                        if(tituloCasa) tituloCasa.textContent = "Total Gastos del Hogar";
-                    }
-
-                    // PRIVACIDAD: Ocultar los totales personales (cajitas verdes)
-                    if (valTotalMostri && valTotalMostri.parentElement) valTotalMostri.parentElement.style.display = 'none';
-                    if (valTotalMostrina && valTotalMostrina.parentElement) valTotalMostrina.parentElement.style.display = 'none';
-
-                    // PRIVACIDAD: Ocultar los acordeones de listas personales en el Hogar
-                    if (listaMostriUI && listaMostriUI.closest('.accordion-item')) listaMostriUI.closest('.accordion-item').style.display = 'none';
-                    if (listaMostrinaUI && listaMostrinaUI.closest('.accordion-item')) listaMostrinaUI.closest('.accordion-item').style.display = 'none';
-
-                    if(labelSwitch) labelSwitch.textContent = `¿Mes de ${mesAnterior} saldado?`;
-                    if(switchSaldado) switchSaldado.checked = res.estadoMesAnterior;
-                    
-                    if (valDeudaAnteriorDetalle) {
-                        valDeudaAnteriorDetalle.textContent = res.estadoMesAnterior ? formatoARS(0) : formatoARS(Math.abs(res.deudaMesAnterior));
-                        valDeudaAnteriorDetalle.style.color = res.estadoMesAnterior ? "#2e7d32" : "#d32f2f";
-                    }
-
-                    if (Math.abs(res.deudaAcumulada) < 1) {
-                        if(txtDeudor) txtDeudor.textContent = "¡Cuentas al día! 🎉";
-                        if(valDeuda) { valDeuda.textContent = "$ 0"; valDeuda.style.color = "#2e7d32"; }
-                    } else {
-                        if(txtDeudor) txtDeudor.textContent = res.deudaAcumulada > 0 ? "Mostri debe a Mostrina:" : "Mostrina debe a Mostri:";
-                        if(valDeuda) { valDeuda.textContent = formatoARS(Math.abs(res.deudaAcumulada)); valDeuda.style.color = "#d32f2f"; }
-                    }
-
-                    if(switchSaldado) switchSaldado.addEventListener('change', async (e) => {
-                        try {
-                            await api.guardarEstadoDeuda(contextoId, mesAnterior, e.target.checked);
-                            toast.mostrar(e.target.checked ? `Cuentas de ${mesAnterior} cerradas ✅` : "Cuentas reabiertas ❌");
-                            setTimeout(() => location.reload(), 1200);
-                        } catch (error) { toast.mostrar("Error al guardar"); e.target.checked = !e.target.checked; }
-                    });
-
-                    if (valFondo) valFondo.textContent = formatoARS(res.totales.fondoRestante);
-                    if (valAlimentacion) valAlimentacion.textContent = formatoARS(res.totales.alimentacion);
-                    if (valFijos) valFijos.textContent = formatoARS(res.totales.fijos);
-
-                    if(listaChecklist) {
-                        const emojis = { alquiler: '🏠', expensas: '🏢', epe: '⚡', agua: '💧', tgi: '📝', gas: '🔥', wifi: '🌐' };
-                        listaChecklist.innerHTML = '';
-                        for (const [servicio, estaPagado] of Object.entries(res.checklist)) {
-                            const status = estaPagado ? '<span style="color:#2e7d32; font-weight:bold;">✅ Pagado</span>' : '<span style="color:#d32f2f;">❌ Pendiente</span>';
-                            listaChecklist.innerHTML += `<li><span>${emojis[servicio] || '📌'} <span style="text-transform: capitalize;">${servicio}</span></span> ${status}</li>`;
-                        }
-                    }
-
-                    if(listaStockUI) {
-                        listaStockUI.innerHTML = '';
-                        for (const [cat, prods] of Object.entries(res.inventario)) {
-                            listaStockUI.innerHTML += `<h4 style="color:#2e7d32; margin-top:10px; text-transform: capitalize;">${cat}</h4>`;
-                            const ul = document.createElement('ul');
-                            ul.className = 'lista-minimal';
-                            Object.values(prods).forEach(p => {
-                                ul.innerHTML += `<li><span>${p.nombre}</span> <strong>${p.cantidad} ${p.unidad}</strong></li>`;
-                            });
-                            listaStockUI.appendChild(ul);
-                        }
-                    }
-                }
-
-                datosGraficoActuales = res.graficos;
-                const dibujarGrafico = (tipo) => {
-                    const datosMap = datosGraficoActuales[tipo];
-                    const canvas = document.getElementById('graficoTorta');
-                    if(!canvas) return;
-                    const ctx = canvas.getContext('2d');
-                    if (miGrafico) miGrafico.destroy();
-                    if(!datosMap) return;
-                    
-                    const etiquetas = Object.keys(datosMap);
-                    miGrafico = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: etiquetas,
-                            datasets: [
-                                { label: 'Mes Anterior', data: etiquetas.map(c => datosMap[c].anterior), backgroundColor: '#bdc3c7', borderRadius: 5 },
-                                { label: 'Mes Actual', data: etiquetas.map(c => datosMap[c].actual), backgroundColor: '#2e7d32', borderRadius: 5 }
-                            ]
-                        },
-                        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { position: 'top' } } }
-                    });
-                };
-                
-                if (ambitoActual === 'personal') {
-                    dibujarGrafico(miClavePersonal); // Dibuja el gráfico con las categorías personales del usuario
-                    if(selectorGrafico) selectorGrafico.style.display = 'none'; 
-                } else {
-                    dibujarGrafico('general'); // Por defecto dibuja el total de la casa
-                    if(selectorGrafico) {
-                        selectorGrafico.style.display = 'block';
-                        selectorGrafico.innerHTML = `
-                            <option value="general">🏠 Todos los Gastos</option>
-                            <option value="comestibles">🛒 Solo Comestibles</option>
-                            <option value="servicios">⚡ Solo Servicios (Fijos)</option>
-                        `;
-                        // Clonamos el elemento para borrar los "event listeners" viejos y evitar errores
-                        const nuevoSelector = selectorGrafico.cloneNode(true);
-                        selectorGrafico.parentNode.replaceChild(nuevoSelector, selectorGrafico);
-                        selectorGrafico = nuevoSelector; // Actualizamos la referencia
-                        selectorGrafico.addEventListener('change', (e) => dibujarGrafico(e.target.value));
-                    }
-                }
-
-            } catch (error) { 
-                console.error("Error al cargar resumen:", error); 
-                if(valTotalCasa) valTotalCasa.textContent = "Error";
-            }
+            await inicializarResumen(user.uid);
         }
     });
+
+    async function inicializarResumen(userId) {
+        try {
+            const hoy = new Date();
+            const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+            const contextoConsulta = ambitoActual === 'hogar' ? hogarId : 'personal';
+            
+            // 1. Extraemos los gastos del mes
+            const todosLosGastos = await api.obtenerGastos(contextoConsulta) || [];
+            const gastos = todosLosGastos.filter(g => g && g.fecha && g.fecha.startsWith(mesActual));
+
+            // 2. Extraemos la configuración de etiquetas desde tu Perfil
+            const userRef = doc(db, "usuarios", userId);
+            const snap = await getDoc(userRef);
+            const rawCategorias = snap.exists() ? (snap.data().categorias_personales || []) : [];
+            // Normalizamos para asegurar que todo sea un objeto con los interruptores leíbles
+            const catConfig = rawCategorias.map(c => typeof c === 'string' ? { nombre: c, es_fijo: false, lleva_stock: false } : c);
+
+            if (ambitoActual === 'personal') {
+                await procesarResumenPersonal(userId, gastos, catConfig, snap);
+            } else {
+                await procesarResumenHogar(hogarId, gastos); // Lo actualizaremos luego
+            }
+
+            renderizarGrafico(gastos);
+            renderizarStock(gastos);
+            renderizarChecklist(gastos, catConfig);
+
+        } catch (error) {
+            console.error("Error al inicializar resumen:", error);
+        }
+    }
+
+    async function procesarResumenPersonal(userId, gastos, catConfig, snap) {
+        const highlightCard = document.querySelector('.highlight-card');
+        if(highlightCard) highlightCard.style.display = 'none'; 
+        
+        const gridMostri = document.querySelector('.grid-2-col.mt-15');
+        if(gridMostri) gridMostri.style.display = 'none'; 
+
+        const labelTotal = document.querySelector('.monto-total .label');
+        if(labelTotal) labelTotal.textContent = "Total Gastado en el Mes";
+
+        const selectorGrafico = document.getElementById('selector-grafico');
+        if(selectorGrafico) {
+            Array.from(selectorGrafico.options).forEach(opt => {
+                if(opt.value === 'mostri' || opt.value === 'mostrina') opt.style.display = 'none';
+                if(opt.value === 'general') opt.textContent = 'Todos mis gastos';
+            });
+        }
+
+        const totalMes = gastos.reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
+        if(valTotalCasa) valTotalCasa.textContent = `$ ${totalMes.toLocaleString()}`;
+
+        // LÓGICA INTELIGENTE 🛒: Sumamos las que marcaste que Llevan Stock
+        const catsConStock = catConfig.filter(c => c.lleva_stock).map(c => c.nombre.toLowerCase().trim());
+        const gastoAlimentacion = gastos
+            .filter(g => catsConStock.includes((g.categoria || "").toLowerCase().trim()))
+            .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
+        const valAlim = document.querySelector('.valor-alimentacion');
+        if(valAlim) valAlim.textContent = `$ ${gastoAlimentacion.toLocaleString()}`;
+
+        // LÓGICA INTELIGENTE 🏠: Sumamos las que marcaste como Fijas (Y que no son stock)
+        const catsFijas = catConfig.filter(c => c.es_fijo && !c.lleva_stock).map(c => c.nombre.toLowerCase().trim());
+        const gastoFijos = gastos
+            .filter(g => catsFijas.includes((g.categoria || "").toLowerCase().trim()))
+            .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
+        const valFijos = document.querySelector('.valor-fijos');
+        if(valFijos) valFijos.textContent = `$ ${gastoFijos.toLocaleString()}`;
+
+        const fondos = snap.exists() ? (snap.data().fondos || []) : [];
+        if (fondos.length > 0) {
+            if(contenedorFondo) {
+                contenedorFondo.style.display = 'block';
+                contenedorFondo.innerHTML = '<span class="box-info-label" style="text-transform: uppercase;">Estado de mis Presupuestos</span>';
+                fondos.forEach(f => {
+                    const gastadoEnFondo = gastos
+                        .filter(g => f.categorias.includes(g.categoria))
+                        .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
+                    
+                    const restante = f.monto - gastadoEnFondo;
+                    const color = restante < 0 ? '#d32f2f' : '#01579b';
+
+                    contenedorFondo.innerHTML += `
+                        <div class="flex-between mt-15" style="border-bottom: 1px solid #bbdefb; padding-bottom: 5px;">
+                            <span style="font-weight: bold; color: #0277bd;">${f.nombre}</span>
+                            <span style="font-weight: 800; color: ${color};">$ ${restante.toLocaleString()}</span>
+                        </div>
+                    `;
+                });
+            }
+        } else {
+            if(contenedorFondo) contenedorFondo.style.display = 'none';
+        }
+    }
+
+    async function procesarResumenHogar(idHogar, gastos) {
+        // Acá programaremos la lógica del pozo común
+    }
+
+    function renderizarStock(gastos) {
+        if(!listaStockUI) return;
+        listaStockUI.innerHTML = '';
+        
+        const items = gastos.flatMap(g => g.detalle_inventario || []);
+        if (items.length === 0) {
+            listaStockUI.innerHTML = '<p class="text-center text-muted">No hay compras de stock este mes.</p>';
+            return;
+        }
+
+        const stockAgrupado = items.reduce((acc, item) => {
+            const nombre = item.producto.toLowerCase();
+            if (!acc[nombre]) acc[nombre] = { cant: 0, unidad: item.unidad };
+            acc[nombre].cant += item.cantidad;
+            return acc;
+        }, {});
+
+        for (const [nombre, info] of Object.entries(stockAgrupado)) {
+            const div = document.createElement('div');
+            div.className = 'flex-between border-bottom-gray mb-15';
+            div.style.padding = "8px 0";
+            div.innerHTML = `
+                <span style="text-transform: capitalize;">${nombre}</span>
+                <span class="text-bold-dark">${info.cant} ${info.unidad}</span>
+            `;
+            listaStockUI.appendChild(div);
+        }
+    }
+
+    // El checklist ahora se dibuja usando las categorías que marcaste con la casita 🏠
+    function renderizarChecklist(gastos, catConfig) {
+        if(!listaChecklist) return;
+        
+        const categoriasFijas = catConfig.filter(c => c.es_fijo).map(c => c.nombre);
+        listaChecklist.innerHTML = '';
+
+        if (categoriasFijas.length === 0) {
+            listaChecklist.innerHTML = '<li class="text-center text-muted" style="padding: 10px;">No marcaste ninguna categoría como Fija 🏠.</li>';
+            return;
+        }
+
+        categoriasFijas.forEach(fija => {
+            const pagado = gastos.some(g => (g.categoria || "").toLowerCase().trim() === fija.toLowerCase().trim());
+            const li = document.createElement('li');
+            li.style.opacity = pagado ? '0.5' : '1';
+            li.innerHTML = `
+                <span>${pagado ? '✅' : '⭕'} ${fija}</span>
+                <span class="text-sm-gray">${pagado ? 'Pagado' : 'Pendiente'}</span>
+            `;
+            listaChecklist.appendChild(li);
+        });
+    }
+
+    function renderizarGrafico(gastos) {
+        const canvas = document.getElementById('graficoTorta');
+        if(!canvas) return;
+
+        const dataMap = gastos.reduce((acc, g) => {
+            acc[g.categoria] = (acc[g.categoria] || 0) + (Number(g.monto) || 0);
+            return acc;
+        }, {});
+
+        if (Object.keys(dataMap).length === 0) return;
+
+        new Chart(canvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(dataMap),
+                datasets: [{
+                    data: Object.values(dataMap),
+                    backgroundColor: ['#2e7d32', '#1976d2', '#ff9800', '#9c27b0', '#f44336', '#00bcd4', '#e91e63']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
 });

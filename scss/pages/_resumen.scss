@@ -1,25 +1,22 @@
-.monto-total {
-    text-align: center;
-    margin-bottom: 20px;
-    .valor { font-size: 2rem; color: $primary-color; }
-}
+// ==========================================
+// ESPECÍFICO DE LA PANTALLA DE RESUMEN
+// ==========================================
 
+// El bloque gigante verde/rojo que dice quién le debe a quién
 .deuda-principal {
-    text-align: center;
-    margin-bottom: 15px;
-    p { font-size: 1.1rem; font-weight: 500; color: #1b5e20; }
-    .valor-deuda { display: block; font-size: 2.4rem; font-weight: 800; color: #2e7d32; }
+    text-align: center; padding: 20px 0;
+    p { margin: 0 0 10px 0; color: #666; font-size: 1.1rem; }
+    .valor-deuda { font-size: 2.5rem; font-weight: 900; }
 }
 
-.desglose-deuda {
-    list-style: none;
-    font-size: 0.9rem;
-    color: #388e3c;
-    li {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
-        border-bottom: 1px dashed #a5d6a7;
-        span { font-weight: 600; }
-    }
+// El número principal del gasto total
+.monto-total {
+    text-align: center; padding: 15px 0; border-bottom: 1px solid #eee;
+    .label { display: block; color: #666; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+    .valor { font-size: 2rem; font-weight: 800; color: $verde-primario; }
+}
+
+// Contenedor estrictamente necesario para que el gráfico de barras (Chart.js) no se desborde
+.chart-container {
+    position: relative; height: 350px; width: 100%;
 }

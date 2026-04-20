@@ -7,41 +7,33 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2e7d32">
-    <style>
-        .avatar-square { width: 60px; height: 60px; background-color: #2e7d32; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; box-shadow: 0 4px 6px rgba(46, 125, 50, 0.3); }
-        .dashboard-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .grid-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .dashboard-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s; text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 130px; }
-        .dashboard-card:hover { border-color: #2e7d32; }
-        .dashboard-card .icon { font-size: 2.5rem; margin-bottom: 10px; }
-        .card-add { border: 2px dashed #ccc; background: transparent; box-shadow: none; }
-        .card-add:hover { border-color: #2e7d32; background: #e8f5e9; }
-    </style>
 </head>
 <body>
-    <header class="header" style="justify-content: flex-end; padding-right: 20px;">
-        <button onclick="cerrarSesion()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem;" title="Cerrar Sesión">🚪</button>
+    <header class="header flex-between">
+        <div class="header-spacer"></div> <button id="btn-cerrar-sesion" class="btn-icon-white" title="Cerrar Sesión">🚪</button>
     </header>
 
-    <main class="container" style="padding-top: 10px;">
+    <main class="container mt-15">
         <div class="dashboard-header">
-            <div class="avatar-square" id="user-avatar">?</div>
+            <a href="perfil.html" style="text-decoration: none;">
+                <div class="avatar-square" id="user-avatar" title="Editar Mi Perfil" style="cursor: pointer;">⚙️</div>
+            </a>
             <div>
-                <h2 id="saludo-usuario" style="color: #2e7d32; margin: 0; font-size: 1.5rem;">Cargando...</h2>
-                <p style="color: #666; margin: 0; font-size: 0.95rem;">¿Dónde vamos a anotar hoy?</p>
+                <h2 id="saludo-usuario" class="greeting-text">Cargando...</h2>
+                <p class="subtitle-text">¿Dónde vamos a anotar hoy?</p>
             </div>
         </div>
 
         <div class="grid-cards" id="contenedor-hogares">
             
-            <a href="carga.html?ambito=personal" class="dashboard-card">
+            <a href="carga.html?ambito=personal" class="dashboard-card-link">
                 <span class="icon">👤</span>
-                <strong style="font-size: 1.05rem;">Mis Gastos Personales</strong>
+                <span class="title">Mis Gastos Personales</span>
             </a>
             
-            <a href="nuevo_hogar.html" class="dashboard-card card-add" id="btn-add-hogar">
+            <a href="nuevo_hogar.html" class="dashboard-card-link card-add" id="btn-add-hogar">
                 <span class="icon" style="color: #2e7d32;">➕</span>
-                <strong style="color: #555; font-size: 0.95rem;">Nuevo Hogar</strong>
+                <span class="title">Nuevo Hogar</span>
             </a>
 
         </div>

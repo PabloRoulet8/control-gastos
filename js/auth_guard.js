@@ -1,21 +1,34 @@
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
-// El "Patovica": Escucha constantemente el estado del usuario
-onAuthStateChanged(auth, (user) => {
+// 1. EL PATOVICA (Esto ya lo tenías)
+onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        // Si no hay usuario logueado, lo pateamos sin piedad a la pantalla de login
-        window.location.replace("login.html");
-    } else {
-        console.log("Sesión activa de:", user.email);
+        window.location.href = "login.html"; 
+    } else if (user && !user.emailVerified) {
+        alert("⚠️ Tu cuenta no está verificada. Por favor, revisá tu correo electrónico y hacé clic en el enlace de confirmación.");
+        await signOut(auth);
+        window.location.href = "login.html";
     }
 });
 
-// Función global para cerrar sesión (la conectaremos a un botón enseguida)
-window.cerrarSesion = () => {
-    signOut(auth).then(() => {
-        window.location.replace("login.html");
-    }).catch((error) => {
-        console.error("Error al cerrar sesión", error);
-    });
-};
+// ==========================================
+// 2. LÓGICA DEL BOTÓN DE CERRAR SESIÓN (Lo Nuevo)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
+    
+    if (btnCerrarSesion) {
+        btnCerrarSesion.addEventListener('click', async () => {
+            try {
+                // Le pedimos a Firebase que cierre la sesión
+                await signOut(auth);
+                // ¡Magia! No hace falta redirigir acá, porque al cerrarse la sesión, 
+                // el "Patovica" de arriba se da cuenta al instante y lo patea al login.
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+                alert("Hubo un problema al intentar cerrar la sesión.");
+            }
+        });
+    }
+});

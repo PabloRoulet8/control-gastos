@@ -1,0 +1,49 @@
+// ==========================================
+// CLASES UTILITARIAS ("Helpers")
+// ==========================================
+// Son "mini-herramientas". En vez de crear CSS específico cada vez que queremos 
+// darle margen a un botón, le ponemos la clase ".mt-15" directamente en el HTML.
+
+// Posicionamiento de texto y anchos
+.text-center { text-align: center; }
+.w-100 { width: 100%; }
+
+// Márgenes predefinidos (mt = margin-top, mb = margin-bottom)
+.mt-15 { margin-top: 15px; }
+.mb-15 { margin-bottom: 15px; }
+.mb-20 { margin-bottom: 20px; }
+
+// Atajos para usar Flexbox rápidamente
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-center { display: flex; justify-content: center; align-items: center; }
+.flex-1 { flex: 1; } // Ocupa 1 parte del espacio disponible
+.flex-2 { flex: 2; } // Ocupa 2 partes del espacio disponible
+.gap-10 { gap: 10px; } // Espacio de separación entre elementos flex
+
+// Tipografías y Colores Rápidos
+.opacity-70 { opacity: 0.7; }
+.text-muted { color: #555; }
+.text-sm-green-bold { font-size: 0.9rem; color: $verde-oscuro; font-weight: bold; }
+.text-lg-red-bold { font-size: 1.1rem; font-weight: 800; color: #d32f2f; margin-top: 2px; }
+.text-sm-gray { color: $gris-texto; font-size: 0.9rem; }
+.text-bold-dark { font-weight: bold; color: #333; }
+.text-orange { color: $naranja-oscuro; font-weight: bold; }
+
+// Separadores visuales (Líneas divisorias)
+.border-top-green { border-top: 1px solid $verde-borde; padding-top: 15px; margin-top: 20px; }
+.border-top-thick { border-top: 2px solid #eee; padding-top: 20px; margin-top: 20px; }
+.border-top-dashed { border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 20px; }
+.border-bottom-gray { border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+
+// Grillas rápidas para formularios o datos paralelos
+.grid-2-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid-inv-row { display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 8px; margin-bottom: 8px; }
+
+// Lista limpia sin viñetas, usada en los resúmenes e inventario
+.lista-minimal {
+    list-style: none; padding: 0; margin: 0;
+    li {
+        display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;
+        &:last-child { border-bottom: none; }
+    }
+}

@@ -1,0 +1,23 @@
+// ==========================================
+// ESPECÍFICO DE LA PANTALLA DE INGRESO
+// ==========================================
+
+// Centra todo el formulario verticalmente
+.login-page {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding-bottom: 0; background-color: $gris-claro;
+}
+
+.login-container {
+    width: 100%; max-width: 400px; padding: 20px;
+    .logo-app {
+        text-align: center; margin-bottom: 30px;
+        h1 { color: $verde-primario; font-size: 2rem; margin-bottom: 5px; }
+        p { color: $gris-texto; }
+    }
+    // Botoncito de "Crear cuenta" abajo del form
+    .toggle-form {
+        text-align: center; margin-top: 20px; font-size: 0.9rem;
+        a { color: $verde-primario; font-weight: bold; text-decoration: none; cursor: pointer; }
+    }
+}

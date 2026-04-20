@@ -1,21 +1,27 @@
-// Importamos primero las variables para que estén disponibles en todo el proyecto
-@import 'base/_variables.scss';
+// ==========================================
+// ARCHIVO PRINCIPAL (COMPILADOR)
+// ==========================================
+// El navegador solo va a leer un archivo CSS final. 
+// Sass se encarga de importar todo lo que hay abajo en orden jerárquico.
 
-// Base
+// VARIABLES Y BASE (Debe ir primero para que todos puedan usar colores/mixins)
+@import 'base/variables';
 @import 'base/reset';
+@import 'base/utilities';
 
-// Layout
+// COMPONENTES (Piezas de Lego reutilizables)
+@import 'components/buttons';
+@import 'components/cards';
+@import 'components/forms';
+@import 'components/modals';
+@import 'components/accordions';
+
+// ESTRUCTURA GLOBAL (LAYOUT)
 @import 'layout/header';
 @import 'layout/navigation';
 
-// Componentes
-@import 'components/cards';
-@import 'components/forms';
-@import 'components/buttons';
-@import 'components/accordions';
-@import 'components/modals';
-@import 'components/toasts';
-
-// Páginas
+// ESTILOS ESPECÍFICOS DE PÁGINAS (Último, sobreescribe si es necesario)
+@import 'pages/login';
+@import 'pages/dashboard';
 @import 'pages/historial';
 @import 'pages/resumen';

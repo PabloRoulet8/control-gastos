@@ -1,25 +1,23 @@
+// ==========================================
+// BARRA DE NAVEGACIÓN INFERIOR
+// ==========================================
+
 .bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: $surface-color;
-    display: flex;
-    justify-content: space-around;
-    padding: 10px 0;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    z-index: 1000;
+    position: fixed; bottom: 0; width: 100%; background: white;
+    display: flex; justify-content: space-around; padding: 10px 0;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 100;
+    border-top-left-radius: 15px; border-top-right-radius: 15px;
 
     .nav-item {
-        text-decoration: none;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: $text-muted;
-        font-size: 0.8rem;
+        text-align: center; color: $gris-texto; text-decoration: none;
+        font-size: 0.8rem; display: flex; flex-direction: column;
+        align-items: center; gap: 3px;
         
-        .icon { font-size: 1.4rem; margin-bottom: 2px; }
-        
-        &.active { color: $primary-color; font-weight: bold; }
+        // Cuando estás parado en esa página, se pinta de verde
+        &.active {
+            color: $verde-primario; font-weight: bold;
+            .icon { transform: scale(1.1); } // Aumenta levemente el tamaño del emoji
+        }
+        .icon { font-size: 1.4rem; transition: 0.2s; }
     }
 }
