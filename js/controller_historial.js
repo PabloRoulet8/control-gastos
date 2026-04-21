@@ -1,70 +1,106 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { ConfirmManager } from "./ui/ConfirmManager.js";
-import { auth } from "./firebase-config.js"; 
+import { auth, db } from "./firebase-config.js"; 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const repositorio = new GastoRepository();
+document.addEventListener('DOMContentLoaded', () => {
+    const api = new GastoRepository();
     const toast = new ToastManager();
-    const confirmacion = new ConfirmManager();
+    const confirmacion = new ConfirmManager(); 
     
     const urlParams = new URLSearchParams(window.location.search);
-    const ambitoActual = urlParams.get('ambito') || 'personal';
+    let ambitoActual = urlParams.get('ambito') || 'personal';
+    if (ambitoActual === 'individual') ambitoActual = 'personal';
+    
     const hogarId = urlParams.get('id');
-    const hogarNombre = urlParams.get('nombre');
 
-    document.querySelectorAll('.bottom-nav a').forEach(link => {
-        const baseHref = link.getAttribute('href').split('?')[0];
-        if (baseHref !== 'index.html') {
-            link.href = `${baseHref}?ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}${hogarNombre ? `&nombre=${encodeURIComponent(hogarNombre)}` : ''}`;
-        }
-    });
-
-    const listaGastosUI = document.getElementById('lista-gastos');
+    const tituloHeader = document.getElementById('titulo-header');
+    const navContextual = document.getElementById('nav-contextual');
+    
+    const listaGastosUI = document.getElementById('contenedor-gastos');
     const filtroTipo = document.getElementById('filtro-tipo');
     const filtroResponsable = document.getElementById('filtro-responsable');
     const filtroCategoria = document.getElementById('filtro-categoria');
     const filtroMes = document.getElementById('filtro-mes');
-    const tituloHeader = document.querySelector('header h1');
-
-    // LÓGICA DEL BOTÓN DE RESCATE
-    const btnRescatar = document.getElementById('btn-rescatar');
-    if (btnRescatar) {
-        btnRescatar.addEventListener('click', async () => {
-            if (ambitoActual !== 'hogar' || !hogarId) {
-                alert("⚠️ Por favor, volvé al Inicio y entrá al Historial desde la tarjeta de tu 'Hogar' (no desde gastos personales) para rescatar los datos.");
-                return;
-            }
-            
-            if (confirm("¿Querés actualizar todos tus gastos viejos para que aparezcan en este Hogar?")) {
-                btnRescatar.textContent = "Recuperando datos... aguardá...";
-                btnRescatar.disabled = true;
-                try {
-                    const cantidad = await repositorio.migrarDatosViejos(hogarId);
-                    alert(`¡Misión cumplida! Se rescataron ${cantidad} gastos viejos. La página se va a recargar.`);
-                    window.location.reload();
-                } catch (error) {
-                    alert("Error al rescatar: " + error.message);
-                    btnRescatar.textContent = "🛠️ Recuperar Datos Viejos";
-                    btnRescatar.disabled = false;
-                }
-            }
-        });
-    }
-
-    if (tituloHeader) {
-        tituloHeader.textContent = ambitoActual === 'hogar' ? `Historial: ${hogarNombre}` : 'Mi Historial';
-    }
 
     let todosLosGastos = [];
+    let currentUser = null;
+
+    // 1. NAVEGACIÓN DINÁMICA
+    if (ambitoActual === 'unificado') {
+        if(tituloHeader) tituloHeader.textContent = "Historial Unificado";
+        if(navContextual) navContextual.innerHTML = `
+            <a href="resumen.html?ambito=unificado" class="nav-item">
+                <span class="icon">📈</span><span class="label">Unificado</span>
+            </a>`;
+    } else {
+        const suffix = hogarId ? `&id=${hogarId}` : '';
+        if(navContextual) navContextual.innerHTML = `
+            <a href="carga.html?ambito=${ambitoActual}${suffix}" class="nav-item">
+                <span class="icon">➕</span><span class="label">Cargar</span>
+            </a>
+            <a href="historial.html?ambito=${ambitoActual}${suffix}" class="nav-item active">
+                <span class="icon">📜</span><span class="label">Historial</span>
+            </a>
+            <a href="resumen.html?ambito=${ambitoActual}${suffix}" class="nav-item">
+                <span class="icon">📊</span><span class="label">Resumen</span>
+            </a>`;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            
+            if (ambitoActual === 'hogar' && hogarId) {
+                const snap = await getDoc(doc(db, "hogares", hogarId));
+                if(snap.exists()) {
+                    if(tituloHeader) tituloHeader.textContent = `Historial: ${snap.data().nombre}`;
+                    cargarResponsables(snap.data().miembros || []);
+                }
+            } else {
+                if(tituloHeader) tituloHeader.textContent = 'Mis Gastos Personales';
+            }
+
+            if (ambitoActual === 'personal') {
+                if(filtroResponsable) filtroResponsable.style.display = 'none';
+                if(filtroTipo) filtroTipo.style.display = 'none';
+            } else {
+                if(filtroResponsable) filtroResponsable.style.display = 'block';
+                if(filtroTipo) filtroTipo.style.display = 'block';
+            }
+            
+            await cargarFiltroCategorias(user.uid);
+            await cargarDatosIniciales();
+        }
+    });
+
+    async function cargarResponsables(uids) {
+        if(!filtroResponsable) return;
+        filtroResponsable.innerHTML = '<option value="todos">Todos los responsables</option>';
+        for (const uid of uids) {
+            const s = await getDoc(doc(db, "usuarios", uid));
+            if (s.exists() && s.data().nombre) {
+                const opt = document.createElement('option');
+                opt.value = s.data().nombre;
+                opt.textContent = s.data().nombre;
+                filtroResponsable.appendChild(opt);
+            }
+        }
+    }
 
     const cargarFiltroCategorias = async (userId) => {
+        if(!filtroCategoria) return;
         const contextoId = ambitoActual === 'hogar' ? hogarId : userId;
-        const categoriasList = await repositorio.obtenerCategorias(contextoId, ambitoActual);
+        const ambitoCat = ambitoActual === 'hogar' ? 'hogar' : 'personal';
+        const categoriasList = await api.obtenerCategorias(contextoId, ambitoCat);
 
         if (categoriasList) {
-            const catsUnicas = [...categoriasList].sort();
+            const nombresCats = categoriasList.map(c => typeof c === 'string' ? c : c.nombre);
+            const catsUnicas = [...new Set(nombresCats)].sort();
+            
+            filtroCategoria.innerHTML = '<option value="todas">Todas las categorías</option>';
             catsUnicas.forEach(cat => {
                 const option = document.createElement('option');
                 option.value = cat; 
@@ -75,35 +111,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const renderizarHistorial = () => {
+        if (!listaGastosUI) return; 
         listaGastosUI.innerHTML = '';
         
         let gastosFiltrados = todosLosGastos.filter(gasto => {
-            const cumpleTipo = filtroTipo.value === 'todos' || gasto.tipo === filtroTipo.value;
-            const cumpleResp = filtroResponsable.value === 'todos' || gasto.responsable === filtroResponsable.value;
-            const cumpleMes = !filtroMes.value || gasto.fecha.startsWith(filtroMes.value);
-            const cumpleCat = filtroCategoria.value === 'todas' || gasto.categoria === filtroCategoria.value;
+            const cumpleTipo = (filtroTipo && filtroTipo.style.display !== 'none' && filtroTipo.value !== 'todos') ? gasto.tipo === filtroTipo.value : true;
+            const cumpleResp = (filtroResponsable && filtroResponsable.style.display !== 'none' && filtroResponsable.value !== 'todos') ? gasto.responsable === filtroResponsable.value : true;
+            const cumpleMes = (filtroMes && filtroMes.value) ? gasto.fecha.startsWith(filtroMes.value) : true;
+            const cumpleCat = (filtroCategoria && filtroCategoria.value !== 'todas') ? (gasto.categoria === filtroCategoria.value || (gasto.categoria === '' && filtroCategoria.value === 'Sin categoría')) : true;
             return cumpleTipo && cumpleResp && cumpleMes && cumpleCat;
         });
 
         if (gastosFiltrados.length === 0) {
-            listaGastosUI.innerHTML = '<p style="text-align:center; padding:20px;">No se encontraron movimientos.</p>';
+            listaGastosUI.innerHTML = '<p class="text-center text-muted p-20">No hay movimientos con estos filtros.</p>';
             return;
         }
 
         gastosFiltrados.forEach((gasto) => {
             const item = document.createElement('div');
-            const esMio = gasto.responsable === auth.currentUser?.displayName;
-            let claseTipo = gasto.tipo === 'individual' ? (esMio ? 'individual-pablo' : 'individual-yanet') : 'general';
-            if(ambitoActual === 'personal') claseTipo = 'individual-pablo';
+            
+            let esMio = false;
+            if (currentUser && (gasto.responsable === currentUser.displayName || gasto.responsable === currentUser.uid)) {
+                esMio = true;
+            }
+
+            let claseTipo = 'general';
+            if (ambitoActual === 'personal') {
+                claseTipo = 'individual-pablo'; 
+            } else if (gasto.tipo === 'individual') {
+                claseTipo = esMio ? 'individual-pablo' : 'individual-yanet';
+            }
 
             item.className = `gasto-item ${claseTipo}`;
+            
+            const parts = gasto.fecha ? gasto.fecha.split('-') : ['','',''];
+            const fechaCorta = parts.length >= 3 ? `${parts[2]}/${parts[1]}` : gasto.fecha;
+
             item.innerHTML = `
                 <div class="gasto-info">
-                    <strong>${gasto.categoria}</strong> 
-                    <span class="fecha">${gasto.fecha} — ${gasto.responsable.toUpperCase()}</span>
+                    <strong>${gasto.categoria || 'Sin categoría'}</strong> 
+                    <span class="fecha">${fechaCorta} — ${gasto.responsable ? gasto.responsable.toUpperCase() : 'USUARIO'}</span>
+                    ${gasto.referencia ? `<span class="fecha" style="font-style: italic; margin-top: 3px;">"${gasto.referencia}"</span>` : ''}
                 </div>
                 <div class="gasto-acciones">
-                    <span class="monto">$ ${gasto.monto.toLocaleString('es-AR')}</span>
+                    <span class="monto">$ ${Number(gasto.monto).toLocaleString('es-AR')}</span>
                     <button class="btn-eliminar" data-id="${gasto.id}" title="Eliminar">🗑️</button>
                 </div>
             `;
@@ -113,11 +164,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelectorAll('.btn-eliminar').forEach(boton => {
             boton.addEventListener('click', async (e) => {
                 const idGasto = e.currentTarget.getAttribute('data-id');
-                if (await confirmacion.preguntar("Eliminar Gasto", "¿Estás seguro de borrar este registro?")) {
+                
+                const confirmarBorrado = confirmacion && confirmacion.preguntar 
+                    ? await confirmacion.preguntar("Eliminar Gasto", "¿Estás seguro de borrar este registro?") 
+                    : confirm("¿Estás seguro de borrar este registro?");
+
+                if (confirmarBorrado) {
                     try {
-                        await repositorio.eliminarGasto(idGasto);
+                        const contextoEnvio = ambitoActual === 'hogar' ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
+                        await api.eliminarGasto(idGasto, contextoEnvio);
                         toast.mostrar("Gasto eliminado");
-                        cargarDatosIniciales();
+                        await cargarDatosIniciales();
                     } catch (error) { toast.mostrar("Error al borrar"); }
                 }
             });
@@ -125,30 +182,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const cargarDatosIniciales = async () => {
-        listaGastosUI.innerHTML = '<p style="text-align:center; padding:20px;">Cargando movimientos...</p>';
+        if (!listaGastosUI) return; 
+        listaGastosUI.innerHTML = '<p class="text-center text-muted p-20">Cargando movimientos...</p>';
         try {
-            const contextoConsulta = ambitoActual === 'hogar' ? hogarId : 'personal';
-            todosLosGastos = await repositorio.obtenerGastos(contextoConsulta, { ordenPor: "timestamp", ordenDireccion: "desc" });
+            const contextoConsulta = ambitoActual === 'hogar' ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
+            todosLosGastos = await api.obtenerGastos(contextoConsulta) || [];
+            
+            if (todosLosGastos.length > 0) {
+                todosLosGastos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            }
+
             renderizarHistorial();
         } catch (error) {
             console.error(error);
-            listaGastosUI.innerHTML = '<p style="text-align:center; color:#d32f2f;">Error. Asegurate de haber creado el Índice en Firebase.</p>';
+            listaGastosUI.innerHTML = '<p class="text-center p-20" style="color:#d32f2f;">Error al cargar los datos. Revisá tu conexión.</p>';
         }
     };
 
-    filtroTipo.addEventListener('change', renderizarHistorial);
-    filtroResponsable.addEventListener('change', renderizarHistorial);
-    filtroCategoria.addEventListener('change', renderizarHistorial);
-    filtroMes.addEventListener('change', renderizarHistorial);
-
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            if (ambitoActual === 'personal') {
-                if(filtroResponsable) filtroResponsable.style.display = 'none';
-                if(filtroTipo) filtroTipo.style.display = 'none';
-            }
-            await cargarFiltroCategorias(user.uid);
-            await cargarDatosIniciales();
-        }
-    });
+    // Event Listeners protegidos para los Filtros
+    if(filtroTipo) filtroTipo.addEventListener('change', renderizarHistorial);
+    if(filtroResponsable) filtroResponsable.addEventListener('change', renderizarHistorial);
+    if(filtroCategoria) filtroCategoria.addEventListener('change', renderizarHistorial);
+    if(filtroMes) filtroMes.addEventListener('change', renderizarHistorial);
 });

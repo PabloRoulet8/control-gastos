@@ -4,113 +4,92 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Administrar Hogar</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <meta name="theme-color" content="#2e7d32">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css?v=6.0">
+    <meta name="theme-color" content="#10b981">
 </head>
 <body>
     <header class="header flex-between">
         <button onclick="window.history.back()" class="btn-icon-white">← Volver</button>
-        <h1 class="text-center flex-1">Ajustes del Hogar</h1>
+        <h1 class="text-center flex-1" id="header-titulo">Categorías y Fondos</h1>
         <div class="header-spacer"></div>
     </header>
 
-    <main class="container">
-        <section id="seccion-nombre-hogar" class="card card-top-green mt-15 text-center">
-            <h2 id="titulo-hogar" class="card-title-green">Cargando...</h2>
-            <p class="text-sm-gray mb-15">Configuración compartida</p>
+    <main class="container mt-15">
+        <section id="seccion-nombre-hogar" class="card-clean mb-20 text-center" style="display: none;">
+            <h2 class="card-title-green">Crear Nuevo Hogar</h2>
+            <p class="text-sm-gray mb-15">Elegí un nombre para tu espacio compartido.</p>
+            <input type="text" id="input-nombre-hogar" class="form-control mb-15" placeholder="Ej: Familia / Depto">
+        </section>
+
+        <section class="card-clean mb-20" style="border-top: 4px solid var(--primary-color);">
+            <div class="flex-between mb-15">
+                <h2 class="card-title-green m-0">Categorías de la Casa</h2>
+                <button id="btn-toggle-add-cat" class="btn-add-circle" title="Agregar Categoría">＋</button>
+            </div>
             
-            <div class="form-group text-left mb-15">
-                <label for="input-nombre-hogar">Nombre del Hogar</label>
-                <div class="flex-between gap-10">
-                    <input type="text" id="input-nombre-hogar" class="form-control flex-2" placeholder="Ej: Familia / Depto">
-                    <button id="btn-guardar-nombre" class="btn-primary flex-1 btn-no-margin">Guardar</button>
+            <div id="form-add-cat-box" class="form-toggle-box" style="display: none;">
+                <div class="flex-between gap-10 mb-20" style="background: var(--bg-app); padding: 10px; border-radius: 8px;">
+                    <input type="text" id="input-nueva-cat" class="form-control flex-2" placeholder="Ej: Expensas, Internet">
+                    <button id="btn-add-cat" class="btn-primary flex-1 btn-no-margin" style="padding: 12px;">Agregar</button>
                 </div>
             </div>
 
-            <div id="seccion-link-invitacion" class="border-top-thick hidden">
-                <label class="label-admin">Invitar Integrantes</label>
-                <p class="text-sm-gray text-left mb-10">Copiá este link y mandalo por WhatsApp para que otros se unan.</p>
-                <button id="btn-copiar-link" class="btn-primary bg-orange w-100 flex-center gap-10">
-                    🔗 Copiar Link de Invitación
-                </button>
-            </div>
-        </section>
-
-        <section id="seccion-categorias-hogar" class="card card-top-green">
-            <div class="flex-between mb-15">
-                <h2 class="card-title-green m-0">Categorías de la Casa</h2>
-            </div>
-            
-            <div class="flex-between gap-10 mb-15">
-                <input type="text" id="input-nueva-cat" class="form-control flex-2" placeholder="Ej: Expensas, Internet...">
-                <button id="btn-add-cat" class="btn-primary bg-green flex-1 btn-no-margin">Agregar</button>
-            </div>
-
             <div class="grid-admin-header mb-10">
-                <span class="flex-2">Categoría</span>
-                <span class="text-center-flex">Fijo 🏠</span>
-                <span class="text-center-flex">Stock 🛒</span>
+                <span class="flex-2">CATEGORÍA</span>
+                <span class="text-center-flex">FIJO 🏠</span>
+                <span class="text-center-flex">STOCK 🛒</span>
                 <span class="spacer-40"></span>
             </div>
 
             <ul id="lista-categorias-hogar" class="lista-minimal">
-                <li class="text-center text-muted">Cargando categorías...</li>
-            </ul>
+                </ul>
         </section>
 
-        <section id="seccion-presupuestos-hogar" class="card card-top-orange">
+        <section class="card-clean mb-30" style="border-top: 4px solid #d97706;">
             <div class="flex-between mb-15">
                 <h2 class="card-title-orange m-0">Presupuestos Compartidos</h2>
+                <button id="btn-toggle-add-fondo" class="btn-add-circle" title="Crear Presupuesto">＋</button>
             </div>
             
-            <div id="form-nuevo-fondo" class="border-top-thick pt-10 m-0">
+            <div id="form-add-fondo-box" class="form-toggle-box mb-20" style="display: none; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
                 <div class="form-group">
-                    <label for="input-nombre-fondo">Nombre del Fondo</label>
+                    <label>Nombre del Fondo</label>
                     <input type="text" id="input-nombre-fondo" class="form-control" placeholder="Ej: Supermercado, Alquiler...">
                 </div>
                 <div class="form-group">
-                    <label for="input-monto-fondo">Monto Inicial ($)</label>
+                    <label>Monto Inicial ($)</label>
                     <input type="number" id="input-monto-fondo" class="form-control" placeholder="0.00">
                 </div>
                 <div class="form-group">
                     <label>Vincular Categorías</label>
-                    <div id="check-categorias-vinculadas" class="grid-checkbox-fondos">
-                        <span class="text-muted text-center span-full">Agregá categorías primero</span>
+                    <div id="check-categorias-vinculadas" class="grid-checkbox-fondos p-0 border-0 bg-transparent">
+                        
                     </div>
                 </div>
-                <button id="btn-crear-fondo" class="btn-primary bg-dark-orange w-100 mb-15">Crear Presupuesto</button>
+                <button id="btn-crear-fondo" class="btn-primary w-100" style="background-color: #d97706;">Crear Presupuesto</button>
             </div>
 
-            <ul id="lista-fondos-hogar" class="lista-minimal mt-15">
-                <li class="text-center text-muted">Aún no hay presupuestos.</li>
-            </ul>
+            <ul id="lista-fondos-hogar" class="lista-minimal">
+                </ul>
         </section>
 
-        <section id="seccion-integrantes" class="card card-top-blue hidden">
-            <h2 class="card-title-blue mb-15 m-0">Integrantes</h2>
-            <ul id="lista-integrantes" class="lista-minimal">
-                <li class="text-center text-muted">Cargando integrantes...</li>
-            </ul>
-        </section>
-
-        <button id="btn-final" class="btn-primary btn-danger mb-20">Salir de este Hogar</button>
+        <button id="btn-final" class="btn-primary w-100 mb-30" style="background-color: #388e3c; padding: 15px; font-size: 1.2rem; box-shadow: var(--shadow-md);">Guardar Cambios</button>
     </main>
 
     <div id="modal-link-invitacion" class="modal-overlay" style="display: none;">
         <div class="modal-content text-center">
             <h3 class="card-title-green mb-15" style="margin-top: 0;">¡Hogar Creado! 🏠</h3>
-            <p class="text-sm-gray mb-15">Compartí este link con los demás integrantes para que se unan automáticamente:</p>
-            
-            <input type="text" id="input-link-generado" class="form-control mb-15 text-center" readonly style="background: #e8f5e9; color: #1b5e20; font-weight: bold; border-color: #a5d6a7;">
-            
-            <button id="btn-copiar-link-modal" class="btn-primary bg-orange mb-10 w-100">🔗 Copiar Link</button>
-            <button id="btn-cerrar-modal-link" class="btn-secondary w-100" style="margin-top: 10px;">Ir al Inicio</button>
+            <p class="text-sm-gray mb-15">Compartí este link con los demás integrantes:</p>
+            <input type="text" id="input-link-generado" class="form-control mb-15 text-center" readonly>
+            <button id="btn-copiar-link-modal" class="btn-primary w-100 mb-10">🔗 Copiar Link</button>
+            <button id="btn-cerrar-modal-link" class="btn-secondary w-100">Ir al Inicio</button>
         </div>
     </div>
 
     <div id="toast-container" class="toast"></div>
 
-    <script type="module" src="js/auth_guard.js"></script>
-    <script type="module" src="js/controller_admin_hogar.js"></script>
+    <script type="module" src="js/auth_guard.js?v=6.0"></script>
+    <script type="module" src="js/controller_admin_hogar.js?v=6.0"></script>
 </body>
 </html>

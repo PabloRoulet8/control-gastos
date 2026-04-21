@@ -1,27 +1,69 @@
 // ==========================================
-// VARIABLES GLOBALES DE DISEÑO
+// 1. NUEVO SISTEMA DE DISEÑO (DESIGN SYSTEM)
 // ==========================================
-// Centralizamos los colores acá. Si un día querés que la app sea azul en vez de verde,
-// solo cambiás el código HEX acá y se actualiza mágicamente en todas las pantallas.
+// Paleta Moderna y Tecnológica
+$verde-emerald: #10b981; 
+$verde-dark: #059669;
+$fondo-hielo: #f8fafc;
+$blanco-puro: #ffffff;
+$gris-borde: #e2e8f0;
+$gris-texto: #64748b;
+$dark-navy: #1e293b;
 
-$verde-primario: #2e7d32;
-$verde-oscuro: #1b5e20;
-$verde-claro: #e8f5e9;
-$verde-borde: #a5d6a7;
+// Formas y Tipografía (Estilo Material Clean)
+$border-radius: 8px;
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+$font-main: 'Inter', sans-serif;
 
-$azul-primario: #1976d2;
-$azul-claro: #e3f2fd;
-$azul-borde: #90caf9;
+// ==========================================
+// 2. VARIABLES NATIVAS CSS (Para el Modo Oscuro)
+// ==========================================
+:root {
+    --bg-app: #{$fondo-hielo};
+    --bg-card: #{$blanco-puro};
+    --text-main: #{$dark-navy};
+    --text-muted: #{$gris-texto};
+    --border-color: #{$gris-borde};
+    --primary-color: #{$verde-emerald};
+}
 
-$naranja-primario: #ff9800;
-$naranja-oscuro: #e65100;
-$naranja-claro: #fff3e0;
-$naranja-borde: #ffb74d;
+[data-theme='dark'] {
+    --bg-app: #0f172a;
+    --bg-card: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+}
 
-$gris-texto: #666;
-$gris-claro: #f5f5f5;
+// ==========================================
+// 3. MAPEO DE COMPATIBILIDAD (El traductor de variables)
+// ==========================================
+// Mapeamos los colores exactos para que tus archivos viejos compilen perfecto
+$verde-primario: $verde-emerald;
+$verde-oscuro: $verde-dark; 
+$verde-claro: #d1fae5;
+$verde-borde: #6ee7b7;
 
-$green-primary: #2e7d32;
-$red-danger: #d32f2f;
-$gray-light: #f9f9f9;
-$border-color: #ddd;
+$naranja-primario: #f59e0b;
+$naranja-oscuro: #d97706;
+$naranja-claro: #fffbeb; // <-- ¡Agregado para el fondo de alertas naranjas!
+$naranja-borde: #fde68a; // <-- ¡Agregado para el borde de alertas naranjas!
+
+$azul-primario: #3b82f6;
+$azul-claro: #eff6ff;  
+$azul-borde: #bfdbfe;  
+
+$gris-claro: $fondo-hielo;
+$gray-light: $fondo-hielo;
+$border-color: $gris-borde;
+
+$green-primary: $verde-emerald;
+$red-danger: #ef4444;
+
+// Reset global sugerido
+body {
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    font-family: $font-main;
+}

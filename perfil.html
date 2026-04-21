@@ -4,87 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mi Perfil</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <meta name="theme-color" content="#2e7d32">
+    <link rel="stylesheet" href="css/styles.css?v=6.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="header flex-between">
-        <button onclick="window.history.back()" class="btn-icon-white">← Volver</button>
+        <button onclick="window.history.back()" class="btn-icon-white" title="Volver al Inicio">🏠</button>
         <h1 class="text-center flex-1">Mi Perfil</h1>
         <div class="header-spacer"></div>
     </header>
 
-    <main class="container">
-        <div class="card card-top-green mt-15 text-center">
-            <h2 class="card-title-green">Tus Datos</h2>
+    <main class="container mt-15" style="padding-bottom: 50px;">
+        
+        <section class="card-clean mb-20 text-center">
+            <h2 class="card-title-green mb-15 m-0" style="color: var(--primary-color);">Tus Datos</h2>
             
-            <div class="flex-center mb-15">
-                <div class="avatar-square" id="avatar-preview" style="font-size: 2.5rem;">👤</div>
+            <div class="avatar-circle mx-auto mb-10" id="display-emoji" style="width: 60px; height: 60px; font-size: 2rem; margin: 0 auto;">👤</div>
+            
+            <div class="form-group text-left mt-15">
+                <label>Tu Emoji (Usá el teclado)</label>
+                <input type="text" id="input-emoji" class="form-control" placeholder="Elegí un emoji..." maxlength="2">
             </div>
-
-            <div class="form-group text-left">
-                <label>Tu Emoji</label>
-                <input type="text" id="input-emoji" class="form-control text-center" maxlength="2" placeholder="😎">
-                <small class="text-sm-gray">Usá el teclado de tu celular para elegir un emoji.</small>
-            </div>
-
+            
             <div class="form-group text-left">
                 <label>Tu Nombre</label>
-                <input type="text" id="input-nombre" class="form-control" placeholder="Ej: Mostri">
-            </div>
-
-            <button id="btn-guardar-perfil" class="btn-primary mt-15">Guardar Cambios</button>
-        </div>
-
-        <div class="card card-top-blue">
-            <div class="flex-between mb-15">
-                <h2 class="card-title-blue" style="margin: 0;">Mis Categorías</h2>
-                <span class="text-sm-gray">Configuración</span>
+                <input type="text" id="input-nombre" class="form-control" placeholder="Ej: Pablito">
             </div>
             
-            <div class="flex-between gap-10 mb-15">
-                <input type="text" id="input-nueva-cat" class="form-control flex-2" placeholder="Ej: Ropa, Farmacia...">
-                <button id="btn-add-cat" class="btn-primary bg-blue flex-1" style="margin-top: 0;">Agregar</button>
+            <button id="btn-guardar-perfil" class="btn-primary mt-10">Guardar Cambios</button>
+        </section>
+
+        <section class="card-clean mb-20">
+            <div class="flex-between mb-15">
+                <h2 class="card-title-green m-0" style="color: var(--primary-color);">Mis Categorías</h2>
+                <button id="btn-toggle-cat" class="btn-add-circle" title="Agregar Categoría">＋</button>
+            </div>
+            
+            <div id="form-cat-box" class="form-toggle-box" style="display: none;">
+                <div class="flex-between gap-10 mb-20" style="background: var(--bg-app); padding: 10px; border-radius: 8px;">
+                    <input type="text" id="input-nueva-cat" class="form-control flex-2" placeholder="Ej: Ropa, Farmacia...">
+                    <button id="btn-add-cat" class="btn-primary flex-1 btn-no-margin" style="padding: 12px;">Agregar</button>
+                </div>
             </div>
 
-            <div class="flex-between mb-10" style="padding: 0 10px; font-size: 0.8rem; color: #666; font-weight: bold; text-transform: uppercase;">
-                <span style="flex: 2;">Categoría</span>
-                <span style="flex: 1; text-align: center;">Fijo 🏠</span>
-                <span style="flex: 1; text-align: center;">Stock 🛒</span>
-                <span style="width: 40px;"></span>
+            <div class="grid-admin-header mb-10">
+                <span class="flex-2">CATEGORÍA</span>
+                <span class="text-center-flex">FIJO 🏠</span>
+                <span class="text-center-flex">STOCK 🛒</span>
+                <span class="spacer-40"></span>
             </div>
-
             <ul id="lista-categorias-personales" class="lista-minimal">
-                <li class="text-center text-muted">Cargando categorías...</li>
+                <li class="text-center text-muted p-20">Cargando...</li>
             </ul>
-        </div>
+        </section>
 
-        <div class="card card-top-orange">
+        <section class="card-clean mb-20">
             <div class="flex-between mb-15">
-                <h2 class="card-title-orange" style="margin: 0;">Medios de Pago</h2>
-                <span class="text-sm-gray">Tarjetas / Billeteras</span>
-            </div>
-            
-            <div class="flex-between gap-10 mb-15">
-                <input type="text" id="input-nuevo-pago" class="form-control flex-2" placeholder="Ej: MercadoPago, Tarjeta Naranja...">
-                <button id="btn-add-pago" class="btn-primary bg-dark-orange flex-1" style="margin-top: 0;">Agregar</button>
+                <h2 class="card-title-green m-0" style="color: var(--text-main);">Medios de Pago</h2>
+                <button id="btn-toggle-pago" class="btn-add-circle" style="background: var(--text-main);">＋</button>
             </div>
 
-            <ul id="lista-pagos-personales" class="lista-minimal">
-                <li class="text-center text-muted">Cargando métodos...</li>
+            <div id="form-pago-box" class="form-toggle-box" style="display: none;">
+                <div class="flex-between gap-10 mb-20" style="background: var(--bg-app); padding: 10px; border-radius: 8px;">
+                    <input type="text" id="input-nuevo-pago" class="form-control flex-2" placeholder="Ej: MercadoPago, Ualá...">
+                    <button id="btn-add-pago" class="btn-primary flex-1 btn-no-margin" style="padding: 12px; background: var(--text-main);">Agregar</button>
+                </div>
+            </div>
+
+            <ul id="lista-metodos-pago" class="lista-minimal">
+                <li class="text-center text-muted p-20">Cargando...</li>
             </ul>
-        </div>
+        </section>
 
-        <div class="card card-top-green">
+        <section class="card-clean mb-30" style="border-top: 4px solid #d97706;">
             <div class="flex-between mb-15">
-                <h2 class="card-title-green" style="margin: 0;">Mis Presupuestos</h2>
-                <span class="text-sm-gray">Automatización</span>
+                <h2 class="card-title-orange m-0" style="color: #d97706;">Mis Presupuestos</h2>
+                <button id="btn-toggle-fondo" class="btn-add-circle" style="background: #d97706;">＋</button>
             </div>
-            
-            <div id="form-nuevo-fondo" class="border-top-thick" style="padding-top: 10px; margin-top: 0;">
+
+            <div id="form-fondo-box" class="form-toggle-box mb-20" style="display: none; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
                 <div class="form-group">
                     <label>Nombre del Fondo</label>
-                    <input type="text" id="input-nombre-fondo" class="form-control" placeholder="Ej: Fondo Comida, Ahorro Viaje...">
+                    <input type="text" id="input-nombre-fondo" class="form-control" placeholder="Ej: Ahorro Viaje...">
                 </div>
                 <div class="form-group">
                     <label>Monto Inicial ($)</label>
@@ -92,33 +95,22 @@
                 </div>
                 <div class="form-group">
                     <label>Vincular Categorías</label>
-                    <div id="check-categorias-vinculadas" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                    <div id="check-categorias-vinculadas" class="grid-checkbox-fondos p-0 border-0 bg-transparent">
                         </div>
-                    <small class="text-sm-gray">Los gastos en estas categorías se descontarán automáticamente de este fondo.</small>
                 </div>
-                <button id="btn-crear-fondo" class="btn-primary w-100">Crear Fondo</button>
+                <button id="btn-crear-fondo" class="btn-primary w-100" style="background-color: #d97706;">Crear Fondo</button>
             </div>
 
-            <ul id="lista-fondos-personales" class="lista-minimal mt-15">
-                <li class="text-center text-muted">Cargando fondos...</li>
+            <ul id="lista-fondos-personales" class="lista-minimal">
+                <li class="text-center text-muted p-20">Cargando...</li>
             </ul>
-        </div>
+        </section>
+
     </main>
-
-    <div id="custom-confirm" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <h3 id="confirm-title" class="card-title-green">¿Estás seguro?</h3>
-            <p id="confirm-message">Esta acción no se puede deshacer.</p>
-            <div class="modal-buttons">
-                <button type="button" id="confirm-cancel" class="btn-secondary">Cancelar</button>
-                <button type="button" id="confirm-ok" class="btn-primary" style="background-color: #d32f2f; margin-top: 0;">Eliminar</button>
-            </div>
-        </div>
-    </div>
-
+    
     <div id="toast-container" class="toast"></div>
-
-    <script type="module" src="js/auth_guard.js"></script>
-    <script type="module" src="js/controller_perfil.js"></script>
+    
+    <script type="module" src="js/auth_guard.js?v=6.0"></script>
+    <script type="module" src="js/controller_perfil.js?v=6.0"></script>
 </body>
 </html>

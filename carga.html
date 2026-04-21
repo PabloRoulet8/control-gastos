@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cargar Gasto</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css?v=6.0">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2e7d32">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="header flex-between">
@@ -30,7 +31,7 @@
                 <label for="tipo-individual">Individual</label>
             </div>
 
-            <div class="form-group" id="responsable-group" style="display: none;">
+            <div class="form-group" id="responsable-group">
                 <label>¿Quién lo pagó?</label>
                 <select id="responsable" name="responsable" class="form-control">
                     <option value="" disabled selected>Seleccioná quién pagó</option>
@@ -46,7 +47,7 @@
 
             <div class="form-group box-info mb-15" id="fondo-group" style="display: none;">
                 <label class="box-info-toggle">
-                    ¿Pagado con dinero del Fondo? 🏦
+                    ¿Pagado con tarjeta del Fondo? 🏦
                     <input type="checkbox" id="pagado-fondo" name="pagadoFondo" checked class="checkbox-lg">
                 </label>
                 <small class="box-info-desc">Si marcás esto, se descuenta del pozo compartido.</small>
@@ -54,7 +55,7 @@
 
             <div class="form-group" id="referencia-group" style="display: none;">
                 <label for="referencia">Referencia / Detalle</label>
-                <input type="text" id="referencia" name="referencia" placeholder="Ej: Regalo cumpleaños, Peaje, etc." class="form-control">
+                <input type="text" id="referencia" name="referencia" placeholder="Ej: Farmacia, Regalo, etc." class="form-control">
             </div>
 
             <div class="form-group">
@@ -66,12 +67,6 @@
             </div>
 
             <div id="opciones-tarjeta" class="box-warning" style="display: none;">
-                <div class="form-group" style="display: none;">
-                    <label>¿De quién es la tarjeta? 💳</label>
-                    <select id="titular-tarjeta" class="form-control">
-                        <option value="usuario">Usuario</option>
-                    </select>
-                </div>
                 <div class="flex-between gap-10">
                     <div class="form-group flex-1">
                         <label>Cuotas</label>
@@ -81,7 +76,7 @@
                         <label>1ra cuota ingresa:</label>
                         <select id="impacto-cuota" class="form-control">
                             <option value="este-mes">Este mes</option>
-                            <option value="proximo-mes">Próximo mes (Ya cerró)</option>
+                            <option value="proximo-mes">Próximo mes</option>
                         </select>
                     </div>
                 </div>
@@ -89,16 +84,13 @@
 
             <div id="seccion-inventario" class="form-group border-top-thick" style="display: none;">
                 <label class="text-sm-green-bold">🛒 Carga de Inventario</label>
-                <small class="mb-15">Agregá productos para llevar control de cantidades.</small>
-                
                 <div class="grid-inv-row">
-                    <input type="text" id="inv-prod" placeholder="Producto (ej. Carne)" class="form-control-sm">
+                    <input type="text" id="inv-prod" placeholder="Producto" class="form-control-sm">
                     <input type="number" id="inv-cant" placeholder="Cant." step="0.01" class="form-control-sm">
                     <select id="inv-unid" class="form-control-sm">
                         <option value="kg">KG</option>
                         <option value="unid">Unid.</option>
-                        <option value="latas">Latas</option>
-                        <option value="lts">Litros</option>
+                        <option value="litro">Lt.</option>
                         <option value="pack">Pack</option>
                     </select>
                 </div>
@@ -112,31 +104,30 @@
             <div class="form-group alert-success-box">
                 <label for="monto" class="text-sm-green-bold">Monto Total ($)</label>
                 <input type="number" id="monto" name="monto" placeholder="0.00" class="form-control input-total-monto" required>
-                <small id="monto-help" class="text-sm-gray">Si agregás productos arriba, este total se calcula solo.</small>
             </div>
 
             <button type="submit" class="btn-primary mt-15">Guardar Gasto</button>
         </form>
     </main>
 
-    <div id="toast-container" class="toast"></div>
-
     <nav class="bottom-nav">
-        <a href="index.html" class="nav-item">
-            <span class="icon">🏠</span>
-            <span class="label">Inicio</span>
+        <a href="carga.html" class="nav-item active" id="nav-carga">
+            <span class="icon">➕</span>
+            <span class="label">Cargar</span>
         </a>
-        <a href="historial.html" class="nav-item">
+        <a href="historial.html" class="nav-item" id="nav-historial">
             <span class="icon">📜</span>
             <span class="label">Historial</span>
         </a>
-        <a href="resumen.html" class="nav-item">
+        <a href="resumen.html" class="nav-item" id="nav-resumen">
             <span class="icon">📊</span>
             <span class="label">Resumen</span>
         </a>
     </nav>
 
-    <script type="module" src="js/auth_guard.js"></script>
-    <script type="module" src="js/controller_carga.js"></script>    
+    <div id="toast-container" class="toast"></div>
+
+    <script type="module" src="js/auth_guard.js?v=6.0"></script>
+    <script type="module" src="js/controller_carga.js?v=6.0"></script>   
 </body>
 </html>

@@ -1,5 +1,5 @@
 import { db, auth } from "../firebase-config.js"; 
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class GastoRepository {
     constructor() {
@@ -28,23 +28,25 @@ export class GastoRepository {
         return await addDoc(this.coleccionGastos, gastoFirmado);
     }
 
-    async obtenerGastos(ambito, filtros = null) {
+    async obtenerGastos(contexto) {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) return [];
 
         let q = this.coleccionGastos;
         
-        if (ambito === 'personal') {
+        // Adaptamos la lectura para que entienda el nuevo formato de { tipo: '...', id: '...' }
+        const tipoConsulta = typeof contexto === 'object' ? contexto.tipo : (contexto === 'personal' ? 'personal' : 'hogar');
+        const idConsulta = typeof contexto === 'object' ? contexto.id : contexto;
+
+        if (tipoConsulta === 'personal') {
             q = query(q, where("ambito", "==", "personal"), where("usuario_id", "==", usuarioActual.uid));
         } else {
-            q = query(q, where("ambito", "==", "hogar"), where("hogar_id", "==", ambito));
+            q = query(q, where("ambito", "==", "hogar"), where("hogar_id", "==", idConsulta));
         }
 
-        if (filtros && filtros.ordenPor) {
-            q = query(q, orderBy(filtros.ordenPor, filtros.ordenDireccion || "desc"));
-        } else {
-            q = query(q, orderBy("timestamp", "desc")); 
-        }
+        // ⚠️ ATENCIÓN: Eliminamos el "orderBy" de acá.
+        // Firebase exige un Índice Compuesto si mezclamos "where" con "orderBy".
+        // Como no queremos configurar índices manuales, pedimos los datos y los ordenamos con JavaScript en el controlador.
         
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -101,7 +103,6 @@ export class GastoRepository {
         // Guardamos configuración inicial
         await this.guardarConfiguracionHogar(docRef.id, { fondo_comun: 0 });
         
-        // Retornamos el ID para poder redirigir al usuario inmediatamente
         return { id: docRef.id, nombre: nombreHogar };
     }
 
@@ -147,17 +148,14 @@ export class GastoRepository {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) throw new Error("Acceso denegado.");
 
-        // Traemos TODOS los gastos de la base de datos (sin filtros)
         const snapshot = await getDocs(this.coleccionGastos);
         let promesas = [];
         let contador = 0;
 
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
-            // Si NO tiene el campo "ambito", es un gasto de la versión anterior
             if (!data.ambito) {
                 const ref = doc(db, "gastos", docSnap.id);
-                // Le estampamos los sellos nuevos para que pertenezca al hogar
                 promesas.push(updateDoc(ref, {
                     ambito: 'hogar',
                     hogar_id: hogarIdDestino,

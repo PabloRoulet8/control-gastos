@@ -1,114 +1,138 @@
 export class ResumenService {
-    constructor(fondoInicial = 300000) {
-        this.fondoInicial = fondoInicial;
-    }
+    
+    // ==========================================
+    // 1. RESUMEN PERSONAL
+    // ==========================================
+    calcularPersonal(gastos, categoriasConfiguradas) {
+        let total = 0;
+        let fijos = 0;
+        let fijosStock = 0;
+        let variables = 0;
+        let listaFijos = [];
+        let listaStock = [];
 
-    calcularResumen(gastos, mesActual, mesAnterior, estadoDeudas) {
-        let totales = { general: 0, mostri: 0, mostrina: 0, alimentacion: 0, fijos: 0, tarjeta: 0 };
-        let inventario = {}; 
-        let resumenIndividual = { mostri: {}, mostrina: {} }; 
-        let graficos = { general: {}, mostri: {}, mostrina: {}, servicios: {}, comestibles: {} }; 
-        
-        let checklistFijos = { alquiler: false, expensas: false, epe: false, agua: false, tgi: false, gas: false, wifi: false };
-        let balancePorMes = {};
-        let deudaHistoricaAcumulada = 0;
-        let deudaMesAnteriorReal = 0;
+        // Armamos un diccionario para buscar rápido si una categoría es fija o lleva stock
+        const mapCategorias = {};
+        categoriasConfiguradas.forEach(c => {
+            const nombreNorm = (typeof c === 'string' ? c : c.nombre).toLowerCase();
+            mapCategorias[nombreNorm] = c;
+        });
 
-        gastos.forEach((data) => {
-            const mesGasto = data.fecha.substring(0, 7);
-            const esMostri = (data.responsable === 'mostri' || data.responsable === 'pablo');
-            const respKey = esMostri ? 'mostri' : 'mostrina';
-            const catNorm = data.categoria ? data.categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
-            
-            let usaFondo = data.pagado_con_fondo === true;
+        gastos.forEach(g => {
+            total += g.monto;
+            const catNorm = g.categoria ? g.categoria.toLowerCase() : '';
+            const configCat = mapCategorias[catNorm] || { es_fijo: false, lleva_stock: false };
 
-            // Parche para gastos viejos (si no tiene el sello, pero es de comida, asume fondo)
-            if (data.pagado_con_fondo === undefined && data.tipo === 'general' && ['supermercado', 'carniceria', 'verduleria'].includes(catNorm)) {
-                usaFondo = true;
-            }
-
-            // 1. REGISTRO POR MES PARA DEUDAS
-            if (!balancePorMes[mesGasto]) balancePorMes[mesGasto] = { general: 0, pagadoMostri: 0, tarjetaMostri: 0 };
-            
-            if (data.tipo === 'general') {
-                if (!usaFondo) {
-                    balancePorMes[mesGasto].general += data.monto;
-                    if (data.metodo_pago !== 'tarjeta-credito' && esMostri) balancePorMes[mesGasto].pagadoMostri += data.monto;
-                }
-            } else if (data.tipo === 'individual' && data.metodo_pago === 'tarjeta-credito' && esMostri) {
-                balancePorMes[mesGasto].tarjetaMostri += data.monto;
-            }
-
-            // 2. LÓGICA DE GRÁFICOS
-            const procesarGrafico = (cajon, cat, monto, esMesActual) => {
-                if (!graficos[cajon][cat]) graficos[cajon][cat] = { actual: 0, anterior: 0 };
-                if (esMesActual) graficos[cajon][cat].actual += monto;
-                else graficos[cajon][cat].anterior += monto;
-            };
-
-            if (mesGasto === mesActual || mesGasto === mesAnterior) {
-                const esActual = (mesGasto === mesActual);
-                if (data.tipo === 'general') {
-                    procesarGrafico('general', data.categoria, data.monto, esActual);
-                    if (['supermercado', 'carniceria', 'verduleria', 'limpieza'].includes(catNorm)) {
-                        procesarGrafico('comestibles', data.categoria, data.monto, esActual);
-                    } else if (['expensas', 'gas', 'epe', 'wifi', 'agua', 'tgi', 'alquiler'].includes(catNorm)) {
-                        procesarGrafico('servicios', data.categoria, data.monto, esActual);
-                    }
+            if (configCat.es_fijo) {
+                if (configCat.lleva_stock) {
+                    fijosStock += g.monto;
+                    listaStock.push(g);
                 } else {
-                    procesarGrafico(respKey, data.categoria, data.monto, esActual);
+                    fijos += g.monto;
+                    listaFijos.push(g);
                 }
-            }
-
-            // 3. DATOS EXCLUSIVOS DEL MES ACTUAL
-            if (mesGasto === mesActual) {
-                if (data.tipo === 'general' && checklistFijos.hasOwnProperty(catNorm)) checklistFijos[catNorm] = true;
-
-                if (data.detalle_inventario && ['supermercado', 'carniceria', 'verduleria'].includes(catNorm)) {
-                    if (!inventario[data.categoria]) inventario[data.categoria] = {};
-                    data.detalle_inventario.forEach(item => {
-                        const key = `${item.producto.toLowerCase()}-${item.unidad}`;
-                        if (!inventario[data.categoria][key]) inventario[data.categoria][key] = { nombre: item.producto, cantidad: 0, unidad: item.unidad };
-                        inventario[data.categoria][key].cantidad += parseFloat(item.cantidad);
-                    });
-                }
-
-                if (data.tipo === 'individual') {
-                    resumenIndividual[respKey][data.categoria] = (resumenIndividual[respKey][data.categoria] || 0) + data.monto;
-                    totales[respKey] += data.monto;
-                    if (data.metodo_pago === 'tarjeta-credito') totales.tarjeta += data.monto;
-                }
-
-                if (data.tipo === 'general') {
-                    totales.general += data.monto;
-                    totales.mostri += (data.monto / 2);
-                    totales.mostrina += (data.monto / 2);
-                    if (data.metodo_pago === 'tarjeta-credito') totales.tarjeta += data.monto;
-                }
-
-                // ACÁ SEPARAMOS: Fijos por un lado, consumibles por otro
-                if (['supermercado', 'carniceria', 'verduleria', 'limpieza', 'farmacia'].includes(catNorm)) totales.alimentacion += data.monto;
-                if (['alquiler', 'expensas', 'gas', 'epe', 'wifi', 'agua', 'tgi'].includes(catNorm)) totales.fijos += data.monto;
+            } else {
+                variables += g.monto;
             }
         });
 
-        // 4. CÁLCULO DE DEUDA
-        for (const [mes, bal] of Object.entries(balancePorMes)) {
-            let deudaDelMes = ((bal.general / 2) - bal.pagadoMostri) + bal.tarjetaMostri;
-            if (mes === mesAnterior) deudaMesAnteriorReal = deudaDelMes;
-            if (estadoDeudas[mes] === true) continue; 
-            deudaHistoricaAcumulada += deudaDelMes;
+        return { total, fijos, fijosStock, variables, listaFijos, listaStock };
+    }
+
+    // ==========================================
+    // 2. RESUMEN HOGAR (Algoritmo de N-Personas)
+    // ==========================================
+    calcularHogar(gastosHogar, nombresMiembrosActuales) {
+        let totalHogar = 0;
+        let aportes = {};
+
+        // 1. Inicializamos en 0 a todos los miembros que viven actualmente en la casa
+        nombresMiembrosActuales.forEach(m => aportes[m.toLowerCase()] = 0);
+
+        // 2. Sumamos lo que puso cada uno
+        gastosHogar.forEach(g => {
+            if (g.tipo === 'general') {
+                totalHogar += g.monto;
+                const responsable = g.responsable ? g.responsable.toLowerCase() : 'desconocido';
+                
+                // Si pagó alguien que ya no está en la casa, lo agregamos a la ecuación para que la matemática no se rompa
+                if (aportes[responsable] === undefined) aportes[responsable] = 0;
+                aportes[responsable] += g.monto;
+            }
+        });
+
+        const personasInvolucradas = Object.keys(aportes);
+        const cuotaPorPersona = personasInvolucradas.length > 0 ? (totalHogar / personasInvolucradas.length) : 0;
+
+        let deudores = [];
+        let acreedores = [];
+
+        // 3. Calculamos los saldos netos (Lo que puso menos lo que le tocaba poner)
+        for (const [persona, aportado] of Object.entries(aportes)) {
+            const balance = aportado - cuotaPorPersona;
+            
+            if (balance < -0.01) {
+                deudores.push({ nombre: persona, monto: Math.abs(balance) });
+            } else if (balance > 0.01) {
+                acreedores.push({ nombre: persona, monto: balance });
+            }
         }
 
+        // 4. Ordenamos para que los que más deben le paguen a los que más pusieron
+        deudores.sort((a, b) => b.monto - a.monto);
+        acreedores.sort((a, b) => b.monto - a.monto);
+
+        let compensaciones = [];
+        let i = 0; // Índice de deudores
+        let j = 0; // Índice de acreedores
+
+        // 5. Compensación cruzada
+        while (i < deudores.length && j < acreedores.length) {
+            let deudor = deudores[i];
+            let acreedor = acreedores[j];
+
+            let montoTransferencia = Math.min(deudor.monto, acreedor.monto);
+
+            compensaciones.push({
+                de: deudor.nombre,
+                para: acreedor.nombre,
+                monto: montoTransferencia
+            });
+
+            deudor.monto -= montoTransferencia;
+            acreedor.monto -= montoTransferencia;
+
+            if (deudor.monto < 0.01) i++;
+            if (acreedor.monto < 0.01) j++;
+        }
+
+        return { 
+            totalHogar, 
+            cuotaPorPersona, 
+            aportes, 
+            compensaciones 
+        };
+    }
+
+    // ==========================================
+    // 3. RESUMEN UNIFICADO
+    // ==========================================
+    calcularUnificado(gastosPersonales, gastosHogar, miNombre, categoriasPersonales, nombresMiembrosHogar) {
+        const personalInfo = this.calcularPersonal(gastosPersonales, categoriasPersonales);
+        
+        let miParteHogar = 0;
+        
+        if (gastosHogar && gastosHogar.length > 0 && nombresMiembrosHogar.length > 0) {
+            const hogarInfo = this.calcularHogar(gastosHogar, nombresMiembrosHogar);
+            miParteHogar = hogarInfo.cuotaPorPersona;
+        }
+
+        const totalBolsillo = personalInfo.total + miParteHogar;
+
         return {
-            totales: { ...totales, fondoRestante: this.fondoInicial - totales.alimentacion },
-            deudaAcumulada: deudaHistoricaAcumulada,
-            deudaMesAnterior: deudaMesAnteriorReal,
-            estadoMesAnterior: estadoDeudas[mesAnterior] || false,
-            graficos,
-            checklist: checklistFijos,
-            inventario,
-            individuales: resumenIndividual
+            totalBolsillo,
+            desglosePersonal: personalInfo.total,
+            desgloseHogar: miParteHogar
         };
     }
 }

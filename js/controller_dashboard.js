@@ -1,106 +1,111 @@
 import { auth, db } from "./firebase-config.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { GastoRepository } from "./api/GastoRepository.js";
-import { ToastManager } from "./ui/ToastManager.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
-    const saludoUI = document.getElementById('saludo-usuario');
-    const avatarUI = document.getElementById('user-avatar');
     const contenedorHogares = document.getElementById('contenedor-hogares');
-    const btnAddHogar = document.getElementById('btn-add-hogar');
-    
-    const api = new GastoRepository();
-    const toast = new ToastManager();
+    const saludoUsuario = document.getElementById('saludo-usuario');
+    const displayAvatar = document.getElementById('display-avatar-header');
 
-    // Cambiamos el link para que vaya a admin en modo "creación"
-    if (btnAddHogar) {
-        btnAddHogar.href = 'admin_hogar.html?id=nuevo';
+    // 1. GESTIÓN DE NAVEGACIÓN (Protección contra sobreescritura de URL)
+    const actualizarEnlacesNavegacion = () => {
+        document.querySelectorAll('.bottom-nav a').forEach(link => {
+            // 1. Si es el botón de UNIFICADO, forzamos la ruta correcta y salimos
+            if (link.href.includes('ambito=unificado') || link.id === 'btn-unificado-fijo') {
+                link.href = "resumen.html?v=5.6&ambito=unificado";
+                return; 
+            }
+            
+            // 2. Para los demás, solo nos aseguramos de que tengan la versión de caché
+            const url = new URL(link.href, window.location.origin);
+            url.searchParams.set('v', '5.6');
+            link.href = url.toString();
+        });
+    };
+
+    // Botón de cerrar sesión
+    const btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
+    if (btnCerrarSesion) {
+        btnCerrarSesion.addEventListener('click', () => {
+            signOut(auth).then(() => window.location.href = 'login.html');
+        });
     }
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            try {
-                // DETECTOR DE INVITACIÓN POR LINK (?join=CODIGO)
-                const urlParams = new URLSearchParams(window.location.search);
-                const codigoInvitacion = urlParams.get('join');
-
-                if (codigoInvitacion) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    if (confirm("Te invitaron a un nuevo Hogar. ¿Querés unirte?")) {
-                        await api.unirseAHogar(codigoInvitacion);
-                        toast.mostrar("¡Bienvenido al hogar! 🎉");
-                    }
-                }
-
-                // Carga de datos de perfil
-                const userRef = doc(db, "usuarios", user.uid);
-                const docSnap = await getDoc(userRef);
-                let nombre = user.displayName || "Usuario";
-                let emoji = nombre.charAt(0).toUpperCase();
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.nombre) nombre = data.nombre;
-                    if (data.emoji) emoji = data.emoji;
-                }
-
-                saludoUI.textContent = `Hola, ${nombre}`;
-                avatarUI.textContent = emoji;
-
-                renderizarHogares();
-
-            } catch (error) {
-                console.error("Error:", error);
-            }
+            actualizarEnlacesNavegacion();
+            await cargarDashboard(user.uid);
+        } else {
+            window.location.href = 'login.html';
         }
     });
 
-    async function renderizarHogares() {
-        // 1. Limpiamos el contenedor por completo
+    async function cargarDashboard(uid) {
+        if (!contenedorHogares) return;
         contenedorHogares.innerHTML = '';
-
-        // 2. CREAMOS TU TARJETA INDIVIDUAL
-        const cardPersonal = document.createElement('a');
-        cardPersonal.href = `carga.html?ambito=individual`; 
-        cardPersonal.className = 'dashboard-card-link';
-        cardPersonal.innerHTML = `
-            <span class="icon">👤</span>
-            <span class="title">Mis Gastos</span>
-        `;
-        contenedorHogares.appendChild(cardPersonal);
-
-        // 3. Traemos los hogares compartidos
-        const misHogares = await api.obtenerMisHogares();
         
-        // 4. Dibujamos las tarjetas de los hogares ya creados
-        misHogares.forEach(hogar => {
-            const cardWrapper = document.createElement('div');
-            cardWrapper.className = 'dashboard-card-wrapper'; 
+        try {
+            // 1. OBTENER DATOS DEL USUARIO
+            const userRef = doc(db, "usuarios", uid);
+            const userSnap = await getDoc(userRef);
+            let userData = { nombre: "Usuario", emoji: "👤" };
+            
+            if (userSnap.exists()) {
+                userData = userSnap.data();
+            }
+            
+            // Actualizar el header con su nombre y emoji
+            if (saludoUsuario) saludoUsuario.textContent = `Hola, ${userData.nombre}`;
+            if (displayAvatar) displayAvatar.textContent = userData.emoji || "👤";
 
-            // Verificamos si el usuario actual está en la lista de admins
-            const esAdmin = hogar.administradores && hogar.administradores.includes(auth.currentUser.uid);
-
-            cardWrapper.innerHTML = `
-                <a href="carga.html?ambito=hogar&id=${hogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
-                    <span class="icon">🏘️</span>
-                    <span class="title">${hogar.nombre}</span>
+            // 2. TARJETA: MIS GASTOS (Personal)
+            const cardPersonal = document.createElement('div');
+            cardPersonal.className = 'dashboard-card-wrapper';
+            cardPersonal.innerHTML = `
+                <a href="carga.html?v=5.5&ambito=personal" class="dashboard-card-link">
+                    <span class="icon">${userData.emoji || "👤"}</span>
+                    <span class="title">Mis Gastos</span>
                 </a>
-                ${esAdmin ? `<a href="config_hogar.html?id=${hogar.id}" class="btn-config-gear" title="Panel de Control">⚙️</a>` : ''}
+                <a href="perfil.html?v=5.5" class="btn-config-gear" title="Configurar Mis Gastos">⚙️</a>
             `;
-            // Agregamos la tarjeta al final de la lista actual
-            contenedorHogares.appendChild(cardWrapper);
-        });
+            contenedorHogares.appendChild(cardPersonal);
 
-        // 5. CREAMOS EL BOTÓN DE "+ NUEVO HOGAR" AL FINAL DE TODO
-        const btnAddNuevo = document.createElement('a');
-        btnAddNuevo.href = 'admin_hogar.html?id=nuevo';
-        btnAddNuevo.className = 'dashboard-card-link card-add';
-        btnAddNuevo.id = 'btn-add-hogar'; 
-        btnAddNuevo.innerHTML = `
-            <span class="icon">➕</span>
-            <span class="title">Nuevo Hogar</span>
-        `;
-        contenedorHogares.appendChild(btnAddNuevo);
+            // 3. TARJETAS: HOGARES
+            const hogaresRef = collection(db, "hogares");
+            const q = query(hogaresRef, where("miembros", "array-contains", uid));
+            const querySnapshot = await getDocs(q);
+
+            querySnapshot.forEach((docHogar) => {
+                const hogar = docHogar.data();
+                const cardHogar = document.createElement('div');
+                cardHogar.className = 'dashboard-card-wrapper';
+                
+                const esAdmin = hogar.administradores && hogar.administradores.includes(uid);
+                
+                cardHogar.innerHTML = `
+                    <a href="carga.html?v=5.5&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
+                        <span class="icon">🏠</span>
+                        <span class="title">${hogar.nombre}</span>
+                    </a>
+                    ${esAdmin ? `<a href="config_hogar.html?v=5.5&id=${docHogar.id}" class="btn-config-gear" title="Configurar Hogar">⚙️</a>` : ''}
+                `;
+                contenedorHogares.appendChild(cardHogar);
+            });
+
+            // 4. TARJETA: NUEVO HOGAR
+            const cardNuevo = document.createElement('div');
+            cardNuevo.className = 'dashboard-card-wrapper';
+            cardNuevo.innerHTML = `
+                <a href="admin_hogar.html?v=5.5&id=nuevo" class="dashboard-card-link card-add">
+                    <span class="icon">➕</span>
+                    <span class="title">Nuevo Hogar</span>
+                </a>
+            `;
+            contenedorHogares.appendChild(cardNuevo);
+
+        } catch (error) {
+            console.error("Error al cargar el dashboard:", error);
+            contenedorHogares.innerHTML = '<p class="text-center" style="color:#ef4444; padding: 20px;">Error al cargar tus datos. Revisá tu conexión.</p>';
+        }
     }
 });
