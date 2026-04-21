@@ -27,6 +27,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputMontoGlobal = document.getElementById('monto');
     const listaUI = document.getElementById('lista-inventario');
     const formGasto = document.getElementById('expense-form');
+    
+    // Elementos nuevos para la referencia
+    const grupoReferencia = document.getElementById('referencia-group');
+    const inputReferencia = document.getElementById('referencia');
 
     // 1. GESTIÓN DE BORRADOR Y NAVEGACIÓN
     const guardarBorradorStock = () => {
@@ -70,7 +74,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.querySelectorAll('.bottom-nav a').forEach(link => {
         const baseHref = link.getAttribute('href').split('?')[0];
-        link.href = `${baseHref}?v=5.4&ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}${hogarNombre ? `&nombre=${encodeURIComponent(hogarNombre)}` : ''}`;
+        // Mantenemos la versión 6.0 para el caché que definimos ayer
+        link.href = `${baseHref}?v=6.0&ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}${hogarNombre ? `&nombre=${encodeURIComponent(hogarNombre)}` : ''}`;
     });
 
     // 2. INICIALIZACIÓN DE DATOS
@@ -127,12 +132,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nameB = (typeof b === 'string' ? b : b.nombre).toLowerCase();
             return nameA.localeCompare(nameB);
         }).forEach(cat => {
-            const c = typeof cat === 'string' ? { nombre: cat, lleva_stock: false } : cat;
+            const c = typeof cat === 'string' ? { nombre: cat, lleva_stock: false, es_fijo: false } : cat;
             if (c.activa !== false) {
                 const option = document.createElement('option');
                 option.value = c.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 option.textContent = c.nombre;
                 option.dataset.llevaStock = c.lleva_stock;
+                // NUEVO: Guardamos si es fijo
+                option.dataset.esFijo = c.es_fijo; 
                 selectCategoria.appendChild(option);
             }
         });
@@ -141,12 +148,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. EVENTOS DE INTERACCIÓN
     selectCategoria?.addEventListener('change', () => {
         const option = selectCategoria.options[selectCategoria.selectedIndex];
+        
         const llevaStock = option.dataset.llevaStock === "true";
+        const esFijo = option.dataset.esFijo === "true";
+
+        // Lógica del Inventario/Stock
         const seccionStock = document.getElementById('seccion-inventario');
         if (seccionStock) seccionStock.style.display = llevaStock ? 'block' : 'none';
+
+        // Lógica de la Referencia (Aparece si NO es fijo y NO lleva stock)
+        if (grupoReferencia) {
+            const esVariable = !esFijo && !llevaStock;
+            grupoReferencia.style.display = esVariable ? 'block' : 'none';
+        }
     });
 
-    // REPARACIÓN: Botón Agregar Stock
+    // Botón Agregar Stock
     document.getElementById('btn-add-inv')?.addEventListener('click', () => {
         const prod = document.getElementById('inv-prod').value;
         const cant = parseFloat(document.getElementById('inv-cant').value);
@@ -157,7 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return toast.mostrar("Faltan datos del producto.");
         }
         
-        // Capitalizamos la primera letra
         const nombreLimpio = prod.charAt(0).toUpperCase() + prod.slice(1);
         
         arrayInventario.push({ 
@@ -182,13 +198,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             try {
                 const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text;
+                
+                // NUEVO: Capturar referencia solo si el campo está visible
+                let textoReferencia = "";
+                if (grupoReferencia && grupoReferencia.style.display === 'block' && inputReferencia) {
+                    textoReferencia = inputReferencia.value.trim();
+                }
+
                 const nuevoGasto = {
                     fecha: new Date().toISOString().split('T')[0],
                     monto: parseFloat(inputMontoGlobal.value),
                     categoria: catElegida,
                     detalle_inventario: arrayInventario,
                     responsable: (ambitoActual === 'hogar') ? selectResponsable.value : nombreUsuarioGlobal,
-                    metodo_pago: document.getElementById('metodo-pago').value
+                    metodo_pago: document.getElementById('metodo-pago').value,
+                    referencia: textoReferencia // <-- Se envía a Firebase
                 };
 
                 const contexto = (ambitoActual === 'hogar') ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
@@ -198,6 +222,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 localStorage.removeItem('borrador_stock');
                 arrayInventario = [];
                 formGasto.reset();
+                
+                // Limpiar campo de referencia y ocultarlo para el siguiente gasto
+                if (inputReferencia) inputReferencia.value = '';
+                if (grupoReferencia) grupoReferencia.style.display = 'none';
+
                 actualizarListaInventarioUI();
                 
             } catch (err) {
