@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v6.0';
+const CACHE_NAME = 'gastos-v6.1';
 
 // Agregamos TODAS las vistas y controladores del proyecto
 const urlsToCache = [
@@ -48,7 +48,7 @@ self.addEventListener('activate', event => {
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
-                    // Si el caché no es el actual (v6.0), LO BORRA.
+                    // Si el caché no es el actual (v6.1), LO BORRA.
                     if (cacheName !== CACHE_NAME) {
                         console.log('Borrando caché zombie:', cacheName);
                         return caches.delete(cacheName);

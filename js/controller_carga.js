@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.bottom-nav a').forEach(link => {
         const baseHref = link.getAttribute('href').split('?')[0];
         // Mantenemos la versión 6.0 para el caché que definimos ayer
-        link.href = `${baseHref}?v=6.0&ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}${hogarNombre ? `&nombre=${encodeURIComponent(hogarNombre)}` : ''}`;
+        link.href = `${baseHref}?v=6.1&ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}${hogarNombre ? `&nombre=${encodeURIComponent(hogarNombre)}` : ''}`;
     });
 
     // 2. INICIALIZACIÓN DE DATOS
