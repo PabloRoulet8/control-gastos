@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Resumen de Gastos</title>
-    <link rel="stylesheet" href="css/styles.css?v=6.1">
+    <link rel="stylesheet" href="css/styles.css?v=6.4">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -19,17 +19,37 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <main class="container mt-15" style="padding-bottom: 80px;">
-        
         <div id="contenedor-resumen-dinamico">
             <p class="text-center text-muted mt-30">Calculando números...</p>
         </div>
 
         <section class="card dashboard-card mt-20" id="seccion-grafico" style="display: none;">
-            <div class="flex-between border-bottom-gray mb-15">
-                <h2>Distribución</h2>
+            <div class="flex-between mb-15">
+                <h2 style="margin: 0;">Estadísticas</h2>
+                <select id="filtro-cat-grafico" class="form-select-sm" style="display: none; max-width: 150px;">
+                    <option value="todas">Todas</option>
+                </select>
             </div>
-            <div class="chart-container">
-                <canvas id="graficoTorta"></canvas>
+
+            <div class="flex-center mb-15" style="gap: 10px;">
+                <span class="text-sm-gray" id="label-barras" style="font-weight: bold; color: var(--primary-color);">📊 Barras</span>
+                <label class="switch">
+                    <input type="checkbox" id="switch-tipo-grafico">
+                    <span class="slider"></span>
+                </label>
+                <span class="text-sm-gray" id="label-lineas">📈 Líneas</span>
+            </div>
+
+            <div class="chart-container" style="height: 300px; position: relative;">
+                <canvas id="graficoEstadisticas"></canvas>
+            </div>
+
+            <div class="time-tabs mt-15" id="tabs-tiempo-grafico" style="display: none;">
+                <button class="time-tab active" data-rango="1M">1M</button>
+                <button class="time-tab" data-rango="6M">6M</button>
+                <button class="time-tab" data-rango="1A">1A</button>
+                <button class="time-tab" data-rango="3A">3A</button>
+                <button class="time-tab" data-rango="MAX">MAX</button>
             </div>
         </section>
 
@@ -50,7 +70,7 @@
 
     <nav class="bottom-nav" id="nav-contextual"></nav>
 
-    <script type="module" src="js/auth_guard.js?v=6.1"></script>
-    <script type="module" src="js/controller_resumen.js?v=6.1"></script>    
+    <script type="module" src="js/auth_guard.js?v=6.4"></script>
+    <script type="module" src="js/controller_resumen.js?v=6.4"></script>    
 </body>
 </html>

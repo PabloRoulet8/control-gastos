@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const seccionChecklist = document.getElementById('seccion-checklist');
     const seccionStock = document.getElementById('seccion-stock');
 
+    let tipoGraficoActual = 'barras'; 
+    let rangoTiempoActual = '6M';
+    let categoriaSeleccionada = 'todas';
+
     document.getElementById('btn-stock')?.addEventListener('click', (e) => {
         const btn = e.currentTarget;
         btn.classList.toggle('active');
@@ -32,20 +36,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ambitoActual === 'unificado') {
         if(tituloHeader) tituloHeader.textContent = "Resumen Unificado";
         if(navContextual) navContextual.innerHTML = `
-            <a href="resumen.html?ambito=unificado" class="nav-item active">
+            <a href="resumen.html?v=6.5&ambito=unificado" class="nav-item active">
                 <span class="icon">📈</span><span class="label">Unificado</span>
             </a>`;
     } else {
         if(tituloHeader) tituloHeader.textContent = ambitoActual === 'hogar' ? "Resumen del Hogar" : "Mis Gastos Personales";
         const suffix = hogarId ? `&id=${hogarId}` : '';
         if(navContextual) navContextual.innerHTML = `
-            <a href="carga.html?ambito=${ambitoActual}${suffix}" class="nav-item">
+            <a href="carga.html?v=6.5&ambito=${ambitoActual}${suffix}" class="nav-item">
                 <span class="icon">➕</span><span class="label">Cargar</span>
             </a>
-            <a href="historial.html?ambito=${ambitoActual}${suffix}" class="nav-item">
+            <a href="historial.html?v=6.5&ambito=${ambitoActual}${suffix}" class="nav-item">
                 <span class="icon">📜</span><span class="label">Historial</span>
             </a>
-            <a href="resumen.html?ambito=${ambitoActual}${suffix}" class="nav-item active">
+            <a href="resumen.html?v=6.5&ambito=${ambitoActual}${suffix}" class="nav-item active">
                 <span class="icon">📊</span><span class="label">Resumen</span>
             </a>`;
     }
@@ -58,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const hoy = new Date();
             const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+            const fechaAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+            const mesAnterior = `${fechaAnterior.getFullYear()}-${String(fechaAnterior.getMonth() + 1).padStart(2, '0')}`;
             
             const userRef = doc(db, "usuarios", userId);
             const snapUser = await getDoc(userRef);
@@ -69,32 +75,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map(c => typeof c === 'string' ? { nombre: c, es_fijo: false, lleva_stock: false } : c)
                 .filter(c => c && c.nombre);
 
+            let todosLosGastos = [];
+            let kpisTotales = null;
+
             if (ambitoActual === 'personal') {
-                const todos = await api.obtenerGastos('personal') || [];
-                const gastosMes = todos.filter(g => g.fecha?.startsWith(mesActual));
+                todosLosGastos = await api.obtenerGastos('personal') || [];
+                const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 const dataPersonal = resumenService.calcularPersonal(gastosMes, categoriasPersonales);
                 
-                renderizarPersonal(dataPersonal, userData.fondos || [], gastosMes);
+                kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos);
+                
+                renderizarPersonal(dataPersonal, userData.fondos || [], gastosMes, kpisTotales);
                 mostrarComunes(gastosMes, categoriasPersonales, true);
 
             } else if (ambitoActual === 'hogar' && hogarId) {
                 const snapHogar = await getDoc(doc(db, "hogares", hogarId));
                 const dataHogar = snapHogar.exists() ? snapHogar.data() : {};
-                
-                // NUEVO: Rescatamos el nombre real del hogar para el UI
                 const nombreDelHogar = dataHogar.nombre || "Casa"; 
                 const nombresMiembros = await obtenerNombresMiembros(dataHogar.miembros || []);
                 
                 const todos = await api.obtenerGastos(hogarId) || [];
-                const gastosMes = todos.filter(g => g.fecha?.startsWith(mesActual));
+                const gastosMesTodos = todos.filter(g => g.fecha?.startsWith(mesActual));
                 
-                const dataHogarCalculada = resumenService.calcularHogar(gastosMes, nombresMiembros);
-                renderizarHogar(dataHogarCalculada, nombreDelHogar); // Se lo pasamos a la función
+                // AISLAR COMPARTIDOS: Filtramos estrictamente los 'general'
+                const gastosGeneralesHogar = todos.filter(g => g.tipo === 'general');
+                const gastosGeneralesMes = gastosGeneralesHogar.filter(g => g.fecha?.startsWith(mesActual));
+                
+                kpisTotales = resumenService.calcularKPIsHistoricos(gastosGeneralesHogar);
+
+                const dataHogarCalculada = resumenService.calcularHogar(gastosGeneralesMes, nombresMiembros);
+                renderizarHogar(dataHogarCalculada, nombreDelHogar, kpisTotales);
                 
                 const catHogarNormalizadas = (dataHogar.categorias_compartidas || [])
                     .map(c => typeof c === 'string' ? { nombre: c, es_fijo: false, lleva_stock: false } : c)
                     .filter(c => c && c.nombre);
-                mostrarComunes(gastosMes, catHogarNormalizadas, true);
+                mostrarComunes(gastosMesTodos, catHogarNormalizadas, true);
+
+                todosLosGastos = gastosGeneralesHogar;
 
             } else if (ambitoActual === 'unificado') {
                 const todosP = await api.obtenerGastos('personal') || [];
@@ -104,25 +121,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 const q = query(hogaresRef, where("miembros", "array-contains", userId));
                 const querySnapshot = await getDocs(q);
                 
-                let gastosHogarAcumulados = [];
-                let todosLosNombres = new Set();
+                let miParteHogarTotal = 0;
+                let todosHogaresAcumuladosParaGraficos = [];
+                let gastosHogarAcumuladosParaListas = [];
 
                 for (const hDoc of querySnapshot.docs) {
                     const hData = hDoc.data();
-                    const n = await obtenerNombresMiembros(hData.miembros || []);
-                    n.forEach(nombre => todosLosNombres.add(nombre));
+                    const nombresHogar = await obtenerNombresMiembros(hData.miembros || []);
+                    const miembrosCount = nombresHogar.length > 0 ? nombresHogar.length : 1;
                     
                     const gH = await api.obtenerGastos(hDoc.id) || [];
-                    gastosHogarAcumulados.push(...gH.filter(g => g.fecha?.startsWith(mesActual)));
+                    
+                    // Extraemos solo lo general para la matemática
+                    const gastosHogarMesGenerales = gH.filter(g => g.tipo === 'general' && g.fecha?.startsWith(mesActual));
+                    const dataHogar = resumenService.calcularHogar(gastosHogarMesGenerales, nombresHogar);
+                    miParteHogarTotal += dataHogar.cuotaPorPersona;
+                    
+                    const gH_divididos = gH.filter(g => g.tipo === 'general').map(g => ({
+                        ...g,
+                        monto: (Number(g.monto) || 0) / miembrosCount
+                    }));
+                    todosHogaresAcumuladosParaGraficos.push(...gH_divididos);
+                    
+                    gastosHogarAcumuladosParaListas.push(...gH.filter(g => g.fecha?.startsWith(mesActual)));
                 }
 
-                const dataUnificada = resumenService.calcularUnificado(
-                    gastosP, gastosHogarAcumulados, miNombre, categoriasPersonales, Array.from(todosLosNombres)
-                );
+                todosLosGastos = [...todosP, ...todosHogaresAcumuladosParaGraficos];
+                kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos); 
+
+                const personalInfo = resumenService.calcularPersonal(gastosP, categoriasPersonales);
+                const dataUnificada = { 
+                    totalBolsillo: personalInfo.total + miParteHogarTotal, 
+                    desglosePersonal: personalInfo.total, 
+                    desgloseHogar: miParteHogarTotal 
+                };
                 
-                renderizarUnificado(dataUnificada);
-                mostrarComunes([...gastosP, ...gastosHogarAcumulados], [], false);
+                renderizarUnificado(dataUnificada, kpisTotales);
+                mostrarComunes([...gastosP, ...gastosHogarAcumuladosParaListas], [], false);
             }
+
+            inicializarControlesGrafico(todosLosGastos, mesActual, mesAnterior);
 
         } catch (error) {
             console.error("Error cargando resumen:", error);
@@ -130,8 +168,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- RENDERIZADO DE VISTAS ---
-    function renderizarPersonal(data, fondos, gastosMes) {
+    const generarHtmlKPIs = (kpis) => `
+        <div class="kpi-grid">
+            <div class="kpi-card"><span class="kpi-label">Mínimo</span><span class="kpi-value">$ ${Number(kpis.min).toLocaleString('es-AR', {maximumFractionDigits:0})}</span></div>
+            <div class="kpi-card"><span class="kpi-label">Promedio</span><span class="kpi-value">$ ${Number(kpis.promedio).toLocaleString('es-AR', {maximumFractionDigits:0})}</span></div>
+            <div class="kpi-card"><span class="kpi-label">Máximo</span><span class="kpi-value">$ ${Number(kpis.max).toLocaleString('es-AR', {maximumFractionDigits:0})}</span></div>
+        </div>
+    `;
+
+    function renderizarPersonal(data, fondos, gastosMes, kpis) {
         let htmlFondos = '';
         if (fondos && fondos.length > 0) {
             htmlFondos = `<div class="mt-20"><span class="text-sm-gray" style="text-transform: uppercase;">Estado de Mis Presupuestos</span>`;
@@ -139,14 +184,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gastado = gastosMes
                     .filter(g => f.categorias.includes(g.categoria))
                     .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
-                
                 const restante = Number(f.monto) - gastado;
                 const colorTexto = restante < 0 ? '#ef4444' : 'var(--primary-color)';
 
                 htmlFondos += `
                     <div class="flex-between mt-10" style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
                         <span style="font-weight: bold; color: var(--text-main);">${f.nombre}</span>
-                        <span style="font-weight: 800; color: ${colorTexto};">$ ${restante.toLocaleString('es-AR')} Disponible</span>
+                        <span style="font-weight: 800; color: ${colorTexto};">$ ${restante.toLocaleString('es-AR')} Disp.</span>
                     </div>`;
             });
             htmlFondos += `</div>`;
@@ -155,10 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if(contenedorDinamico) {
             contenedorDinamico.innerHTML = `
                 <div class="card dashboard-card" style="border-top: 4px solid var(--primary-color);">
-                    <div class="monto-total">
+                    <div class="monto-total" style="border-bottom: none;">
                         <span class="label">Total Gastado (Mes)</span>
                         <span class="valor">$ ${Number(data.total).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
+                    ${generarHtmlKPIs(kpis)}
                     <div class="grid-2-col mt-15 gap-10">
                         <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
                             <span class="text-sm-gray" style="display:block;">Fijos + Stock 🏠</span>
@@ -175,8 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // NUEVO: renderizarHogar ahora recibe el nombre de la casa para la UI
-    function renderizarHogar(data, nombreHogar) {
+    function renderizarHogar(data, nombreHogar, kpis) {
         let htmlDeudas = '';
         if (data.compensaciones.length === 0) {
             htmlDeudas = '<li class="text-center text-muted" style="padding: 20px 0;">¡Cuentas claras! Nadie debe nada este mes. 🙌</li>';
@@ -193,14 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if(contenedorDinamico) {
             contenedorDinamico.innerHTML = `
                 <div class="card dashboard-card" style="border-top: 4px solid var(--primary-color);">
-                    <div class="monto-total">
+                    <div class="monto-total" style="border-bottom: none;">
                         <div style="display: flex; flex-direction: column;">
                             <span class="label">TOTAL GASTADO</span>
                             <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: -2px;">${nombreHogar}</span>
                         </div>
                         <span class="valor">$ ${Number(data.totalHogar).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
-                    <div class="mt-15 text-center">
+                    ${generarHtmlKPIs(kpis)}
+                    <div class="mt-15 text-center pt-10" style="border-top: 1px solid var(--border-color);">
                         <span class="text-sm-gray">A cada uno le corresponde poner:</span>
                         <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); margin-top: 5px;">$ ${Number(data.cuotaPorPersona).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                     </div>
@@ -217,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderizarUnificado(data) {
+    function renderizarUnificado(data, kpis) {
         if(contenedorDinamico) {
             contenedorDinamico.innerHTML = `
                 <div class="card dashboard-card" style="border-top: 4px solid #3b82f6; background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);">
@@ -225,11 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="label">Dinero Total de tu Bolsillo (Mes)</span>
                         <span class="valor" style="color: #1e3a8a; font-size: 2.5rem;">$ ${Number(data.totalBolsillo).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
+                    ${generarHtmlKPIs(kpis)}
                 </div>
 
                 <h3 class="mt-20 mb-10 text-muted" style="font-size: 0.9rem; text-transform: uppercase; padding-left: 10px;">¿De dónde sale este número?</h3>
                 
-                <div class="grid-2-col gap-10">
+                <div class="grid-2-col gap-10 mb-30">
                     <div class="card dashboard-card p-15" style="margin:0;">
                         <span class="text-sm-gray" style="display:block;">Gastos Personales</span>
                         <span class="text-bold-dark text-lg" style="color: var(--primary-color);">$ ${Number(data.desglosePersonal).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
@@ -243,38 +289,127 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function mostrarComunes(gastos, catConfig, mostrarListasExtras) {
-        // 1. Gráfico de Torta (Se mantiene igual, muestra lo que se gastó)
-        const dataMap = gastos.reduce((acc, g) => {
-            const cat = g.categoria || 'Sin Categoría';
-            acc[cat] = (acc[cat] || 0) + (Number(g.monto) || 0);
-            return acc;
-        }, {});
-        
-        if (Object.keys(dataMap).length > 0 && seccionGrafico) {
-            seccionGrafico.style.display = 'block';
-            const canvas = document.getElementById('graficoTorta');
-            if (canvas) {
-                if (window.miGraficoTorta) window.miGraficoTorta.destroy();
-                window.miGraficoTorta = new Chart(canvas.getContext('2d'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(dataMap),
-                        datasets: [{ data: Object.values(dataMap), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899'] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-                });
-            }
-        } else if (seccionGrafico) {
-            seccionGrafico.style.display = 'none';
+    function inicializarControlesGrafico(gastosTotales, mesActual, mesAnterior) {
+        if (gastosTotales.length === 0) {
+            if(seccionGrafico) seccionGrafico.style.display = 'none';
+            return;
         }
 
+        if(seccionGrafico) seccionGrafico.style.display = 'block';
+
+        const categoriasSet = new Set(gastosTotales.map(g => g.categoria || 'Sin Categoría'));
+        const select = document.getElementById('filtro-cat-grafico');
+        if (select) {
+            select.innerHTML = '<option value="todas">Todas las categorías</option>';
+            Array.from(categoriasSet).sort().forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+
+            select.addEventListener('change', (e) => {
+                categoriaSeleccionada = e.target.value;
+                dibujarGrafico(gastosTotales, mesActual, mesAnterior);
+            });
+        }
+
+        const switchGrafico = document.getElementById('switch-tipo-grafico');
+        if (switchGrafico) {
+            switchGrafico.addEventListener('change', (e) => {
+                tipoGraficoActual = e.target.checked ? 'lineas' : 'barras';
+                
+                document.getElementById('tabs-tiempo-grafico').style.display = tipoGraficoActual === 'lineas' ? 'flex' : 'none';
+                document.getElementById('filtro-cat-grafico').style.display = tipoGraficoActual === 'lineas' ? 'block' : 'none';
+                
+                dibujarGrafico(gastosTotales, mesActual, mesAnterior);
+            });
+        }
+
+        document.querySelectorAll('.time-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                rangoTiempoActual = e.target.dataset.rango;
+                dibujarGrafico(gastosTotales, mesActual, mesAnterior);
+            });
+        });
+
+        dibujarGrafico(gastosTotales, mesActual, mesAnterior);
+    }
+
+    function dibujarGrafico(gastos, mesActual, mesAnterior) {
+        const canvas = document.getElementById('graficoEstadisticas');
+        if (!canvas) return;
+
+        if (window.miGraficoEstadisticas) {
+            window.miGraficoEstadisticas.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        if (tipoGraficoActual === 'barras') {
+            const gastosMesActual = gastos.filter(g => g.fecha?.startsWith(mesActual));
+            const gastosMesAnterior = gastos.filter(g => g.fecha?.startsWith(mesAnterior));
+            
+            const data = resumenService.prepararDatosBarras(gastosMesActual, gastosMesAnterior);
+            
+            window.miGraficoEstadisticas = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Mes Actual',
+                            data: data.dataActual,
+                            backgroundColor: '#10b981',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Mes Anterior',
+                            data: data.dataAnterior,
+                            backgroundColor: '#cbd5e1',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+        } else {
+            const data = resumenService.prepararDatosLineas(gastos, categoriaSeleccionada, rangoTiempoActual);
+            
+            window.miGraficoEstadisticas = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: categoriaSeleccionada === 'todas' ? 'Gasto Total Historico' : categoriaSeleccionada,
+                        data: data.data,
+                        borderColor: '#3b82f6', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    }
+
+    function mostrarComunes(gastos, catConfig, mostrarListasExtras) {
         if (!mostrarListasExtras) return;
 
-        // 2. CORRECCIÓN DEL CHECKLIST (Solo categorías ACTIVA y FIJO)
-        const categoriasFijas = catConfig
-            .filter(c => c.activa !== false && c.es_fijo === true) // Filtro estricto
-            .map(c => c.nombre);
+        const categoriasFijas = catConfig.filter(c => c.activa !== false && c.es_fijo === true).map(c => c.nombre);
 
         if (categoriasFijas.length > 0 && seccionChecklist) {
             seccionChecklist.style.display = 'block';
@@ -294,7 +429,6 @@ document.addEventListener('DOMContentLoaded', () => {
             seccionChecklist.style.display = 'none';
         }
 
-        // 3. Stock (Se mantiene igual, solo muestra si hay ítems)
         const itemsStock = gastos.flatMap(g => g.detalle_inventario || []);
         if (itemsStock.length > 0 && seccionStock) {
             seccionStock.style.display = 'block';

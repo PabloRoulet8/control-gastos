@@ -1,12 +1,18 @@
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
+// NUEVO: Atrapamos el código de invitación en la URL (si existe) y lo guardamos en la mochila
+const urlParams = new URLSearchParams(window.location.search);
+const joinCode = urlParams.get('join');
+if (joinCode) {
+    localStorage.setItem('pendingJoinCode', joinCode);
+}
+
 // 1. EL PATOVICA 
 onAuthStateChanged(auth, async (user) => {
     const isLoginPage = window.location.pathname.includes('login.html');
 
     if (!user) {
-        // OPTIMIZACIÓN: Solo redirige si NO estás ya en la página de login (evita bucles)
         if (!isLoginPage) {
             window.location.href = "login.html"; 
         }

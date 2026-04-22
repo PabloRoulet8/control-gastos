@@ -41,3 +41,38 @@
     .alert-title { margin: 0; color: $verde-primario; font-weight: bold; }
     .alert-code { font-size: 2rem; color: $verde-oscuro; letter-spacing: 3px; margin: 5px 0; }
 }
+
+// Mini tarjetas para indicadores (Min, Max, Promedio)
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px; // Menos espacio entre tarjetas
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+    
+    .kpi-card {
+        background: var(--bg-app);
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 6px 4px; // Más chatitas
+        text-align: center;
+        
+        .kpi-label {
+            display: block;
+            font-size: 0.65rem; // Letra más chica
+            color: #ef4444; 
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 2px; // Menos espacio interno
+        }
+        
+        .kpi-value {
+            display: block;
+            font-size: 0.85rem; // Número más compacto
+            font-weight: 900;
+            color: var(--text-main);
+        }
+    }
+}

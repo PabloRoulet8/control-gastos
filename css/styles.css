@@ -375,6 +375,37 @@ body {
   margin: 5px 0;
 }
 
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-color);
+}
+.kpi-grid .kpi-card {
+  background: var(--bg-app);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+}
+.kpi-grid .kpi-card .kpi-label {
+  display: block;
+  font-size: 0.65rem;
+  color: #ef4444;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.kpi-grid .kpi-card .kpi-value {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--text-main);
+}
+
 .form-group {
   margin-bottom: 15px;
 }
