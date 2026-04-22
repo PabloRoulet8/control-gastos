@@ -34,7 +34,6 @@ export class GastoRepository {
 
         let q = this.coleccionGastos;
         
-        // Adaptamos la lectura para que entienda el nuevo formato de { tipo: '...', id: '...' }
         const tipoConsulta = typeof contexto === 'object' ? contexto.tipo : (contexto === 'personal' ? 'personal' : 'hogar');
         const idConsulta = typeof contexto === 'object' ? contexto.id : contexto;
 
@@ -43,10 +42,6 @@ export class GastoRepository {
         } else {
             q = query(q, where("ambito", "==", "hogar"), where("hogar_id", "==", idConsulta));
         }
-
-        // ⚠️ ATENCIÓN: Eliminamos el "orderBy" de acá.
-        // Firebase exige un Índice Compuesto si mezclamos "where" con "orderBy".
-        // Como no queremos configurar índices manuales, pedimos los datos y los ordenamos con JavaScript en el controlador.
         
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -56,15 +51,16 @@ export class GastoRepository {
         return await deleteDoc(doc(db, "gastos", idGasto));
     }
 
+    // 🔥 FIX CRÍTICO: Ahora busca en las colecciones correctas de la nueva arquitectura
     async obtenerCategorias(contextoId, tipo) {
-        const docRef = doc(db, "config", `${tipo}_categories_${contextoId}`);
-        const docSnap = await getDoc(docRef);
-        return docSnap.exists() ? docSnap.data().lista : null;
-    }
-
-    async guardarCategorias(contextoId, tipo, listaCategorias) {
-        const docRef = doc(db, "config", `${tipo}_categories_${contextoId}`);
-        await setDoc(docRef, { lista: listaCategorias });
+        if (tipo === 'personal') {
+            const docSnap = await getDoc(doc(db, "usuarios", contextoId));
+            return docSnap.exists() ? docSnap.data().categorias_personales : null;
+        } else if (tipo === 'hogar') {
+            const docSnap = await getDoc(doc(db, "hogares", contextoId));
+            return docSnap.exists() ? docSnap.data().categorias_compartidas : null;
+        }
+        return null;
     }
     
     async obtenerConfiguracionHogar(hogarId) {

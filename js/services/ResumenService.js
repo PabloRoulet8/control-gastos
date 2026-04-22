@@ -8,7 +8,7 @@ export class ResumenService {
         categoriasConfiguradas.forEach(c => mapCategorias[typeof c === 'string' ? c : c.nombre] = c);
 
         gastos.forEach(g => {
-            const monto = Number(g.monto) || 0;
+            const monto = Number(g.monto) || 0; 
             total += monto;
             const catNorm = g.categoria || '';
             const configCat = mapCategorias[catNorm] || { es_fijo: false, lleva_stock: false };
@@ -23,33 +23,31 @@ export class ResumenService {
         return { total, fijos, fijosStock, variables, listaFijos, listaStock };
     }
 
-    // 2. RESUMEN HOGAR
-    calcularHogar(gastosHogar, nombresMiembrosActuales) {
+    // 2. RESUMEN HOGAR 
+    calcularHogar(gastosHogar, mapaNombres) {
         let totalHogar = 0;
         let aportes = {};
-        
-        nombresMiembrosActuales.forEach(m => aportes[m] = 0);
+        Object.keys(mapaNombres).forEach(id => aportes[id] = 0);
 
         gastosHogar.forEach(g => {
-            // FILTRO ESTRICTO: Solo sumamos a la deuda si es un gasto compartido
-            if (g.tipo === 'general') {
-                const monto = Number(g.monto) || 0;
+            if (g.tipo === 'general' || !g.tipo) {
+                const monto = Number(g.monto) || 0; 
                 totalHogar += monto;
-                const responsable = g.responsable || 'Desconocido';
-                if (aportes[responsable] === undefined) aportes[responsable] = 0;
-                aportes[responsable] += monto;
+                const responsableId = g.responsable || 'desconocido';
+                if (aportes[responsableId] === undefined) aportes[responsableId] = 0;
+                aportes[responsableId] += monto;
             }
         });
 
-        const personasInvolucradas = Object.keys(aportes);
-        const cantidadMiembros = personasInvolucradas.length > 0 ? personasInvolucradas.length : 1;
+        const cantidadMiembros = Object.keys(mapaNombres).length > 0 ? Object.keys(mapaNombres).length : 1;
         const cuotaPorPersona = totalHogar / cantidadMiembros;
 
         let deudores = [], acreedores = [];
-        for (const [persona, aportado] of Object.entries(aportes)) {
+        for (const [id, aportado] of Object.entries(aportes)) {
             const balance = aportado - cuotaPorPersona;
-            if (balance < -0.01) deudores.push({ nombre: persona, monto: Math.abs(balance) });
-            else if (balance > 0.01) acreedores.push({ nombre: persona, monto: balance });
+            const nombreDisplay = mapaNombres[id] || "Desconocido";
+            if (balance < -0.01) deudores.push({ nombre: nombreDisplay, monto: Math.abs(balance) });
+            else if (balance > 0.01) acreedores.push({ nombre: nombreDisplay, monto: balance });
         }
 
         deudores.sort((a, b) => b.monto - a.monto);
@@ -61,7 +59,6 @@ export class ResumenService {
             let deudor = deudores[i];
             let acreedor = acreedores[j];
             let montoTransferencia = Math.min(deudor.monto, acreedor.monto);
-
             compensaciones.push({ de: deudor.nombre, para: acreedor.nombre, monto: montoTransferencia });
             deudor.monto -= montoTransferencia;
             acreedor.monto -= montoTransferencia;
@@ -73,52 +70,47 @@ export class ResumenService {
     }
 
     // 3. RESUMEN UNIFICADO
-    calcularUnificado(gastosPersonales, gastosHogar, miNombre, categoriasPersonales, nombresMiembrosHogar) {
-        const personalInfo = this.calcularPersonal(gastosPersonales, categoriasPersonales);
+    calcularUnificado(gastosPersonales, gastosHogar, mapaNombres) {
+        const personalInfo = this.calcularPersonal(gastosPersonales, []);
         let miParteHogar = 0;
-        if (gastosHogar && gastosHogar.length > 0 && nombresMiembrosHogar.length > 0) {
-            const hogarInfo = this.calcularHogar(gastosHogar, nombresMiembrosHogar);
+        if (gastosHogar && gastosHogar.length > 0) {
+            const hogarInfo = this.calcularHogar(gastosHogar, mapaNombres);
             miParteHogar = hogarInfo.cuotaPorPersona;
         }
         return { totalBolsillo: personalInfo.total + miParteHogar, desglosePersonal: personalInfo.total, desgloseHogar: miParteHogar };
     }
 
-    // 4. NUEVAS FUNCIONES ESTADÍSTICAS Y GRÁFICOS
+    // 4. FUNCIONES ESTADÍSTICAS
     calcularKPIsHistoricos(todosLosGastos) {
-        const meses = {};
+        if (!todosLosGastos.length) return { promedio: 0, max: 0, min: 0 };
+        const mesesMap = {};
         todosLosGastos.forEach(g => {
             if (!g.fecha) return;
-            const mes = g.fecha.substring(0, 7); 
-            meses[mes] = (meses[mes] || 0) + (Number(g.monto) || 0);
+            const m = g.fecha.substring(0, 7);
+            mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0);
         });
-
-        const valores = Object.values(meses);
-        if (valores.length === 0) return { min: 0, max: 0, promedio: 0 };
-
-        const max = Math.max(...valores);
-        const min = Math.min(...valores);
-        const promedio = valores.reduce((a, b) => a + b, 0) / valores.length;
-
-        return { min, max, promedio };
+        const totalesMensuales = Object.values(mesesMap);
+        const sum = totalesMensuales.reduce((a, b) => a + b, 0);
+        return { 
+            promedio: sum / totalesMensuales.length, 
+            max: Math.max(...totalesMensuales), 
+            min: Math.min(...totalesMensuales) 
+        };
     }
 
     prepararDatosBarras(gastosMesActual, gastosMesAnterior) {
-        const mapActual = {};
-        const mapAnterior = {};
-        const categoriasUnicas = new Set();
-
+        const mapActual = {}, mapAnterior = {}, categoriasUnicas = new Set();
         gastosMesActual.forEach(g => {
             const cat = g.categoria || 'Sin Categoría';
             mapActual[cat] = (mapActual[cat] || 0) + (Number(g.monto) || 0);
             categoriasUnicas.add(cat);
         });
-
         gastosMesAnterior.forEach(g => {
             const cat = g.categoria || 'Sin Categoría';
             mapAnterior[cat] = (mapAnterior[cat] || 0) + (Number(g.monto) || 0);
             categoriasUnicas.add(cat);
         });
-
+        
         const categoriasOrdenadas = Array.from(categoriasUnicas).sort((a, b) => (mapActual[b] || 0) - (mapActual[a] || 0));
         const top5 = categoriasOrdenadas.slice(0, 5);
         
@@ -143,38 +135,16 @@ export class ResumenService {
     }
 
     prepararDatosLineas(todosLosGastos, categoriaSeleccionada, rangoStr) {
-        let gastos = categoriaSeleccionada === 'todas' 
-            ? todosLosGastos 
-            : todosLosGastos.filter(g => (g.categoria || 'Sin Categoría') === categoriaSeleccionada);
-
+        let gastos = categoriaSeleccionada === 'todas' ? todosLosGastos : todosLosGastos.filter(g => (g.categoria || 'Sin Categoría') === categoriaSeleccionada);
         const mesesMap = {};
-        gastos.forEach(g => {
-            if(!g.fecha) return;
-            const m = g.fecha.substring(0, 7);
-            mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0);
-        });
-
+        gastos.forEach(g => { if(g.fecha) { const m = g.fecha.substring(0, 7); mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0); }});
         const mesesOrdenados = Object.keys(mesesMap).sort();
-        let mesesFiltrados = mesesOrdenados;
-
-        let cantidad = mesesOrdenados.length;
-        if(rangoStr === '1M') cantidad = 1;
-        if(rangoStr === '6M') cantidad = 6;
-        if(rangoStr === '1A') cantidad = 12;
-        if(rangoStr === '3A') cantidad = 36;
-
-        if (rangoStr !== 'MAX') {
-            mesesFiltrados = mesesOrdenados.slice(-cantidad);
-        }
-
-        const data = mesesFiltrados.map(m => mesesMap[m]);
-        
-        const labelsFormateados = mesesFiltrados.map(m => {
-            const [yyyy, mm] = m.split('-');
-            const date = new Date(yyyy, mm - 1);
-            return date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
-        });
-
-        return { labels: labelsFormateados, data };
+        let cantidad = 6;
+        if(rangoStr === '1M') cantidad = 1; if(rangoStr === '1A') cantidad = 12; if(rangoStr === '3A') cantidad = 36;
+        const filtrados = rangoStr === 'MAX' ? mesesOrdenados : mesesOrdenados.slice(-cantidad);
+        return { 
+            labels: filtrados.map(m => { const [y, mm] = m.split('-'); return new Date(y, mm - 1).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }); }), 
+            data: filtrados.map(m => mesesMap[m]) 
+        };
     }
 }

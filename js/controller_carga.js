@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let arrayInventario = [];
     let listaCategorias = [];
-    let nombreUsuarioGlobal = "Usuario";
+    let currentUserIdGlobal = null;
 
     const selectCategoria = document.getElementById('categoria');
     const selectResponsable = document.getElementById('responsable');
@@ -28,9 +28,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listaUI = document.getElementById('lista-inventario');
     const formGasto = document.getElementById('expense-form');
     
-    // Elementos nuevos para la referencia
     const grupoReferencia = document.getElementById('referencia-group');
     const inputReferencia = document.getElementById('referencia');
+
+    // === NAVEGACIÓN INFERIOR (EL FIX CLAVE) ===
+    const navContextual = document.getElementById('nav-contextual');
+    if (navContextual) {
+        const urlAmbito = ambitoActual === 'individual' ? 'personal' : ambitoActual;
+        const suffix = hogarId ? `&id=${hogarId}` : '';
+        
+        navContextual.innerHTML = `
+            <a href="carga.html?v=8.5&ambito=${urlAmbito}${suffix}" class="nav-item active">
+                <span class="icon">➕</span><span class="label">Cargar</span>
+            </a>
+            <a href="historial.html?v=8.5&ambito=${urlAmbito}${suffix}" class="nav-item">
+                <span class="icon">📜</span><span class="label">Historial</span>
+            </a>
+            <a href="resumen.html?v=8.5&ambito=${urlAmbito}${suffix}" class="nav-item">
+                <span class="icon">📊</span><span class="label">Resumen</span>
+            </a>`;
+    }
 
     // 1. GESTIÓN DE BORRADOR Y NAVEGACIÓN
     const guardarBorradorStock = () => {
@@ -48,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             li.innerHTML = `
                 <span><strong>${item.producto}</strong> (${item.cantidad} ${item.unidad})</span>
                 <div class="flex-center">
-                    <strong style="margin-right:10px">$${item.precio.toLocaleString()}</strong>
+                    <strong style="margin-right:10px">$${item.precio.toLocaleString('es-AR')}</strong>
                     <button type="button" class="btn-delete-item" data-index="${index}" style="background:none; border:none; color:red; cursor:pointer; font-size:1.2rem;">✕</button>
                 </div>
             `;
@@ -65,25 +82,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         if (arrayInventario.length > 0) {
-            inputMontoGlobal.value = totalAcumulado; 
+            inputMontoGlobal.value = totalAcumulado.toFixed(2); 
             inputMontoGlobal.readOnly = true;
         } else {
             inputMontoGlobal.readOnly = false;
         }
     };
 
-    document.querySelectorAll('.bottom-nav a').forEach(link => {
-        const baseHref = link.getAttribute('href').split('?')[0];
-        // Mantenemos la versión 6.0 para el caché que definimos ayer
-        link.href = `${baseHref}?v=6.2&ambito=${ambitoActual}${hogarId ? `&id=${hogarId}` : ''}${hogarNombre ? `&nombre=${encodeURIComponent(hogarNombre)}` : ''}`;
-    });
-
     // 2. INICIALIZACIÓN DE DATOS
     const inicializarPagina = async (userId) => {
+        currentUserIdGlobal = userId;
         const userSnap = await getDoc(doc(db, "usuarios", userId));
         if (userSnap.exists()) {
             const userData = userSnap.data();
-            nombreUsuarioGlobal = userData.nombre || "Usuario";
             if (ambitoActual === 'individual') {
                 listaCategorias = userData.categorias_personales || [];
                 if (tituloHeader) tituloHeader.textContent = "Gastos Personales";
@@ -107,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const uSnap = await getDoc(doc(db, "usuarios", uid));
                         if (uSnap.exists()) {
                             const opt = document.createElement('option');
-                            opt.value = uSnap.data().nombre;
+                            opt.value = uid; // ID GUARDADO
                             opt.textContent = uSnap.data().nombre;
                             if (uid === userId) opt.selected = true;
                             selectResponsable.appendChild(opt);
@@ -138,7 +149,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 option.value = c.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 option.textContent = c.nombre;
                 option.dataset.llevaStock = c.lleva_stock;
-                // NUEVO: Guardamos si es fijo
                 option.dataset.esFijo = c.es_fijo; 
                 selectCategoria.appendChild(option);
             }
@@ -152,18 +162,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const llevaStock = option.dataset.llevaStock === "true";
         const esFijo = option.dataset.esFijo === "true";
 
-        // Lógica del Inventario/Stock
         const seccionStock = document.getElementById('seccion-inventario');
         if (seccionStock) seccionStock.style.display = llevaStock ? 'block' : 'none';
 
-        // Lógica de la Referencia (Aparece si NO es fijo y NO lleva stock)
         if (grupoReferencia) {
             const esVariable = !esFijo && !llevaStock;
             grupoReferencia.style.display = esVariable ? 'block' : 'none';
         }
     });
 
-    // Botón Agregar Stock
     document.getElementById('btn-add-inv')?.addEventListener('click', () => {
         const prod = document.getElementById('inv-prod').value;
         const cant = parseFloat(document.getElementById('inv-cant').value);
@@ -199,7 +206,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text;
                 
-                // NUEVO: Capturar referencia solo si el campo está visible
                 let textoReferencia = "";
                 if (grupoReferencia && grupoReferencia.style.display === 'block' && inputReferencia) {
                     textoReferencia = inputReferencia.value.trim();
@@ -210,9 +216,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     monto: parseFloat(inputMontoGlobal.value),
                     categoria: catElegida,
                     detalle_inventario: arrayInventario,
-                    responsable: (ambitoActual === 'hogar') ? selectResponsable.value : nombreUsuarioGlobal,
+                    responsable: (ambitoActual === 'hogar') ? selectResponsable.value : currentUserIdGlobal,
                     metodo_pago: document.getElementById('metodo-pago').value,
-                    referencia: textoReferencia // <-- Se envía a Firebase
+                    tipo: (ambitoActual === 'hogar') ? 'general' : 'individual',
+                    referencia: textoReferencia
                 };
 
                 const contexto = (ambitoActual === 'hogar') ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
@@ -223,7 +230,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 arrayInventario = [];
                 formGasto.reset();
                 
-                // Limpiar campo de referencia y ocultarlo para el siguiente gasto
                 if (inputReferencia) inputReferencia.value = '';
                 if (grupoReferencia) grupoReferencia.style.display = 'none';
 
