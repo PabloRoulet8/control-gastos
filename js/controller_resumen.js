@@ -32,13 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const navContextual = document.getElementById('nav-contextual');
     if (navContextual) {
         if (ambitoActual === 'unificado') {
-            navContextual.innerHTML = `<a href="resumen.html?v=8.5&ambito=unificado" class="nav-item active"><span class="icon">📈</span><span class="label">Unificado</span></a>`;
+            navContextual.innerHTML = `<a href="resumen.html?v=9.0&ambito=unificado" class="nav-item active"><span class="icon">📈</span><span class="label">Unificado</span></a>`;
         } else {
             const suffix = hogarId ? `&id=${hogarId}` : '';
             navContextual.innerHTML = `
-                <a href="carga.html?v=8.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">➕</span><span class="label">Cargar</span></a>
-                <a href="historial.html?v=8.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">📜</span><span class="label">Historial</span></a>
-                <a href="resumen.html?v=8.5&ambito=${ambitoActual}${suffix}" class="nav-item active"><span class="icon">📊</span><span class="label">Resumen</span></a>`;
+                <a href="carga.html?v=9.0&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">➕</span><span class="label">Cargar</span></a>
+                <a href="historial.html?v=9.0&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">📜</span><span class="label">Historial</span></a>
+                <a href="resumen.html?v=9.0&ambito=${ambitoActual}${suffix}" class="nav-item active"><span class="icon">📊</span><span class="label">Resumen</span></a>`;
         }
     }
 

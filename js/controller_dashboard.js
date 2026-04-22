@@ -17,11 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const actualizarEnlacesNavegacion = () => {
         document.querySelectorAll('.bottom-nav a').forEach(link => {
             if (link.href.includes('ambito=unificado') || link.id === 'btn-unificado-fijo') {
-                link.href = "resumen.html?v=8.5&ambito=unificado";
+                link.href = "resumen.html?v=9.0&ambito=unificado";
                 return; 
             }
             const url = new URL(link.href, window.location.origin);
-            url.searchParams.set('v', '8.5');
+            url.searchParams.set('v', '9.0');
             link.href = url.toString();
         });
     };
@@ -75,11 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const cardPersonal = document.createElement('div');
             cardPersonal.className = 'dashboard-card-wrapper';
             cardPersonal.innerHTML = `
-                <a href="carga.html?v=8.5&ambito=personal" class="dashboard-card-link">
+                <a href="carga.html?v=9.0&ambito=personal" class="dashboard-card-link">
                     <span class="icon">${userData.emoji || "👤"}</span>
                     <span class="title">Mis Gastos</span>
                 </a>
-                <a href="perfil.html?v=8.5" class="btn-config-gear" title="Configurar Mis Gastos">⚙️</a>
+                <a href="perfil.html?v=9.0" class="btn-config-gear" title="Configurar Mis Gastos">⚙️</a>
             `;
             contenedorHogares.appendChild(cardPersonal);
 
@@ -95,11 +95,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const esAdmin = hogar.administradores && hogar.administradores.includes(uid);
                 
                 cardHogar.innerHTML = `
-                    <a href="carga.html?v=8.5&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
+                    <a href="carga.html?v=9.0&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
                         <span class="icon">🏠</span>
                         <span class="title">${hogar.nombre}</span>
                     </a>
-                    ${esAdmin ? `<a href="config_hogar.html?v=8.5&id=${docHogar.id}" class="btn-config-gear" title="Configurar Hogar">⚙️</a>` : ''}
+                    ${esAdmin ? `<a href="config_hogar.html?v=9.0&id=${docHogar.id}" class="btn-config-gear" title="Configurar Hogar">⚙️</a>` : ''}
                 `;
                 contenedorHogares.appendChild(cardHogar);
             });
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cardNuevo = document.createElement('div');
             cardNuevo.className = 'dashboard-card-wrapper';
             cardNuevo.innerHTML = `
-                <a href="admin_hogar.html?v=8.5&id=nuevo" class="dashboard-card-link card-add">
+                <a href="admin_hogar.html?v=9.0&id=nuevo" class="dashboard-card-link card-add">
                     <span class="icon">➕</span>
                     <span class="title">Nuevo Hogar</span>
                 </a>

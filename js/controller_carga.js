@@ -38,13 +38,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const suffix = hogarId ? `&id=${hogarId}` : '';
         
         navContextual.innerHTML = `
-            <a href="carga.html?v=8.5&ambito=${urlAmbito}${suffix}" class="nav-item active">
+            <a href="carga.html?v=9.0&ambito=${urlAmbito}${suffix}" class="nav-item active">
                 <span class="icon">➕</span><span class="label">Cargar</span>
             </a>
-            <a href="historial.html?v=8.5&ambito=${urlAmbito}${suffix}" class="nav-item">
+            <a href="historial.html?v=9.0&ambito=${urlAmbito}${suffix}" class="nav-item">
                 <span class="icon">📜</span><span class="label">Historial</span>
             </a>
-            <a href="resumen.html?v=8.5&ambito=${urlAmbito}${suffix}" class="nav-item">
+            <a href="resumen.html?v=9.0&ambito=${urlAmbito}${suffix}" class="nav-item">
                 <span class="icon">📊</span><span class="label">Resumen</span>
             </a>`;
     }
