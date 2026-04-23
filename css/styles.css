@@ -266,6 +266,24 @@ body {
   margin-top: 0 !important;
 }
 
+.btn-config-gear-inline {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s ease-in-out;
+  padding: 5px;
+}
+.btn-config-gear-inline:hover {
+  opacity: 1;
+}
+
+.btn-config-gear {
+  display: none !important;
+}
+
 .card {
   background: white;
   border-radius: 12px;
@@ -406,6 +424,19 @@ body {
   color: var(--text-main);
 }
 
+.card-content-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding-right: 10px;
+}
+.card-content-flex .card-info-main {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 .form-group {
   margin-bottom: 15px;
 }
@@ -449,6 +480,40 @@ body {
   text-transform: uppercase;
   text-align: center;
   letter-spacing: 2px;
+}
+
+.input-monto-giant {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 12px 20px;
+  margin: 15px 0 20px 0;
+}
+.input-monto-giant .monto-prefix {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 4px;
+}
+.input-monto-giant .monto-giant-input {
+  border: none;
+  background: transparent;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #10b981;
+  text-align: center;
+  width: 140px;
+  outline: none;
+}
+.input-monto-giant .monto-giant-input::placeholder {
+  color: #cbd5e1;
+}
+.input-monto-giant .monto-giant-input::-webkit-outer-spin-button, .input-monto-giant .monto-giant-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .checkbox-lg {
@@ -621,6 +686,16 @@ body {
 .header h1 {
   margin: 0;
   font-size: 1.2rem;
+}
+.header .header-title-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+.header .header-logo {
+  font-size: 1.5rem;
 }
 .header .header-spacer {
   width: 50px;
@@ -812,6 +887,26 @@ body {
 .btn-config-gear:hover {
   background: #f9f9f9;
   transform: scale(1.1);
+}
+
+.date-group-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 8px;
+  margin-top: 15px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.5px;
+}
+.date-group-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+  margin-left: 12px;
 }
 
 .gasto-item {

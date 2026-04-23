@@ -2,6 +2,28 @@
 // ESPECÍFICO DE LA LISTA DE MOVIMIENTOS
 // ==========================================
 
+//Header de grupo de fecha (Hoy, Ayer, etc.)
+.date-group-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 8px;
+    margin-top: 15px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.5px;
+    
+    &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e2e8f0;
+        margin-left: 12px;
+    }
+}
+
 // Cada ticket/gasto individual en la lista del historial
 .gasto-item {
     display: flex; justify-content: space-between; align-items: center;

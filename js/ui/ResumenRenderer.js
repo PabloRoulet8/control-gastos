@@ -83,10 +83,20 @@ export class ResumenRenderer {
                     ? `<button class="btn-abrir-modal-pago" data-de-id="${c.de_id}" data-de-nombre="${c.de}" data-para-id="${c.para_id}" data-monto="${c.monto}" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">💸 Registrar Pago</button>`
                     : ``;
 
+                // REGLA DE COLOR: Si vos debés = ROJO, si te deben = VERDE
+                const colorDeudor = currentUserId === c.de_id ? '#DC2626' : '#64748b';
+                const colorAcreedor = currentUserId === c.para_id ? '#10B981' : '#64748b';
+                const labelStatus = currentUserId === c.de_id ? 'Vos debés' : (currentUserId === c.para_id ? 'Te deben' : '');
+
                 htmlDeudas += `
                     <li class="flex-between border-bottom-gray" style="padding: 15px 0;">
                         <div style="display:flex; flex-direction:column;">
-                            <span><strong style="color: #ea580c;">${c.de}</strong> le paga a <strong>${c.para}</strong></span>
+                            <span style="display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;">
+                                <strong style="color: ${colorDeudor};">${c.de}</strong>
+                                <span style="color:#64748b;">→</span>
+                                <strong style="color: ${colorAcreedor};">${c.para}</strong>
+                            </span>
+                            ${labelStatus ? `<span style="font-size:0.75rem; color:${colorDeudor}; margin-top:4px;">${labelStatus}</span>` : ''}
                             <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center;">
                                 ${btnPagoHtml}
                             </div>

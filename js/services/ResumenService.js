@@ -109,13 +109,15 @@ export class ResumenService {
     // 4. FUNCIONES ESTADÍSTICAS
     calcularKPIsHistoricos(todosLosGastos) {
         if (!todosLosGastos.length) return { promedio: 0, max: 0, min: 0 };
+        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda');
         const mesesMap = {};
-        todosLosGastos.forEach(g => {
+        gastosReales.forEach(g => {
             if (!g.fecha) return;
             const m = g.fecha.substring(0, 7);
             mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0);
         });
         const totalesMensuales = Object.values(mesesMap);
+        if (!totalesMensuales.length) return { promedio: 0, max: 0, min: 0 };
         const sum = totalesMensuales.reduce((a, b) => a + b, 0);
         return { 
             promedio: sum / totalesMensuales.length, 
@@ -125,13 +127,16 @@ export class ResumenService {
     }
 
     prepararDatosBarras(gastosMesActual, gastosMesAnterior) {
+        const gastosAct = gastosMesActual.filter(g => g.tipo !== 'pagoDeuda');
+        const gastosAnt = gastosMesAnterior.filter(g => g.tipo !== 'pagoDeuda');
+        
         const mapActual = {}, mapAnterior = {}, categoriasUnicas = new Set();
-        gastosMesActual.forEach(g => {
+        gastosAct.forEach(g => {
             const cat = g.categoria || 'Sin Categoría';
             mapActual[cat] = (mapActual[cat] || 0) + (Number(g.monto) || 0);
             categoriasUnicas.add(cat);
         });
-        gastosMesAnterior.forEach(g => {
+        gastosAnt.forEach(g => {
             const cat = g.categoria || 'Sin Categoría';
             mapAnterior[cat] = (mapAnterior[cat] || 0) + (Number(g.monto) || 0);
             categoriasUnicas.add(cat);
@@ -161,7 +166,8 @@ export class ResumenService {
     }
 
     prepararDatosLineas(todosLosGastos, categoriaSeleccionada, rangoStr) {
-        let gastos = categoriaSeleccionada === 'todas' ? todosLosGastos : todosLosGastos.filter(g => (g.categoria || 'Sin Categoría') === categoriaSeleccionada);
+        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda');
+        let gastos = categoriaSeleccionada === 'todas' ? gastosReales : gastosReales.filter(g => (g.categoria || 'Sin Categoría') === categoriaSeleccionada);
         const mesesMap = {};
         gastos.forEach(g => { if(g.fecha) { const m = g.fecha.substring(0, 7); mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0); }});
         const mesesOrdenados = Object.keys(mesesMap).sort();

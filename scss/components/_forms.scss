@@ -16,6 +16,44 @@
 // Input especial para el código de hogar (texto mayúscula y espaciado)
 .input-codigo { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 1.1rem; text-transform: uppercase; text-align: center; letter-spacing: 2px; }
 
+// Input MONTO GIANT (Estilo Splitwise) - VERSIÓN COMPACTA
+.input-monto-giant {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
+    border: 2px solid $verde-primario;
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin: 15px 0 20px 0;
+    
+    .monto-prefix {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-right: 4px;
+    }
+    
+    .monto-giant-input {
+        border: none;
+        background: transparent;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: $verde-primario;
+        text-align: center;
+        width: 140px;
+        outline: none;
+        
+        &::placeholder { color: #cbd5e1; }
+        
+        &::-webkit-outer-spin-button,
+        &::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    }
+}
+
 // Checkbox más grande y fácil de tocar en celulares
 .checkbox-lg { width: 22px; height: 22px; cursor: pointer; }
 

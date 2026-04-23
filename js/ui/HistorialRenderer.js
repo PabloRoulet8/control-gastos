@@ -5,29 +5,41 @@ export class HistorialRenderer {
         this.filtroCategoria = document.getElementById('filtro-categoria');
     }
 
-    // 🎨 NUEVA FUNCIÓN DE COLORES ESTRÍCTOS (Por Tipo de Gasto)
+    // 🎨 FUNCIÓN DE COLORES (Por Categoría)
     getMapeoTipo(gasto) {
         // Regla de seguridad: Si es un pago de deuda, color verde y fin.
         if (gasto.tipo === 'pagoDeuda') {
-            return { color: '#10b981', icono: '💸' };
+            return { color: '#10b981', icono: '' };
         }
 
-        // Leemos el tipo de gasto (Fijo, Stock, Variable)
-        const tipoGasto = (gasto.tipoGasto || "Variable").toLowerCase();
-
-        // 🧠 REGLA MÁGICA: "Si es fijo y stock se contabiliza como stock"
-        // Asumimos que si tiene ambas etiquetas, la prioridad de visualización es 'Stock'.
-        // NOTA: Para implementar esto al 100%, deberíamos verificar cómo se guardan 
-        // los datos en el repository (si permite Fijo+Stock a la vez). 
-        // Por ahora, mapeamos el tipo principal.
-
+        // Leemos la categoría para determinar el color
+        const categoria = (gasto.categoria || '').toLowerCase();
+        
         const mapeo = {
-            'variable': { color: '#3b82f6', icono: '🔄' }, // Azul (Flexibilidad)
-            'fijo':     { color: '#ef4444', icono: '📌' }, // Rojo (Atención/Inamovible)
-            'stock':    { color: '#eab308', icono: '📦' }  // Amarillo (Almacén)
+            'servicios': { color: '#ef4444', icono: '' },      // Rojo (cuentas)
+            'alquiler': { color: '#ef4444', icono: '' },
+            'expensas': { color: '#ef4444', icono: '' },
+            'luz': { color: '#ef4444', icono: '' },
+            'agua': { color: '#ef4444', icono: '' },
+            'gas': { color: '#ef4444', icono: '' },
+            'internet': { color: '#ef4444', icono: '' },
+            'stock': { color: '#eab308', icono: '' },    // Amarillo (compras)
+            'supermercado': { color: '#eab308', icono: '' },
+            'verduleria': { color: '#eab308', icono: '' },
+            'carniceria': { color: '#eab308', icono: '' },
+            'limpieza': { color: '#eab308', icono: '' },
+            'variable': { color: '#3b82f6', icono: '' },  // Azul (otros)
         };
 
-        return mapeo[tipoGasto] || mapeo['variable']; // Default Variable si no tiene tipo
+        // Buscar coincidencia parcial en las claves del mapeo
+        for (const [key, value] of Object.entries(mapeo)) {
+            if (categoria.includes(key)) {
+                return value;
+            }
+        }
+
+        // Default si no encuentra categoría
+        return { color: '#64748b', icono: '' };
     }
 
     renderLista(gastosFiltrados, currentUser, ambitoActual, mapaNombres, onDeleteClick) {
@@ -39,7 +51,42 @@ export class HistorialRenderer {
             return;
         }
 
-        gastosFiltrados.forEach((gasto) => {
+        // === AGRUPAR POR FECHA (Estilo Splitwise: Hoy, Ayer, Esta semana, Earlier) ===
+        const hoy = new Date();
+        hoy.setHours(0,0,0,0);
+        const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1);
+        const haceUnaSemana = new Date(hoy); haceUnaSemana.setDate(hoy.getDate() - 7);
+
+        const grupos = { 'Hoy': [], 'Ayer': [], 'Esta semana': [], 'Anterior': [] };
+        
+        gastosFiltrados.forEach(gasto => {
+            if (!gasto.fecha) {
+                grupos['Anterior'].push(gasto);
+                return;
+            }
+            const fechaGasto = new Date(gasto.fecha + 'T00:00:00');
+            if (fechaGasto.getTime() === hoy.getTime()) {
+                grupos['Hoy'].push(gasto);
+            } else if (fechaGasto.getTime() === new Date(hoy.getTime() - 86400000).getTime()) { // Yesterday
+                grupos['Ayer'].push(gasto);
+            } else if (fechaGasto >= haceUnaSemana) {
+                grupos['Esta semana'].push(gasto);
+            } else {
+                grupos['Anterior'].push(gasto);
+            }
+        });
+
+        // Renderizar cada grupo
+        Object.entries(grupos).forEach(([nombreGrupo, gastos]) => {
+            if (gastos.length === 0) return;
+            
+            // Header del grupo
+            const header = document.createElement('div');
+            header.className = 'date-group-header';
+            header.textContent = nombreGrupo;
+            this.listaGastosUI.appendChild(header);
+
+            gastos.forEach((gasto) => {
             const item = document.createElement('div');
             item.className = `gasto-item`; // Base limpia
             
@@ -71,11 +118,8 @@ export class HistorialRenderer {
             const etiquetaCategoria = esPago ? 'Pago de Deuda' : (gasto.categoria || 'Sin categoría');
 
             item.innerHTML = `
-                <div class="gasto-info" style="display: flex; align-items: center; gap: 10px;">
-                    <div style="font-size: 1.3rem; color: ${colorTipo}; background: var(--bg-app); width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
-                        ${iconoTipo}
-                    </div>
-                    <div style="display: flex; flex-direction: column;">
+                <div class="gasto-info" style="display: flex; align-items: center;">
+                    <div style="display: flex; flex-direction: column; padding-left: 8px;">
                         <strong style="color: ${colorTipo}; font-size: 0.95rem;">${etiquetaCategoria}</strong> 
                         <span class="fecha">${fechaCorta} — <span style="font-weight: 600; color: ${ambitoActual === 'hogar' && !esPago ? this.generarColorUsuario(nombreResponsable) : 'var(--text-muted)'}">${nombreResponsable.toUpperCase()}</span></span>
                     </div>
@@ -86,6 +130,8 @@ export class HistorialRenderer {
                 </div>
             `;
             this.listaGastosUI.appendChild(item);
+        });
+
         });
 
         this.listaGastosUI.querySelectorAll('.btn-eliminar').forEach(boton => {

@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Si ya tiene nombre, seguimos dibujando el Dashboard normal
             if (saludoUsuario) saludoUsuario.textContent = `Hola, ${userData.nombre}`;
-            if (displayAvatar) displayAvatar.textContent = "👤";
+            if (displayAvatar) displayAvatar.textContent = userData.nombre ? userData.nombre.charAt(0).toUpperCase() : 'U';
 
             // === TARJETA PERSONAL (LIMPIA) ===
             const cardPersonal = document.createElement('div');

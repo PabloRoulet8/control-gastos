@@ -8,6 +8,16 @@
     position: sticky; top: 0; z-index: 100; // La clava arriba al hacer scroll
     h1 { margin: 0; font-size: 1.2rem; }
     
+    // Contenedor para centrar logo + título
+    .header-title-container {
+        display: flex; align-items: center; gap: 8px;
+        flex: 1; justify-content: center;
+    }
+    
+    .header-logo {
+        font-size: 1.5rem;
+    }
+    
     // Un bloque invisible para equilibrar el espacio ocupado por el botón de volver
     // y lograr que el título (h1) quede perfectamente centrado
     .header-spacer { width: 50px; } 
