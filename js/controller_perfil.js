@@ -11,24 +11,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const capitalizar = (str) => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 
+    const displayNombre = document.getElementById('display-nombre-perfil');
     const inputNombre = document.getElementById('input-nombre');
-    const inputEmoji = document.getElementById('input-emoji');
-    const displayEmoji = document.getElementById('display-emoji');
     const btnGuardarPerfil = document.getElementById('btn-guardar-perfil');
+    const btnToggleEditNombre = document.getElementById('btn-toggle-edit-nombre');
+    const boxEditNombre = document.getElementById('box-edit-nombre');
 
     const inputNuevaCat = document.getElementById('input-nueva-cat');
     const btnAddCat = document.getElementById('btn-add-cat');
-
     const inputNuevoPago = document.getElementById('input-nuevo-pago');
     const btnAddPago = document.getElementById('btn-add-pago');
-
     const inputNombreFondo = document.getElementById('input-nombre-fondo');
     const inputMontoFondo = document.getElementById('input-monto-fondo');
     const btnCrearFondo = document.getElementById('btn-crear-fondo');
 
-    const renderer = new PerfilRenderer(async () => {
-        await guardarDatosGenerales();
-    });
+    const renderer = new PerfilRenderer(async () => await guardarDatosGenerales());
 
     const setupToggle = (btnId, boxId) => {
         const btn = document.getElementById(btnId);
@@ -47,17 +44,38 @@ document.addEventListener('DOMContentLoaded', () => {
     setupToggle('btn-toggle-pago', 'form-pago-box');
     setupToggle('btn-toggle-fondo', 'form-fondo-box');
 
-    // === NUEVO: NAVEGACIÓN INFERIOR ===
+    // Lógica del lápiz para el nombre
+    const viewModeNombre = document.getElementById('view-mode-nombre');
+    const editModeNombre = document.getElementById('edit-mode-nombre');
+    const btnCancelarEdit = document.getElementById('btn-cancelar-edit');
+
+    if (btnToggleEditNombre) {
+        btnToggleEditNombre.addEventListener('click', () => {
+            viewModeNombre.style.display = 'none';
+            editModeNombre.style.display = 'flex';
+            inputNombre.focus(); // Autoselecciona el input para escribir directo
+        });
+    }
+
+    if (btnCancelarEdit) {
+        btnCancelarEdit.addEventListener('click', () => {
+            editModeNombre.style.display = 'none';
+            viewModeNombre.style.display = 'flex';
+            inputNombre.value = displayNombre.textContent; // Resetea el texto
+        });
+    }
+
+    // === NAVEGACIÓN INFERIOR ===
     const navContextual = document.getElementById('nav-contextual');
     if (navContextual) {
         navContextual.innerHTML = `
-            <a href="carga.html?v=9.0&ambito=personal" class="nav-item">
+            <a href="carga.html?v=9.5&ambito=personal" class="nav-item">
                 <span class="icon">➕</span><span class="label">Cargar</span>
             </a>
-            <a href="historial.html?v=9.0&ambito=personal" class="nav-item">
+            <a href="historial.html?v=9.5&ambito=personal" class="nav-item">
                 <span class="icon">📜</span><span class="label">Historial</span>
             </a>
-            <a href="resumen.html?v=9.0&ambito=personal" class="nav-item">
+            <a href="resumen.html?v=9.5&ambito=personal" class="nav-item">
                 <span class="icon">📊</span><span class="label">Resumen</span>
             </a>`;
     }
@@ -73,56 +91,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarDatosUsuario() {
         try {
-            const docRef = doc(db, "usuarios", currentUserUid);
-            const docSnap = await getDoc(docRef);
-            
-            if (docSnap.exists()) {
-                userData = docSnap.data();
-            } else {
-                userData = { nombre: "", emoji: "👤", categorias_personales: [], metodos_pago: ["Efectivo / Transferencia"], fondos: [] };
-            }
+            const docSnap = await getDoc(doc(db, "usuarios", currentUserUid));
+            userData = docSnap.exists() ? docSnap.data() : { nombre: "", categorias_personales: [], metodos_pago: ["Efectivo / Transferencia"], fondos: [] };
 
-            userData.categorias_personales = (userData.categorias_personales || []).map(c => 
-                typeof c === 'string' ? { nombre: c, es_fijo: false, lleva_stock: false } : c
-            );
+            userData.categorias_personales = (userData.categorias_personales || []).map(c => typeof c === 'string' ? { nombre: c, es_fijo: false, lleva_stock: false } : c);
 
+            if (displayNombre) displayNombre.textContent = userData.nombre || "Usuario";
             if (inputNombre) inputNombre.value = userData.nombre || "";
-            if (inputEmoji) inputEmoji.value = userData.emoji || "👤";
-            if (displayEmoji) displayEmoji.textContent = userData.emoji || "👤";
 
             renderer.renderizarCategorias(userData);
             renderer.renderizarPagos(userData);
             renderer.renderizarFondos(userData);
-
-        } catch (error) {
-            console.error("Error al cargar perfil:", error);
-            toast.mostrar("Error al cargar datos.");
-        }
-    }
-
-    if (inputEmoji) {
-        inputEmoji.addEventListener('input', (e) => {
-            displayEmoji.textContent = e.target.value || "👤";
-        });
+        } catch (error) { toast.mostrar("Error al cargar datos."); }
     }
 
     if (btnGuardarPerfil) {
         btnGuardarPerfil.addEventListener('click', async () => {
             const nombre = capitalizar(inputNombre.value.trim()); 
-            const emoji = inputEmoji.value.trim() || "👤";
-            
             if (!nombre) return toast.mostrar("Ingresá un nombre.");
             
             btnGuardarPerfil.textContent = "Guardando...";
             try {
-                await updateDoc(doc(db, "usuarios", currentUserUid), { nombre, emoji });
-                toast.mostrar("¡Perfil actualizado!");
-                inputNombre.value = nombre; 
-            } catch (error) {
-                toast.mostrar("Error al guardar.");
-            } finally {
-                btnGuardarPerfil.textContent = "Guardar Cambios";
-            }
+                await updateDoc(doc(db, "usuarios", currentUserUid), { nombre });
+                toast.mostrar("¡Nombre actualizado!");
+                displayNombre.textContent = nombre;
+                editModeNombre.style.display = 'none';
+                viewModeNombre.style.display = 'flex';
+            } catch (error) { toast.mostrar("Error al guardar."); } 
+            finally { btnGuardarPerfil.textContent = "Guardar"; }
         });
     }
 

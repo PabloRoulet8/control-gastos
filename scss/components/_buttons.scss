@@ -52,3 +52,24 @@
 .btn-no-margin {
   margin-top: 0 !important;
 }
+
+// Botón de configuración (Tuerca) dentro de las tarjetas
+.btn-config-gear-inline {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    text-decoration: none;
+    opacity: 0.6;
+    transition: opacity 0.2s ease-in-out;
+    padding: 5px;
+
+    &:hover {
+        opacity: 1;
+    }
+}
+
+// Ocultamos la versión vieja por si quedó en algún lado
+.btn-config-gear {
+    display: none !important;
+}

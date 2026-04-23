@@ -1,7 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-// NUEVO: Importamos el repositorio y el Toast para gestionar la unión
+import { doc, getDoc, collection, query, where, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";// NUEVO: Importamos el repositorio y el Toast para gestionar la unión
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ToastManager } from "./ui/ToastManager.js";
 
@@ -17,11 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const actualizarEnlacesNavegacion = () => {
         document.querySelectorAll('.bottom-nav a').forEach(link => {
             if (link.href.includes('ambito=unificado') || link.id === 'btn-unificado-fijo') {
-                link.href = "resumen.html?v=9.0&ambito=unificado";
+                link.href = "resumen.html?v=9.5&ambito=unificado";
                 return; 
             }
             const url = new URL(link.href, window.location.origin);
-            url.searchParams.set('v', '9.0');
+            url.searchParams.set('v', '9.5');
             link.href = url.toString();
         });
     };
@@ -63,43 +62,87 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const userRef = doc(db, "usuarios", uid);
             const userSnap = await getDoc(userRef);
-            let userData = { nombre: "Usuario", emoji: "👤" };
+            let userData = {};
+            let necesitaNombre = false;
             
+            // Verificamos si el usuario existe y si tiene un nombre guardado
             if (userSnap.exists()) {
                 userData = userSnap.data();
+                if (!userData.nombre || userData.nombre.trim() === "") necesitaNombre = true;
+            } else {
+                necesitaNombre = true; // Si no existe el documento, necesita nombre
             }
-            
-            if (saludoUsuario) saludoUsuario.textContent = `Hola, ${userData.nombre}`;
-            if (displayAvatar) displayAvatar.textContent = userData.emoji || "👤";
 
+            // === LÓGICA DEL CARTEL OBLIGATORIO ===
+            if (necesitaNombre) {
+                const modalOnboarding = document.getElementById('modal-onboarding');
+                const btnGuardarOnboarding = document.getElementById('btn-guardar-onboarding');
+                const inputNombreOnboarding = document.getElementById('input-nombre-onboarding');
+
+                if (modalOnboarding) modalOnboarding.style.display = 'flex';
+
+                // Usamos onclick para no duplicar eventos si la función se llama varias veces
+                btnGuardarOnboarding.onclick = async () => {
+                    const nuevoNombre = inputNombreOnboarding.value.trim();
+                    if (!nuevoNombre) return toast.mostrar("Por favor, ingresá cómo querés llamarte.");
+                    
+                    btnGuardarOnboarding.disabled = true;
+                    btnGuardarOnboarding.textContent = "Guardando...";
+
+                    try {
+                        // setDoc con merge: true crea el doc si no existe, o lo actualiza si existe
+                        await setDoc(userRef, { 
+                            nombre: nuevoNombre.charAt(0).toUpperCase() + nuevoNombre.slice(1) 
+                        }, { merge: true });
+                        
+                        modalOnboarding.style.display = 'none';
+                        toast.mostrar("¡Excelente! Ya podés usar la app.");
+                        
+                        // Recargamos el dashboard para que se dibuje todo correctamente
+                        await cargarDashboard(uid);
+                    } catch (error) {
+                        toast.mostrar("Error al guardar.");
+                        btnGuardarOnboarding.disabled = false;
+                        btnGuardarOnboarding.textContent = "Comenzar a usar la app";
+                    }
+                };
+                
+                // Cortamos la ejecución acá para que no dibuje el dashboard de fondo
+                return; 
+            }
+            // ===================================
+
+            // Si ya tiene nombre, seguimos dibujando el Dashboard normal
+            if (saludoUsuario) saludoUsuario.textContent = `Hola, ${userData.nombre}`;
+            if (displayAvatar) displayAvatar.textContent = "👤";
+
+            // === TARJETA PERSONAL (LIMPIA) ===
             const cardPersonal = document.createElement('div');
             cardPersonal.className = 'dashboard-card-wrapper';
             cardPersonal.innerHTML = `
-                <a href="carga.html?v=9.0&ambito=personal" class="dashboard-card-link">
-                    <span class="icon">${userData.emoji || "👤"}</span>
+                <a href="carga.html?v=9.5&ambito=personal" class="dashboard-card-link">
+                    <span class="icon">👤</span>
                     <span class="title">Mis Gastos</span>
                 </a>
-                <a href="perfil.html?v=9.0" class="btn-config-gear" title="Configurar Mis Gastos">⚙️</a>
             `;
             contenedorHogares.appendChild(cardPersonal);
 
+            // === TARJETAS HOGAR (CORREGIDAS) ===
             const hogaresRef = collection(db, "hogares");
             const q = query(hogaresRef, where("miembros", "array-contains", uid));
             const querySnapshot = await getDocs(q);
 
+            // === TARJETAS HOGAR (LIMPIAS) ===
             querySnapshot.forEach((docHogar) => {
                 const hogar = docHogar.data();
                 const cardHogar = document.createElement('div');
                 cardHogar.className = 'dashboard-card-wrapper';
                 
-                const esAdmin = hogar.administradores && hogar.administradores.includes(uid);
-                
                 cardHogar.innerHTML = `
-                    <a href="carga.html?v=9.0&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
+                    <a href="carga.html?v=9.5&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
                         <span class="icon">🏠</span>
                         <span class="title">${hogar.nombre}</span>
                     </a>
-                    ${esAdmin ? `<a href="config_hogar.html?v=9.0&id=${docHogar.id}" class="btn-config-gear" title="Configurar Hogar">⚙️</a>` : ''}
                 `;
                 contenedorHogares.appendChild(cardHogar);
             });
@@ -107,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cardNuevo = document.createElement('div');
             cardNuevo.className = 'dashboard-card-wrapper';
             cardNuevo.innerHTML = `
-                <a href="admin_hogar.html?v=9.0&id=nuevo" class="dashboard-card-link card-add">
+                <a href="admin_hogar.html?v=9.5&id=nuevo" class="dashboard-card-link card-add">
                     <span class="icon">➕</span>
                     <span class="title">Nuevo Hogar</span>
                 </a>

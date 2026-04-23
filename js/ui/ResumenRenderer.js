@@ -15,26 +15,27 @@ export class ResumenRenderer {
         `;
     }
 
+    generarHtmlFondos(fondos, gastosMes) {
+        if (!fondos || fondos.length === 0) return '';
+        let htmlFondos = `<div class="mt-20"><span class="text-sm-gray" style="text-transform: uppercase;">Estado de Presupuestos</span>`;
+        fondos.forEach(f => {
+            const gastado = gastosMes
+                .filter(g => f.categorias && f.categorias.includes(g.categoria))
+                .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
+            const restante = Number(f.monto) - gastado;
+            const colorTexto = restante < 0 ? '#ef4444' : 'var(--primary-color)';
+
+            htmlFondos += `
+                <div class="flex-between mt-10" style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span style="font-weight: bold; color: var(--text-main);">${f.nombre}</span>
+                    <span style="font-weight: 800; color: ${colorTexto};">$ ${restante.toLocaleString('es-AR')}</span>
+                </div>`;
+        });
+        htmlFondos += `</div>`;
+        return htmlFondos;
+    }
+
     renderizarPersonal(data, fondos, gastosMes, kpis) {
-        let htmlFondos = '';
-        if (fondos && fondos.length > 0) {
-            htmlFondos = `<div class="mt-20"><span class="text-sm-gray" style="text-transform: uppercase;">Estado de Mis Presupuestos</span>`;
-            fondos.forEach(f => {
-                const gastado = gastosMes
-                    .filter(g => f.categorias.includes(g.categoria))
-                    .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
-                const restante = Number(f.monto) - gastado;
-                const colorTexto = restante < 0 ? '#ef4444' : 'var(--primary-color)';
-
-                htmlFondos += `
-                    <div class="flex-between mt-10" style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                        <span style="font-weight: bold; color: var(--text-main);">${f.nombre}</span>
-                        <span style="font-weight: 800; color: ${colorTexto};">$ ${restante.toLocaleString('es-AR')} Disp.</span>
-                    </div>`;
-            });
-            htmlFondos += `</div>`;
-        }
-
         if(this.contenedorDinamico) {
             this.contenedorDinamico.innerHTML = `
                 <div class="card dashboard-card" style="border-top: 4px solid var(--primary-color);">
@@ -53,22 +54,47 @@ export class ResumenRenderer {
                             <span class="text-bold-dark text-lg">$ ${Number(data.variables).toLocaleString('es-AR')}</span>
                         </div>
                     </div>
-                    ${htmlFondos}
+                    
+                    ${this.generarHtmlFondos(fondos, gastosMes)}
+
                 </div>
             `;
         }
     }
 
-    renderizarHogar(data, nombreHogar, kpis) {
+    renderizarHogar(data, nombreHogar, kpis, fondos, gastosMes, currentUserId) {
         let htmlDeudas = '';
         if (data.compensaciones.length === 0) {
             htmlDeudas = '<li class="text-center text-muted" style="padding: 20px 0;">¡Cuentas claras! Nadie debe nada este mes. 🙌</li>';
         } else {
             data.compensaciones.forEach(c => {
+                const msj = encodeURIComponent(`Hola ${c.de}, te recuerdo que tenemos un saldo pendiente en la App de Gastos de $${Number(c.monto).toLocaleString('es-AR')}. ¡Avisame cuando puedas transferir! 💸`);
+                
+                // Formateamos la fecha a DD/MM/YYYY si existe el pago
+                const textoUltimoPago = c.ultimoPagoInfo 
+                    ? `<span style="font-size: 0.75rem; color: #6b7280; display: block; margin-top: 4px;">Último pago: $${Number(c.ultimoPagoInfo.monto).toLocaleString('es-AR')} el ${c.ultimoPagoInfo.fecha.split('-').reverse().join('/')}</span>` 
+                    : '';
+
+                // REGLA DE SEGURIDAD: ¿Soy Yane o soy Mostri?
+                const esInvolucrado = (currentUserId === c.de_id || currentUserId === c.para_id);
+                
+                // Solo dibuja el botón verde si soy uno de los involucrados
+                const btnPagoHtml = esInvolucrado 
+                    ? `<button class="btn-abrir-modal-pago" data-de-id="${c.de_id}" data-de-nombre="${c.de}" data-para-id="${c.para_id}" data-monto="${c.monto}" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">💸 Registrar Pago</button>`
+                    : ``;
+
                 htmlDeudas += `
                     <li class="flex-between border-bottom-gray" style="padding: 15px 0;">
-                        <span><strong style="color: #ea580c;">${c.de}</strong> le paga a <strong>${c.para}</strong></span>
-                        <span class="text-bold-dark" style="color: #d32f2f; font-size: 1.1rem;">$ ${Number(c.monto).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        <div style="display:flex; flex-direction:column;">
+                            <span><strong style="color: #ea580c;">${c.de}</strong> le paga a <strong>${c.para}</strong></span>
+                            <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center;">
+                                ${btnPagoHtml}
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span class="text-bold-dark" style="color: #d32f2f; font-size: 1.1rem;">$ ${Number(c.monto).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            ${textoUltimoPago}
+                        </div>
                     </li>`;
             });
         }
@@ -84,6 +110,9 @@ export class ResumenRenderer {
                         <span class="valor">$ ${Number(data.totalHogar).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
                     ${this.generarHtmlKPIs(kpis)}
+                    
+                    ${this.generarHtmlFondos(fondos, gastosMes)}
+
                     <div class="mt-15 text-center pt-10" style="border-top: 1px solid var(--border-color);">
                         <span class="text-sm-gray">A cada uno le corresponde poner:</span>
                         <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); margin-top: 5px;">$ ${Number(data.cuotaPorPersona).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>

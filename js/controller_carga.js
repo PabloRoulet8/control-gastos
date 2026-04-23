@@ -22,6 +22,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selectCategoria = document.getElementById('categoria');
     const selectResponsable = document.getElementById('responsable');
     const tituloHeader = document.getElementById('titulo-header');
+    // === INYECTAR TUERCA DE CONFIGURACIÓN EN EL HEADER ===
+    const headerSpacer = document.querySelector('.header-spacer');
+    if (headerSpacer && ambitoActual !== 'unificado') {
+        // ¿A dónde tiene que ir la tuerca?
+        const linkConfig = ambitoActual === 'hogar' ? `config_hogar.html?v=9.5&id=${hogarId}` : `perfil.html?v=9.5`;
+        
+        // Reemplazamos el espacio vacío por el botón de la tuerca
+        headerSpacer.outerHTML = `
+            <a href="${linkConfig}" class="btn-icon-white" title="Configuración" style="text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                ⚙️
+            </a>
+        `;
+    }
     const subtituloHeader = document.querySelector('.container h2');
     const grupoResponsable = document.getElementById('responsable-group');
     const inputMontoGlobal = document.getElementById('monto');
@@ -38,13 +51,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const suffix = hogarId ? `&id=${hogarId}` : '';
         
         navContextual.innerHTML = `
-            <a href="carga.html?v=9.0&ambito=${urlAmbito}${suffix}" class="nav-item active">
+            <a href="carga.html?v=9.5&ambito=${urlAmbito}${suffix}" class="nav-item active">
                 <span class="icon">➕</span><span class="label">Cargar</span>
             </a>
-            <a href="historial.html?v=9.0&ambito=${urlAmbito}${suffix}" class="nav-item">
+            <a href="historial.html?v=9.5&ambito=${urlAmbito}${suffix}" class="nav-item">
                 <span class="icon">📜</span><span class="label">Historial</span>
             </a>
-            <a href="resumen.html?v=9.0&ambito=${urlAmbito}${suffix}" class="nav-item">
+            <a href="resumen.html?v=9.5&ambito=${urlAmbito}${suffix}" class="nav-item">
                 <span class="icon">📊</span><span class="label">Resumen</span>
             </a>`;
     }
@@ -116,13 +129,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     selectResponsable.innerHTML = '';
                     for (const uid of hogarData.miembros || []) {
                         const uSnap = await getDoc(doc(db, "usuarios", uid));
-                        if (uSnap.exists()) {
-                            const opt = document.createElement('option');
-                            opt.value = uid; // ID GUARDADO
-                            opt.textContent = uSnap.data().nombre;
-                            if (uid === userId) opt.selected = true;
-                            selectResponsable.appendChild(opt);
+                        let nombreMostrar = "Usuario";
+                        if (uSnap.exists() && uSnap.data().nombre) {
+                            nombreMostrar = uSnap.data().nombre;
                         }
+
+                        const opt = document.createElement('option');
+                        opt.value = uid; 
+                        opt.textContent = nombreMostrar;
+                        if (uid === userId) opt.selected = true;
+                        selectResponsable.appendChild(opt);
                     }
                 }
             }

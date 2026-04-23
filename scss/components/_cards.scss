@@ -76,3 +76,18 @@
         }
     }
 }
+
+// Estructura interna de la tarjeta para alinear la tuerca
+.card-content-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding-right: 10px;
+
+    .card-info-main {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+}

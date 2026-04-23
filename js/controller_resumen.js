@@ -2,6 +2,7 @@ import { GastoRepository } from "./api/GastoRepository.js";
 import { ResumenService } from "./services/ResumenService.js";
 import { ResumenRenderer } from "./ui/ResumenRenderer.js";
 import { ChartManager } from "./ui/ChartManager.js";
+import { ToastManager } from "./ui/ToastManager.js";
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
@@ -19,6 +20,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const hogarId = urlParams.get('id');
 
     const tituloHeader = document.getElementById('titulo-header');
+    // === INYECTAR TUERCA DE CONFIGURACIÓN EN EL HEADER ===
+    const headerSpacer = document.querySelector('.header-spacer');
+    if (headerSpacer && ambitoActual !== 'unificado') {
+        // ¿A dónde tiene que ir la tuerca?
+        const linkConfig = ambitoActual === 'hogar' ? `config_hogar.html?v=9.5&id=${hogarId}` : `perfil.html?v=9.5`;
+        
+        // Reemplazamos el espacio vacío por el botón de la tuerca
+        headerSpacer.outerHTML = `
+            <a href="${linkConfig}" class="btn-icon-white" title="Configuración" style="text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                ⚙️
+            </a>
+        `;
+    }
     const contenedorDinamico = document.getElementById('contenedor-resumen-dinamico');
 
     document.getElementById('btn-stock')?.addEventListener('click', (e) => {
@@ -32,13 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const navContextual = document.getElementById('nav-contextual');
     if (navContextual) {
         if (ambitoActual === 'unificado') {
-            navContextual.innerHTML = `<a href="resumen.html?v=9.0&ambito=unificado" class="nav-item active"><span class="icon">📈</span><span class="label">Unificado</span></a>`;
+            navContextual.innerHTML = `<a href="resumen.html?v=9.5&ambito=unificado" class="nav-item active"><span class="icon">📈</span><span class="label">Unificado</span></a>`;
         } else {
             const suffix = hogarId ? `&id=${hogarId}` : '';
             navContextual.innerHTML = `
-                <a href="carga.html?v=9.0&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">➕</span><span class="label">Cargar</span></a>
-                <a href="historial.html?v=9.0&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">📜</span><span class="label">Historial</span></a>
-                <a href="resumen.html?v=9.0&ambito=${ambitoActual}${suffix}" class="nav-item active"><span class="icon">📊</span><span class="label">Resumen</span></a>`;
+                <a href="carga.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">➕</span><span class="label">Cargar</span></a>
+                <a href="historial.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">📜</span><span class="label">Historial</span></a>
+                <a href="resumen.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item active"><span class="icon">📊</span><span class="label">Resumen</span></a>`;
         }
     }
 
@@ -65,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (ambitoActual === 'personal') {
                 if (tituloHeader) tituloHeader.textContent = "Mis Gastos Personales";
-                todosLosGastos = await api.obtenerGastos('personal') || [];
+                todosLosGastos = await api.obtenerGastos({ tipo: 'personal' }) || [];                
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos);
                 renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales);
@@ -81,10 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (u.exists()) mapaNombres[uid] = u.data().nombre;
                 }
                 
-                todosLosGastos = (await api.obtenerGastos(hogarId) || []).filter(g => g.tipo === 'general' || !g.tipo);
+                todosLosGastos = (await api.obtenerGastos(hogarId) || []).filter(g => g.tipo === 'general' || !g.tipo || g.tipo === 'pagoDeuda');                
                 kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos);
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
-                renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres), dataHogar.nombre, kpisTotales);
+                renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId);
                 renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true);
 
             } else if (ambitoActual === 'unificado') {
@@ -127,4 +141,53 @@ document.addEventListener('DOMContentLoaded', () => {
             if(contenedorDinamico) contenedorDinamico.innerHTML = `<p class="text-center p-20" style="color:#ef4444;">Error cargando datos.</p>`;
         }
     }
+
+    // ===============================================
+    // LÓGICA DE PAGOS DE DEUDA EN EL HOGAR
+    // ===============================================
+    const toastGlobal = new ToastManager(); // Lo instanciamos acá para el modal
+
+    contenedorDinamico.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-abrir-modal-pago')) {
+            const btn = e.target.closest('.btn-abrir-modal-pago');
+            
+            document.getElementById('hidden-deudor-id').value = btn.dataset.deId;
+            document.getElementById('hidden-acreedor-id').value = btn.dataset.paraId;
+            document.getElementById('input-monto-pago').value = btn.dataset.monto;
+            document.getElementById('texto-info-pago').textContent = `¿Cuánto transfirió ${btn.dataset.deNombre}?`;
+            
+            document.getElementById('modal-pago-deuda').style.display = 'flex';
+        }
+    });
+
+    document.getElementById('btn-cerrar-modal-pago')?.addEventListener('click', () => {
+        document.getElementById('modal-pago-deuda').style.display = 'none';
+    });
+
+    document.getElementById('btn-confirmar-pago')?.addEventListener('click', async () => {
+        const deId = document.getElementById('hidden-deudor-id').value;
+        const paraId = document.getElementById('hidden-acreedor-id').value;
+        const monto = parseFloat(document.getElementById('input-monto-pago').value);
+        const btnConfirm = document.getElementById('btn-confirmar-pago');
+
+        if (!monto || monto <= 0) return toastGlobal.mostrar("Ingresá un monto válido.");
+
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "Guardando...";
+
+        try {
+            await api.registrarPagoDeuda({ tipo: 'hogar', id: hogarId }, deId, paraId, monto);
+            toastGlobal.mostrar("¡Pago registrado! 💸 Las cuentas se ajustaron.");
+            document.getElementById('modal-pago-deuda').style.display = 'none';
+            
+            // Recargamos la pantalla para ver la magia de los números ajustados
+            await procesarPantalla(auth.currentUser.uid);
+        } catch (err) {
+            console.error(err);
+            toastGlobal.mostrar("Error al registrar el pago.");
+        } finally {
+            btnConfirm.disabled = false;
+            btnConfirm.textContent = "Confirmar Pago";
+        }
+    });
 });

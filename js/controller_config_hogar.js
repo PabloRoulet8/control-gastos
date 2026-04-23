@@ -10,6 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const hogarId = urlParams.get('id');
 
+    const navContextual = document.getElementById('nav-contextual');
+    if (navContextual) {
+        navContextual.innerHTML = `
+            <a href="carga.html?v=9.5&ambito=hogar&id=${hogarId}" class="nav-item">
+                <span class="icon">➕</span><span class="label">Cargar</span>
+            </a>
+            <a href="historial.html?v=9.5&ambito=hogar&id=${hogarId}" class="nav-item">
+                <span class="icon">📜</span><span class="label">Historial</span>
+            </a>
+            <a href="resumen.html?v=9.5&ambito=hogar&id=${hogarId}" class="nav-item">
+                <span class="icon">📊</span><span class="label">Resumen</span>
+            </a>`;
+    }
+
     let hogarData = null;
 
     onAuthStateChanged(auth, async (user) => {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Inicio - Finanzas</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css?v=9.0">
+    <link rel="stylesheet" href="css/styles.css?v=9.5">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
 </head>
@@ -35,7 +35,18 @@
         </a>
     </nav>
 
-    <script type="module" src="js/auth_guard.js?v=9.0"></script>
-    <script type="module" src="js/controller_dashboard.js?v=9.0"></script>
+    <div id="modal-onboarding" class="modal-overlay" style="display: none; z-index: 9999; background: rgba(0,0,0,0.85);">
+        <div class="modal-content" style="max-width: 320px; text-align: center;">
+            <h2 style="color: var(--primary-color); margin-top: 0; font-size: 1.8rem;">¡Bienvenido! 👋</h2>
+            <p class="text-sm-gray mb-20">Para empezar a llevar el control de tus gastos, decinos cómo te llamás:</p>
+            
+            <input type="text" id="input-nombre-onboarding" class="form-control mb-15 text-center" placeholder="Tu nombre o apodo..." style="font-size: 1.1rem;">
+            
+            <button id="btn-guardar-onboarding" class="btn-primary w-100">Comenzar a usar la app</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/auth_guard.js?v=9.5"></script>
+    <script type="module" src="js/controller_dashboard.js?v=9.5"></script>
 </body>
 </html>

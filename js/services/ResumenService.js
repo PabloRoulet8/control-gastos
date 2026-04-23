@@ -36,6 +36,12 @@ export class ResumenService {
                 const responsableId = g.responsable || 'desconocido';
                 if (aportes[responsableId] === undefined) aportes[responsableId] = 0;
                 aportes[responsableId] += monto;
+            } 
+            // 🔥 LA MAGIA: Ajustamos los saldos si hay un pago registrado
+            else if (g.tipo === 'pagoDeuda') {
+                const montoPago = Number(g.monto) || 0;
+                if (aportes[g.pagador_id] !== undefined) aportes[g.pagador_id] += montoPago;
+                if (aportes[g.receptor_id] !== undefined) aportes[g.receptor_id] -= montoPago;
             }
         });
 
@@ -46,12 +52,16 @@ export class ResumenService {
         for (const [id, aportado] of Object.entries(aportes)) {
             const balance = aportado - cuotaPorPersona;
             const nombreDisplay = mapaNombres[id] || "Desconocido";
-            if (balance < -0.01) deudores.push({ nombre: nombreDisplay, monto: Math.abs(balance) });
-            else if (balance > 0.01) acreedores.push({ nombre: nombreDisplay, monto: balance });
+            // AHORA GUARDAMOS EL ID DEL USUARIO TAMBIÉN
+            if (balance < -0.01) deudores.push({ id, nombre: nombreDisplay, monto: Math.abs(balance) });
+            else if (balance > 0.01) acreedores.push({ id, nombre: nombreDisplay, monto: balance });
         }
 
         deudores.sort((a, b) => b.monto - a.monto);
         acreedores.sort((a, b) => b.monto - a.monto);
+
+        // 🔥 MAGIA: Filtramos todos los pagos registrados para tenerlos a mano
+        const pagosRegistrados = gastosHogar.filter(g => g.tipo === 'pagoDeuda');
 
         let compensaciones = [];
         let i = 0, j = 0;
@@ -59,7 +69,23 @@ export class ResumenService {
             let deudor = deudores[i];
             let acreedor = acreedores[j];
             let montoTransferencia = Math.min(deudor.monto, acreedor.monto);
-            compensaciones.push({ de: deudor.nombre, para: acreedor.nombre, monto: montoTransferencia });
+            
+            // Buscamos si existe un pago de este deudor a este acreedor
+            const pagosEntreEllos = pagosRegistrados.filter(p => 
+                p.pagador_id === deudor.id && p.receptor_id === acreedor.id
+            );
+            // Ordenamos para agarrar el más reciente
+            pagosEntreEllos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            const ultimoPago = pagosEntreEllos.length > 0 ? pagosEntreEllos[0] : null;
+
+            // Agregamos la data del último pago a la respuesta
+            compensaciones.push({ 
+                de_id: deudor.id, de: deudor.nombre, 
+                para_id: acreedor.id, para: acreedor.nombre, 
+                monto: montoTransferencia,
+                ultimoPagoInfo: ultimoPago ? { monto: ultimoPago.monto, fecha: ultimoPago.fecha } : null
+            });
+            
             deudor.monto -= montoTransferencia;
             acreedor.monto -= montoTransferencia;
             if (deudor.monto < 0.01) i++;

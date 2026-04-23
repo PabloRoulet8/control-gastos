@@ -51,6 +51,25 @@ export class GastoRepository {
         return await deleteDoc(doc(db, "gastos", idGasto));
     }
 
+    async registrarPagoDeuda(contexto, pagadorId, acreedorId, monto) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        const pagoFirmado = {
+            tipo: 'pagoDeuda', // Etiqueta clave para diferenciarlo de un gasto de súper
+            pagador_id: pagadorId,
+            receptor_id: acreedorId,
+            monto: parseFloat(monto),
+            fecha: new Date().toISOString().split('T')[0],
+            timestamp: serverTimestamp(),
+            usuario_id: usuarioActual.uid,       
+            ambito: 'hogar',
+            hogar_id: contexto.id
+        };
+
+        return await addDoc(this.coleccionGastos, pagoFirmado);
+    }
+
     // 🔥 FIX CRÍTICO: Ahora busca en las colecciones correctas de la nueva arquitectura
     async obtenerCategorias(contextoId, tipo) {
         if (tipo === 'personal') {
