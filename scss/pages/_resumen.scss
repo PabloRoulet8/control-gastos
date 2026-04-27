@@ -2,21 +2,99 @@
 // ESPECÍFICO DE LA PANTALLA DE RESUMEN
 // ==========================================
 
-// El bloque gigante verde/rojo que dice quién le debe a quién
+// El bloque de deuda (Glassmorphism)
 .deuda-principal {
-    text-align: center; padding: 20px 0;
-    p { margin: 0 0 10px 0; color: #666; font-size: 1.1rem; }
-    .valor-deuda { font-size: 2.5rem; font-weight: 900; }
+    text-align: center; 
+    padding: 20px 0;
+    
+    p { 
+        margin: 0 0 10px 0; 
+        color: var(--text-muted); 
+        font-size: 1.1rem; 
+    }
+    
+    .valor-deuda { 
+        font-size: 2.5rem; 
+        font-weight: 900; 
+        color: var(--text-main); 
+    }
 }
 
 // El número principal del gasto total
 .monto-total {
-    text-align: center; padding: 15px 0; border-bottom: 1px solid #eee;
-    .label { display: block; color: #666; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-    .valor { font-size: 2rem; font-weight: 800; color: $verde-primario; }
+    text-align: center; 
+    padding: 15px 0; 
+    border-bottom: 1px solid var(--glass-border);
+    
+    .label { 
+        display: block; 
+        color: var(--text-muted); 
+        font-size: 0.9rem; 
+        text-transform: uppercase; 
+        letter-spacing: 1px; 
+        margin-bottom: 5px; 
+    }
+    
+    .valor { 
+        font-size: 2rem; 
+        font-weight: 800; 
+        color: $verde-primario; 
+    }
 }
 
-// Contenedor estrictamente necesario para que el gráfico de barras (Chart.js) no se desborde
+// Contenedor del gráfico (Chart.js)
 .chart-container {
-    position: relative; height: 350px; width: 100%;
+    position: relative; 
+    height: 350px; 
+    width: 100%;
+}
+
+// Contenedor del switch (Barras/Líneas) - visible en ambos temas
+.flex-center.mb-15 {
+    background: var(--glass-bg);
+    border-radius: 10px;
+    padding: 8px;
+}
+
+// Switch toggle (Barras/Líneas) - fondo visible en tema claro
+.switch .slider {
+    background: var(--glass-border);
+}
+
+// ==========================================
+// MODO CLARO - FONDO VISIBLE PARA EL TOGGLE
+// ==========================================
+html[data-theme='light'] {
+    .flex-center.mb-15 {
+        background-color: #f1f5f9 !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    .switch .slider {
+        background-color: #cbd5e1 !important;
+    }
+}
+
+// Gap entre tarjetas del Resumen
+#seccion-grafico,
+#seccion-checklist,
+#seccion-stock {
+    margin-bottom: 1.5rem;
+}
+
+// Resumen Unificado - contenedor de "¿De dónde sale este número?"
+.contenedor-unificado {
+    margin-bottom: 1.5rem;
+}
+
+// ==========================================
+// BOTÓN GRÁFICO (SWITCH) - MODO CLARO
+// ==========================================
+html[data-theme='light'] {
+    .flex-center.mb-15 {
+        background-color: #f1f5f9 !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    .switch .slider {
+        background-color: #cbd5e1 !important;
+    }
 }

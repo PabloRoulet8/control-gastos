@@ -6,18 +6,29 @@
     <title>Inicio - Finanzas</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css?v=9.5">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // Evitar FOUC aplicando tema guardado ANTES de que renderice el body
+        const temaGuardado = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', temaGuardado);
+        if (temaGuardado === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    </script>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
 </head>
 <body>
     <header class="header flex-between">
-        <div class="header-spacer"></div> 
-        <button id="btn-cerrar-sesion" class="btn-icon-white" title="Cerrar Sesión">🚪</button>
+        <button id="theme-toggle-btn" class="btn-icon-white" title="Cambiar Tema">
+            <i data-lucide="moon"></i>
+        </button> 
+        <button id="btn-cerrar-sesion" class="btn-icon-white" title="Cerrar Sesión"><i data-lucide="log-out"></i></button>
     </header>
 
     <main class="container mt-15" style="padding-bottom: 80px;"> 
         <div class="dashboard-header">
-            <div class="avatar-square" id="display-avatar-header" style="display: flex; align-items: center; justify-content: center; font-size: 2.2rem;">👤</div>
+            <div class="avatar-square" id="display-avatar-header" style="display: flex; align-items: center; justify-content: center; font-size: 2.2rem;"><i data-lucide="user"></i></div>
             <div>
                 <h2 class="greeting-text" id="saludo-usuario">Cargando...</h2>
                 <p class="subtitle-text">¿Dónde vamos a anotar hoy?</p>
@@ -29,8 +40,8 @@
     </main>
 
     <nav class="bottom-nav">
-        <a href="resumen.html?v=5.4&ambito=unificado" class="nav-item" id="btn-unificado-fijo">
-            <span class="icon">📈</span>
+        <a href="resumen.html?v=9.5&ambito=unificado" class="nav-item" id="btn-unificado-fijo">
+            <span class="icon"><i data-lucide="trending-up"></i></span>
             <span class="label">Gastos Unificados</span>
         </a>
     </nav>
@@ -48,5 +59,8 @@
 
     <script type="module" src="js/auth_guard.js?v=9.5"></script>
     <script type="module" src="js/controller_dashboard.js?v=9.5"></script>
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 </html>

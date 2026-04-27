@@ -8,43 +8,51 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        document.documentElement.setAttribute(
+            'data-theme', 
+            localStorage.getItem('theme') || 'dark'
+        );
+    </script>
 </head>
 <body>
     <header class="header flex-between">
-        <a href="index.html" class="btn-icon-white" title="Volver al Inicio">🏠</a>
+        <button onclick="window.history.back()" class="btn-icon-white" title="Volver"><i data-lucide="arrow-left"></i></button>
         <h1 class="text-center flex-1">Mi Perfil</h1>
         <div class="header-spacer"></div>
     </header>
 
     <main class="container mt-15" style="padding-bottom: 50px;">
-        
-        <section class="card-clean mb-20">
-            <h2 class="card-title-green mb-15 m-0 text-center" style="color: var(--primary-color);">Tus Datos</h2>
+        <!-- Tus Datos - Glassmorphism -->
+        <section class="card mb-20">
+            <h2 class="mb-15" style="color: var(--primary-color);">Tus Datos</h2>
             
-            <div style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
+            <div style="padding: 15px;">
                 <span class="text-sm-gray" style="display:block; margin-bottom: 5px;">Nombre de Usuario</span>
                 
                 <div id="view-mode-nombre" class="flex-between">
                     <strong id="display-nombre-perfil" style="font-size: 1.2rem; color: var(--text-main);">Cargando...</strong>
-                    <button id="btn-toggle-edit-nombre" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">✏️</button>
+                    <button id="btn-toggle-edit-nombre" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-main);"><i data-lucide="pencil"></i></button>
                 </div>
 
                 <div id="edit-mode-nombre" style="display: none; align-items: center; gap: 10px; width: 100%;">
                     <input type="text" id="input-nombre" class="form-control" placeholder="Tu nombre..." style="margin-bottom: 0; flex: 1;">
                     <button id="btn-guardar-perfil" class="btn-primary btn-no-margin" style="padding: 8px 15px; width: auto; flex-shrink: 0; font-size: 0.95rem;">Guardar</button>
-                    <button id="btn-cancelar-edit" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; padding: 0 5px;" title="Cancelar">❌</button>
+                    <button id="btn-cancelar-edit" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; padding: 0 5px;" title="Cancelar"><i data-lucide="x"></i></button>
                 </div>
             </div>
         </section>
 
-        <section class="card-clean mb-20">
+        <!-- Categorías -->
+        <section class="card mb-20">
             <div class="flex-between mb-15">
-                <h2 class="card-title-green m-0" style="color: var(--primary-color);">Mis Categorías</h2>
-                <button id="btn-toggle-cat" class="btn-add-circle" title="Agregar Categoría">＋</button>
+                <h2 style="color: var(--primary-color); margin: 0;">Mis Categorías</h2>
+                <button id="btn-toggle-cat" class="btn-add-circle" title="Agregar Categoría"><i data-lucide="plus-circle"></i></button>
             </div>
             
             <div id="form-cat-box" class="form-toggle-box" style="display: none;">
-                <div class="flex-between gap-10 mb-20" style="background: var(--bg-app); padding: 10px; border-radius: 8px;">
+                <div class="flex-between gap-10 mb-20" style="padding: 10px;">
                     <input type="text" id="input-nueva-cat" class="form-control flex-2" placeholder="Ej: Ropa, Farmacia...">
                     <button id="btn-add-cat" class="btn-primary flex-1 btn-no-margin" style="padding: 12px;">Agregar</button>
                 </div>
@@ -52,8 +60,8 @@
 
             <div class="grid-admin-header mb-10">
                 <span class="flex-2">CATEGORÍA</span>
-                <span class="text-center-flex">FIJO 🏠</span>
-                <span class="text-center-flex">STOCK 🛒</span>
+                <span class="text-center-flex col-icon"><i data-lucide="home"></i> FIJO</span>
+                <span class="text-center-flex col-icon"><i data-lucide="shopping-cart"></i> STOCK</span>
                 <span class="spacer-40"></span>
             </div>
             <ul id="lista-categorias-personales" class="lista-minimal">
@@ -61,16 +69,17 @@
             </ul>
         </section>
 
-        <section class="card-clean mb-20">
+        <!-- Medios de Pago -->
+        <section class="card mb-20">
             <div class="flex-between mb-15">
-                <h2 class="card-title-green m-0" style="color: var(--text-main);">Medios de Pago</h2>
-                <button id="btn-toggle-pago" class="btn-add-circle" style="background: var(--text-main);">＋</button>
+                <h2 style="color: var(--primary-color); margin: 0;">Medios de Pago</h2>
+                <button id="btn-toggle-pago" class="btn-add-circle-primary"><i data-lucide="plus"></i></button>
             </div>
 
             <div id="form-pago-box" class="form-toggle-box" style="display: none;">
-                <div class="flex-between gap-10 mb-20" style="background: var(--bg-app); padding: 10px; border-radius: 8px;">
+                <div class="flex-between gap-10 mb-20" style="padding: 10px;">
                     <input type="text" id="input-nuevo-pago" class="form-control flex-2" placeholder="Ej: MercadoPago, Ualá...">
-                    <button id="btn-add-pago" class="btn-primary flex-1 btn-no-margin" style="padding: 12px; background: var(--text-main);">Agregar</button>
+                    <button id="btn-add-pago" class="btn-primary flex-1 btn-no-margin" style="padding: 12px;">Agregar</button>
                 </div>
             </div>
 
@@ -79,13 +88,14 @@
             </ul>
         </section>
 
-        <section class="card-clean mb-30" style="border-top: 4px solid #d97706;">
+        <!-- Presupuestos -->
+        <section class="card mb-30" style="border-top: 4px solid var(--primary-color);">
             <div class="flex-between mb-15">
-                <h2 class="card-title-orange m-0" style="color: #d97706;">Mis Presupuestos</h2>
-                <button id="btn-toggle-fondo" class="btn-add-circle" style="background: #d97706;">＋</button>
+                <h2 style="color: var(--primary-color); margin: 0;">Mis Presupuestos</h2>
+                <button id="btn-toggle-fondo" class="btn-add-circle" style="background: var(--primary-color);"><i data-lucide="plus-circle"></i></button>
             </div>
 
-            <div id="form-fondo-box" class="form-toggle-box mb-20" style="display: none; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+            <div id="form-fondo-box" class="form-toggle-box mb-20" style="display: none; border-bottom: 1px solid var(--glass-border); padding-bottom: 20px;">
                 <div class="form-group">
                     <label>Nombre del Fondo</label>
                     <input type="text" id="input-nombre-fondo" class="form-control" placeholder="Ej: Ahorro Viaje...">
@@ -97,9 +107,9 @@
                 <div class="form-group">
                     <label>Vincular Categorías</label>
                     <div id="check-categorias-vinculadas" class="grid-checkbox-fondos p-0 border-0 bg-transparent">
-                        </div>
+                    </div>
                 </div>
-                <button id="btn-crear-fondo" class="btn-primary w-100" style="background-color: #d97706;">Crear Fondo</button>
+                <button id="btn-crear-fondo" class="btn-primary w-100">Crear Fondo</button>
             </div>
 
             <ul id="lista-fondos-personales" class="lista-minimal">
@@ -114,5 +124,8 @@
     
     <script type="module" src="js/auth_guard.js?v=9.5"></script>
     <script type="module" src="js/controller_perfil.js?v=9.5"></script>
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 </html>

@@ -3,47 +3,26 @@ import { HistorialRenderer } from "./ui/HistorialRenderer.js";
 import { auth, db } from "./firebase-config.js"; 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const api = new GastoRepository();
     const renderer = new HistorialRenderer();
     const urlParams = new URLSearchParams(window.location.search);
-    let ambitoActual = urlParams.get('ambito') || 'personal';
-    if (ambitoActual === 'individual') ambitoActual = 'personal';
+    let ambitoActual = NavigationBuilder.normalizeAmbito(urlParams.get('ambito'));
     const hogarId = urlParams.get('id');
 
     const tituloHeader = document.getElementById('titulo-header');
-    // === INYECTAR TUERCA DE CONFIGURACIÓN EN EL HEADER ===
-    const headerSpacer = document.querySelector('.header-spacer');
-    if (headerSpacer && ambitoActual !== 'unificado') {
-        // ¿A dónde tiene que ir la tuerca?
-        const linkConfig = ambitoActual === 'hogar' ? `config_hogar.html?v=9.5&id=${hogarId}` : `perfil.html?v=9.5`;
-        
-        // Reemplazamos el espacio vacío por el botón de la tuerca
-        headerSpacer.outerHTML = `
-            <a href="${linkConfig}" class="btn-icon-white" title="Configuración" style="text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                ⚙️
-            </a>
-        `;
-    }
+
+    NavigationBuilder.buildConfigButton(ambitoActual, hogarId);
+    NavigationBuilder.buildNav(ambitoActual, hogarId, 'historial');
+    
     const filtroTipo = document.getElementById('filtro-tipo');
     const filtroResponsable = document.getElementById('filtro-responsable');
     const filtroCategoria = document.getElementById('filtro-categoria');
     const filtroMes = document.getElementById('filtro-mes');
-
-    // === NAVEGACIÓN INFERIOR PARA QUE NO SE PIERDA EL HOGAR ===
-    const navContextual = document.getElementById('nav-contextual');
-    if (navContextual) {
-        if (ambitoActual === 'unificado') {
-            navContextual.innerHTML = `<a href="resumen.html?v=9.5&ambito=unificado" class="nav-item active"><span class="icon">📈</span><span class="label">Unificado</span></a>`;
-        } else {
-            const suffix = hogarId ? `&id=${hogarId}` : '';
-            navContextual.innerHTML = `
-                <a href="carga.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">➕</span><span class="label">Cargar</span></a>
-                <a href="historial.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item active"><span class="icon">📜</span><span class="label">Historial</span></a>
-                <a href="resumen.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">📊</span><span class="label">Resumen</span></a>`;
-        }
-    }
+    const filtroTipoGroup = document.getElementById('filtro-tipo-group');
+    const filtroResponsableGroup = document.getElementById('filtro-responsable-group');
 
     let todosLosGastos = [], mapaNombres = {}, categoriasGlobales = [];
 
@@ -58,14 +37,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (u.exists()) mapaNombres[uid] = u.data().nombre;
                     }
                 }
-                if(filtroResponsable) filtroResponsable.style.display = 'block';
-                if(filtroTipo) filtroTipo.style.display = 'block';
+                // Mostrar filtros de hogar
+                if(filtroTipoGroup) filtroTipoGroup.style.display = 'block';
+                if(filtroResponsableGroup) filtroResponsableGroup.style.display = 'block';
                 
-                // 🔥 SOLUCIÓN DEL BUG: Ahora sí llamamos al render para llenar la lista
                 renderer.renderizarFiltrosResponsables(mapaNombres);
-                
             } else {
-                // ... (Igual para el personal)
+                // Ocultar filtros de hogar en personal
+                if(filtroTipoGroup) filtroTipoGroup.style.display = 'none';
+                if(filtroResponsableGroup) filtroResponsableGroup.style.display = 'none';
             }
             
             await cargarFiltroCategorias(user.uid);
@@ -77,6 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const contextoId = ambitoActual === 'hogar' ? hogarId : userId;
         const ambitoCat = ambitoActual === 'hogar' ? 'hogar' : 'personal';
         categoriasGlobales = await api.obtenerCategorias(contextoId, ambitoCat) || [];
+        
+        // Si no hay categorías guardadas, extraer de los gastos actuales
+        if (categoriasGlobales.length === 0 && todosLosGastos.length > 0) {
+            const catsUnicas = [...new Set(todosLosGastos.map(g => g.categoria).filter(c => c))];
+            categoriasGlobales = catsUnicas.sort().map(nombre => ({ nombre, es_fijo: false, lleva_stock: false }));
+        }
         
         if (categoriasGlobales.length > 0) {
             const nombresCats = categoriasGlobales.map(c => typeof c === 'string' ? c : c.nombre);
@@ -126,5 +112,28 @@ document.addEventListener('DOMContentLoaded', () => {
         procesarFiltrosYRenderizar();
     }
 
+    // Listener para los selects del modal y filtros
     [filtroTipo, filtroResponsable, filtroCategoria, filtroMes].forEach(f => f?.addEventListener('change', procesarFiltrosYRenderizar));
+    
+    // Botón aplicar del modal
+    const btnAplicarFiltros = document.getElementById('btn-aplicar-filtros');
+    if (btnAplicarFiltros) {
+        btnAplicarFiltros.addEventListener('click', () => {
+            procesarFiltrosYRenderizar();
+            renderer.cerrarModal();
+        });
+    }
+    
+    // Botón limpiar filtros
+    const btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
+    if (btnLimpiarFiltros) {
+        btnLimpiarFiltros.addEventListener('click', () => {
+            if (filtroMes) filtroMes.value = '';
+            if (filtroCategoria) filtroCategoria.value = 'todas';
+            if (filtroResponsable) filtroResponsable.value = 'todos';
+            if (filtroTipo) filtroTipo.value = 'todos';
+            procesarFiltrosYRenderizar();
+            renderer.cerrarModal();
+        });
+    }
 });

@@ -45,14 +45,14 @@ export class ResumenRenderer {
                     </div>
                     ${this.generarHtmlKPIs(kpis)}
                     <div class="grid-2-col mt-15 gap-10">
-                        <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
-                            <span class="text-sm-gray" style="display:block;">Fijos + Stock 🏠</span>
-                            <span class="text-bold-dark text-lg">$ ${Number(data.fijos + data.fijosStock).toLocaleString('es-AR')}</span>
-                        </div>
-                        <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
-                            <span class="text-sm-gray" style="display:block;">Variables 🍟</span>
-                            <span class="text-bold-dark text-lg">$ ${Number(data.variables).toLocaleString('es-AR')}</span>
-                        </div>
+                     <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
+                             <span class="text-sm-gray" style="display:block;">Fijos + Stock <i data-lucide="home"></i></span>
+                             <span class="text-bold-dark text-lg">$ ${Number(data.fijos + data.fijosStock).toLocaleString('es-AR')}</span>
+                         </div>
+                         <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
+                             <span class="text-sm-gray" style="display:block;">Variables <i data-lucide="package"></i></span>
+                             <span class="text-bold-dark text-lg">$ ${Number(data.variables).toLocaleString('es-AR')}</span>
+                         </div>
                     </div>
                     
                     ${this.generarHtmlFondos(fondos, gastosMes)}
@@ -62,13 +62,37 @@ export class ResumenRenderer {
         }
     }
 
-    renderizarHogar(data, nombreHogar, kpis, fondos, gastosMes, currentUserId) {
+    renderizarHogar(data, nombreHogar, kpis, fondos, gastosMes, currentUserId, categoriasHogar) {
+        // Calculate Fijos + Stock and Variables using the category configuration
+        const mapCategorias = {};
+        (categoriasHogar || []).forEach(c => {
+            mapCategorias[(c.nombre || '').toLowerCase()] = c;
+        });
+        
+        let totalFijosStock = 0;
+        let totalVariables = 0;
+        
+        gastosMes.forEach(g => {
+            const catNorm = (g.categoria || '').toLowerCase().trim();
+            const configCat = mapCategorias[catNorm] || {};
+            const monto = Number(g.monto) || 0;
+            
+            // Verificamos por propiedad "tipo" directa o por la config de la categoría
+            const tipoGasto = (g.tipo || '').toLowerCase().trim();
+            
+            if (tipoGasto === 'fijo' || tipoGasto === 'stock' || configCat.es_fijo === true) {
+                totalFijosStock += monto;
+            } else if (tipoGasto !== 'pagodeuda') { 
+                // Ignoramos pagos de deuda para no inflar variables falsamente
+                totalVariables += monto;
+            }
+        });
         let htmlDeudas = '';
         if (data.compensaciones.length === 0) {
-            htmlDeudas = '<li class="text-center text-muted" style="padding: 20px 0;">¡Cuentas claras! Nadie debe nada este mes. 🙌</li>';
+             htmlDeudas = '<li class="text-center text-muted" style="padding: 20px 0;">¡Cuentas claras! Nadie debe nada este mes. <i data-lucide="check-circle"></i></li>';
         } else {
             data.compensaciones.forEach(c => {
-                const msj = encodeURIComponent(`Hola ${c.de}, te recuerdo que tenemos un saldo pendiente en la App de Gastos de $${Number(c.monto).toLocaleString('es-AR')}. ¡Avisame cuando puedas transferir! 💸`);
+                 const msj = encodeURIComponent(`Hola ${c.de}, te recuerdo que tenemos un saldo pendiente en la App de Gastos de $${Number(c.monto).toLocaleString('es-AR')}. ¡Avisame cuando puedas transferir! <i data-lucide="dollar-sign"></i>`);
                 
                 // Formateamos la fecha a DD/MM/YYYY si existe el pago
                 const textoUltimoPago = c.ultimoPagoInfo 
@@ -79,9 +103,9 @@ export class ResumenRenderer {
                 const esInvolucrado = (currentUserId === c.de_id || currentUserId === c.para_id);
                 
                 // Solo dibuja el botón verde si soy uno de los involucrados
-                const btnPagoHtml = esInvolucrado 
-                    ? `<button class="btn-abrir-modal-pago" data-de-id="${c.de_id}" data-de-nombre="${c.de}" data-para-id="${c.para_id}" data-monto="${c.monto}" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">💸 Registrar Pago</button>`
-                    : ``;
+                 const btnPagoHtml = esInvolucrado 
+                     ? `<button class="btn-abrir-modal-pago" data-de-id="${c.de_id}" data-de-nombre="${c.de}" data-para-id="${c.para_id}" data-monto="${c.monto}" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i data-lucide="dollar-sign"></i> Registrar Pago</button>`
+                     : ``;
 
                 // REGLA DE COLOR: Si vos debés = ROJO, si te deben = VERDE
                 const colorDeudor = currentUserId === c.de_id ? '#DC2626' : '#64748b';
@@ -121,6 +145,17 @@ export class ResumenRenderer {
                     </div>
                     ${this.generarHtmlKPIs(kpis)}
                     
+                    <div class="grid-2-col mt-15 gap-10" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
+                            <span class="text-sm-gray" style="display:block;">Fijos + Stock <i data-lucide="home"></i></span>
+                            <span class="text-bold-dark text-lg" style="color: var(--primary-color);">$ ${Number(totalFijosStock).toLocaleString('es-AR')}</span>
+                        </div>
+                        <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
+                            <span class="text-sm-gray" style="display:block;">Variables <i data-lucide="package"></i></span>
+                            <span class="text-bold-dark text-lg" style="color: var(--primary-color);">$ ${Number(totalVariables).toLocaleString('es-AR')}</span>
+                        </div>
+                    </div>
+
                     ${this.generarHtmlFondos(fondos, gastosMes)}
 
                     <div class="mt-15 text-center pt-10" style="border-top: 1px solid var(--border-color);">
@@ -129,12 +164,12 @@ export class ResumenRenderer {
                     </div>
                 </div>
 
-                <div class="card dashboard-card mt-20" style="border-top: 4px solid #ea580c;">
-                    <h2 style="color: #ea580c; margin-bottom: 10px;">Liquidación de Deudas</h2>
-                    <p class="text-sm-gray mb-15">Quién le transfiere a quién para quedar a mano:</p>
-                    <ul class="lista-minimal">
-                        ${htmlDeudas}
-                    </ul>
+                <div class="card dashboard-card mt-20" style="border-top: 4px solid var(--primary-color);">
+                     <h2 style="color: var(--primary-color); margin-bottom: 10px;"><i data-lucide="credit-card"></i> Liquidación de Deudas</h2>
+                     <p class="text-sm-gray mb-15">Quién le transfiere a quién para quedar a mano:</p>
+                     <ul class="lista-minimal">
+                         ${htmlDeudas}
+                     </ul>
                 </div>
             `;
         }
@@ -143,31 +178,32 @@ export class ResumenRenderer {
     renderizarUnificado(data, kpis) {
         if(this.contenedorDinamico) {
             this.contenedorDinamico.innerHTML = `
-                <div class="card dashboard-card" style="border-top: 4px solid #3b82f6; background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);">
+                <div class="card" style="border-top: 4px solid var(--primary-color);">
                     <div class="monto-total" style="border-bottom: none;">
                         <span class="label">Dinero Total de tu Bolsillo (Mes)</span>
-                        <span class="valor" style="color: #1e3a8a; font-size: 2.5rem;">$ ${Number(data.totalBolsillo).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        <span class="valor" style="color: var(--primary-color); font-size: 2.5rem;">$ ${Number(data.totalBolsillo).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
                     ${this.generarHtmlKPIs(kpis)}
                 </div>
 
-                <h3 class="mt-20 mb-10 text-muted" style="font-size: 0.9rem; text-transform: uppercase; padding-left: 10px;">¿De dónde sale este número?</h3>
+                <h3 class="mt-20 mb-10" style="font-size: 0.9rem; text-transform: uppercase; padding-left: 10px; color: var(--text-muted);">¿De dónde sale este número?</h3>
                 
-                <div class="grid-2-col gap-10 mb-30">
-                    <div class="card dashboard-card p-15" style="margin:0;">
+                <div class="contenedor-unificado">
+                    <div class="grid-2-col gap-10 mb-30" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem;">
+                    <div class="card p-15" style="margin:0;">
                         <span class="text-sm-gray" style="display:block;">Gastos Personales</span>
                         <span class="text-bold-dark text-lg" style="color: var(--primary-color);">$ ${Number(data.desglosePersonal).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
-                    <div class="card dashboard-card p-15" style="margin:0;">
+                    <div class="card p-15" style="margin:0;">
                         <span class="text-sm-gray" style="display:block;">Tu parte del Hogar</span>
-                        <span class="text-bold-dark text-lg" style="color: #ea580c;">$ ${Number(data.desgloseHogar).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        <span class="text-bold-dark text-lg" style="color: var(--primary-color);">$ ${Number(data.desgloseHogar).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
                 </div>
             `;
         }
     }
 
-    mostrarComunes(gastos, catConfig, mostrarListasExtras) {
+mostrarComunes(gastos, catConfig, mostrarListasExtras) {
         if (!mostrarListasExtras) return;
 
         const categoriasFijas = catConfig.filter(c => c.activa !== false && c.es_fijo === true).map(c => c.nombre);
@@ -179,10 +215,18 @@ export class ResumenRenderer {
                 ulCheck.innerHTML = '';
                 categoriasFijas.forEach(fija => {
                     const pagado = gastos.some(g => (g.categoria || "").toLowerCase().trim() === fija.toLowerCase().trim());
+                    const icono = pagado 
+                        ? '<i data-lucide="check-circle" style="color: #10b981;"></i>' 
+                        : '<i data-lucide="x-circle" style="color: #ef4444;"></i>';
+                    const estadoTexto = pagado ? 'Pagado' : 'Pendiente';
+                    const estadoColor = pagado ? '#10b981' : '#ef4444';
+                    
                     ulCheck.innerHTML += `
-                        <li class="flex-between border-bottom-gray" style="padding: 12px 0; opacity: ${pagado ? '0.5' : '1'};">
-                            <span>${pagado ? '✅' : '⭕'} ${fija}</span>
-                            <span class="text-sm-gray">${pagado ? 'Pagado' : 'Pendiente'}</span>
+                        <li class="flex-between" style="padding: 14px 0; border-bottom: 1px solid var(--glass-border);">
+                            <span style="display: flex; align-items: center; gap: 8px; color: var(--text-main);">
+                                ${icono} ${fija}
+                            </span>
+                            <span style="font-weight: 600; font-size: 0.85rem; color: ${estadoColor};">${estadoTexto}</span>
                         </li>`;
                 });
             }

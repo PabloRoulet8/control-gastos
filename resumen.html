@@ -8,10 +8,17 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        document.documentElement.setAttribute(
+            'data-theme', 
+            localStorage.getItem('theme') || 'dark'
+        );
+    </script>
 </head>
 <body>
     <header class="header flex-between">
-        <button onclick="window.location.href='index.html'" class="btn-icon-white" title="Volver al Inicio">🏠</button>        
+        <button onclick="window.location.href='index.html'" class="btn-icon-white" title="Volver al Inicio"><i data-lucide="home"></i></button>        
         <h1 id="titulo-header" class="text-center flex-1">Cargando Resumen...</h1>
         <div class="header-spacer"></div>
     </header>
@@ -31,14 +38,14 @@
                 </select>
             </div>
 
-            <div class="flex-center mb-15" style="gap: 10px;">
-                <span class="text-sm-gray" id="label-barras" style="font-weight: bold; color: var(--primary-color);">📊 Barras</span>
-                <label class="switch">
-                    <input type="checkbox" id="switch-tipo-grafico">
-                    <span class="slider"></span>
-                </label>
-                <span class="text-sm-gray" id="label-lineas">📈 Líneas</span>
-            </div>
+<div class="flex-center mb-15" style="gap: 10px;">
+                 <span class="text-sm-gray" id="label-barras" style="font-weight: bold; color: var(--primary-color);"><i data-lucide="bar-chart-2"></i> Barras</span>
+                 <label class="switch">
+                     <input type="checkbox" id="switch-tipo-grafico">
+                     <span class="slider"></span>
+                 </label>
+                 <span class="text-sm-gray" id="label-lineas"><i data-lucide="trending-up"></i> Líneas</span>
+             </div>
 
             <div class="chart-container" style="height: 300px; position: relative;">
                 <canvas id="graficoEstadisticas"></canvas>
@@ -58,21 +65,21 @@
             <ul id="lista-checklist" class="lista-minimal"></ul>
         </section>
 
-        <section class="card dashboard-card" id="seccion-stock" style="display: none;">
-            <div class="accordion-item">
-                <button class="accordion-header" id="btn-stock">🛒 Stock Comestibles <span>⬇️</span></button>
-                <div class="accordion-content" id="content-stock" style="display: none;">
-                    <div id="lista-stock-categorizada"></div>
-                </div>
-            </div>
-        </section>
+<section class="card dashboard-card" id="seccion-stock" style="display: none;">
+             <div class="accordion-item">
+                 <button class="accordion-header" id="btn-stock"><i data-lucide="shopping-cart"></i> Stock Comestibles <span><i data-lucide="chevron-down"></i></span></button>
+                 <div class="accordion-content" id="content-stock" style="display: none;">
+                     <div id="lista-stock-categorizada"></div>
+                 </div>
+             </div>
+         </section>
 
         <div id="modal-pago-deuda" class="modal-overlay" style="display: none; z-index: 9999;">
             <div class="modal-content" style="max-width: 350px;">
-                <div class="flex-between mb-15">
-                    <h3 style="margin: 0; color: var(--primary-color);">💸 Registrar Pago</h3>
-                    <button id="btn-cerrar-modal-pago" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">✕</button>
-                </div>
+<div class="flex-between mb-15">
+                     <h3 style="margin: 0; color: var(--primary-color);"><i data-lucide="dollar-sign"></i> Registrar Pago</h3>
+                     <button id="btn-cerrar-modal-pago" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;"><i data-lucide="x"></i></button>
+                 </div>
                 <p id="texto-info-pago" class="text-sm-gray mb-15">¿Cuánto transfirieron?</p>
                 
                 <div class="form-group">
@@ -91,6 +98,9 @@
     <div id="toast-container" class="toast"></div>
     <nav class="bottom-nav" id="nav-contextual"></nav>
     <script type="module" src="js/auth_guard.js?v=9.5"></script>
-    <script type="module" src="js/controller_resumen.js?v=9.5"></script>    
+    <script type="module" src="js/controller_resumen.js?v=9.5"></script>
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 </html>

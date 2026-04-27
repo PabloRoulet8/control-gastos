@@ -3,7 +3,11 @@
 // ==========================================
 
 .header {
-    background-color: $verde-primario; color: white; padding: 15px;
+    background-color: transparent;
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: white; 
+    padding: 15px;
     display: flex; justify-content: space-between; align-items: center;
     position: sticky; top: 0; z-index: 100; // La clava arriba al hacer scroll
     h1 { margin: 0; font-size: 1.2rem; }
@@ -21,4 +25,18 @@
     // Un bloque invisible para equilibrar el espacio ocupado por el botón de volver
     // y lograr que el título (h1) quede perfectamente centrado
     .header-spacer { width: 50px; } 
+}
+
+// Ajustes para tema oscuro (aunque ya estamos en oscuro por defecto, mantenemos consistencia)
+[data-theme='dark'] .header {
+    background-color: $glass-bg-dark;
+    border-bottom-color: $glass-border-dark;
+    color: var(--text-main);
+}
+
+// Para tema claro, si en el futuro se implementa
+[data-theme='light'] .header {
+    background-color: $glass-bg-light;
+    border-bottom-color: $glass-border-light;
+    color: var(--text-main);
 }

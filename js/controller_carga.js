@@ -3,14 +3,14 @@ import { ToastManager } from "./ui/ToastManager.js";
 import { auth, db } from "./firebase-config.js"; 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
     const toast = new ToastManager();
 
     const urlParams = new URLSearchParams(window.location.search);
-    let ambitoActual = urlParams.get('ambito') || 'individual'; 
-    if (ambitoActual === 'personal') ambitoActual = 'individual';
+    let ambitoActual = NavigationBuilder.normalizeAmbito(urlParams.get('ambito'));
     
     const hogarId = urlParams.get('id');
     const hogarNombre = urlParams.get('nombre');
@@ -22,19 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selectCategoria = document.getElementById('categoria');
     const selectResponsable = document.getElementById('responsable');
     const tituloHeader = document.getElementById('titulo-header');
-    // === INYECTAR TUERCA DE CONFIGURACIÓN EN EL HEADER ===
-    const headerSpacer = document.querySelector('.header-spacer');
-    if (headerSpacer && ambitoActual !== 'unificado') {
-        // ¿A dónde tiene que ir la tuerca?
-        const linkConfig = ambitoActual === 'hogar' ? `config_hogar.html?v=9.5&id=${hogarId}` : `perfil.html?v=9.5`;
-        
-        // Reemplazamos el espacio vacío por el botón de la tuerca
-        headerSpacer.outerHTML = `
-            <a href="${linkConfig}" class="btn-icon-white" title="Configuración" style="text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                ⚙️
-            </a>
-        `;
-    }
     const subtituloHeader = document.querySelector('.container h2');
     const grupoResponsable = document.getElementById('responsable-group');
     const inputMontoGlobal = document.getElementById('monto');
@@ -44,23 +31,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grupoReferencia = document.getElementById('referencia-group');
     const inputReferencia = document.getElementById('referencia');
 
-    // === NAVEGACIÓN INFERIOR (EL FIX CLAVE) ===
-    const navContextual = document.getElementById('nav-contextual');
-    if (navContextual) {
-        const urlAmbito = ambitoActual === 'individual' ? 'personal' : ambitoActual;
-        const suffix = hogarId ? `&id=${hogarId}` : '';
-        
-        navContextual.innerHTML = `
-            <a href="carga.html?v=9.5&ambito=${urlAmbito}${suffix}" class="nav-item active">
-                <span class="icon">➕</span><span class="label">Cargar</span>
-            </a>
-            <a href="historial.html?v=9.5&ambito=${urlAmbito}${suffix}" class="nav-item">
-                <span class="icon">📜</span><span class="label">Historial</span>
-            </a>
-            <a href="resumen.html?v=9.5&ambito=${urlAmbito}${suffix}" class="nav-item">
-                <span class="icon">📊</span><span class="label">Resumen</span>
-            </a>`;
-    }
+    NavigationBuilder.buildConfigButton(ambitoActual, hogarId);
+    NavigationBuilder.buildNav(ambitoActual, hogarId, 'carga');
 
     // 1. GESTIÓN DE BORRADOR Y NAVEGACIÓN
     const guardarBorradorStock = () => {
@@ -105,16 +77,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. INICIALIZACIÓN DE DATOS
     const inicializarPagina = async (userId) => {
         currentUserIdGlobal = userId;
+        
+        // Ocultar/Mostrar Responsable según el ámbito
+        if (ambitoActual === 'personal') {
+            if (grupoResponsable) grupoResponsable.style.display = 'none';
+        }
+        
         const userSnap = await getDoc(doc(db, "usuarios", userId));
         if (userSnap.exists()) {
             const userData = userSnap.data();
-            if (ambitoActual === 'individual') {
+            if (ambitoActual === 'personal') {
                 listaCategorias = userData.categorias_personales || [];
+                if (!listaCategorias || listaCategorias.length === 0) {
+                    listaCategorias = [
+                        { nombre: 'Supermercado', lleva_stock: false, es_fijo: false },
+                        { nombre: 'Transporte', lleva_stock: false, es_fijo: false },
+                        { nombre: 'Servicios', lleva_stock: false, es_fijo: true },
+                        { nombre: 'Ocio', lleva_stock: false, es_fijo: false }
+                    ];
+                }
                 if (tituloHeader) tituloHeader.textContent = "Gastos Personales";
-                if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto vas a anotar hoy?"; 
-                if (grupoResponsable) grupoResponsable.style.display = 'none';
+                if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto vas a anotar?"; 
+            } else if (ambitoActual === 'hogar' && hogarId) {
+                // ... resto del código para hogar
             }
         }
+        
+        // Categories are loaded, now fill the select
+        llenarSelectCategorias();
 
         if (ambitoActual === 'hogar' && hogarId) {
             const hogarSnap = await getDoc(doc(db, "hogares", hogarId));

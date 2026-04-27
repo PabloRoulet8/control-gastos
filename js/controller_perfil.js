@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/f
 import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { PerfilRenderer } from "./ui/PerfilRenderer.js";
+import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const toast = new ToastManager();
@@ -57,28 +58,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnCancelarEdit) {
+if (btnCancelarEdit) {
         btnCancelarEdit.addEventListener('click', () => {
             editModeNombre.style.display = 'none';
             viewModeNombre.style.display = 'flex';
-            inputNombre.value = displayNombre.textContent; // Resetea el texto
+            inputNombre.value = displayNombre.textContent;
         });
     }
 
-    // === NAVEGACIÓN INFERIOR ===
-    const navContextual = document.getElementById('nav-contextual');
-    if (navContextual) {
-        navContextual.innerHTML = `
-            <a href="carga.html?v=9.5&ambito=personal" class="nav-item">
-                <span class="icon">➕</span><span class="label">Cargar</span>
-            </a>
-            <a href="historial.html?v=9.5&ambito=personal" class="nav-item">
-                <span class="icon">📜</span><span class="label">Historial</span>
-            </a>
-            <a href="resumen.html?v=9.5&ambito=personal" class="nav-item">
-                <span class="icon">📊</span><span class="label">Resumen</span>
-            </a>`;
-    }
+    NavigationBuilder.buildNav('personal', null);
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -154,47 +142,47 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if(btnCrearFondo) {
-        btnCrearFondo.addEventListener('click', async () => {
-            const nombre = capitalizar(inputNombreFondo.value.trim());
-            const monto = parseFloat(inputMontoFondo.value);
-            let seleccionadas = [];
+     if(btnCrearFondo) {
+         btnCrearFondo.addEventListener('click', async () => {
+             const nombre = capitalizar(inputNombreFondo.value.trim());
+             const monto = parseFloat(inputMontoFondo.value);
+             let seleccionadas = [];
 
-            const checksGrid = document.querySelectorAll('input[name="cat-vinculo-check"]:checked');
-            const checksCustom = document.querySelectorAll('input[name="cat-vinculo-custom"]:checked');
+             const checksGrid = document.querySelectorAll('input[name="cat-vinculo-check"]:checked');
+             const checksCustom = document.querySelectorAll('input[name="cat-vinculo-custom"]:checked');
 
-            if (checksGrid.length > 0) seleccionadas = Array.from(checksGrid).map(c => c.value);
-            else if (checksCustom.length > 0) seleccionadas = Array.from(checksCustom).map(c => c.value);
+             if (checksGrid.length > 0) seleccionadas = Array.from(checksGrid).map(c => c.value);
+             else if (checksCustom.length > 0) seleccionadas = Array.from(checksCustom).map(c => c.value);
 
-            if (!nombre || isNaN(monto) || seleccionadas.length === 0) {
-                return toast.mostrar("Completá nombre, monto y elegí al menos una categoría.");
-            }
+             if (!nombre || isNaN(monto) || seleccionadas.length === 0) {
+                 return toast.mostrar("Completá nombre, monto y elegí al menos una categoría.");
+             }
 
-            if(!userData.fondos) userData.fondos = [];
-            userData.fondos.push({ id: Date.now().toString(), nombre, monto, categorias: seleccionadas });
+             if(!userData.fondos) userData.fondos = [];
+             userData.fondos.push({ id: Date.now().toString(), nombre, monto, categorias: seleccionadas });
 
-            inputNombreFondo.value = '';
-            inputMontoFondo.value = '';
-            document.querySelectorAll('input[name="cat-vinculo-check"], input[name="cat-vinculo-custom"]').forEach(chk => chk.checked = false);
-            const textSpan = document.getElementById('dropdown-text');
-            if(textSpan) textSpan.textContent = "Seleccionar categorías...";
+             inputNombreFondo.value = '';
+             inputMontoFondo.value = '';
+             document.querySelectorAll('input[name="cat-vinculo-check"], input[name="cat-vinculo-custom"]').forEach(chk => chk.checked = false);
+             const textSpan = document.getElementById('dropdown-text');
+             if(textSpan) textSpan.textContent = "Seleccionar categorías...";
 
-            await guardarDatosGenerales();
-            renderer.renderizarFondos(userData);
-            toast.mostrar("¡Presupuesto creado!");
-        });
-    }
+             await guardarDatosGenerales();
+             renderer.renderizarFondos(userData);
+toast.mostrar("¡Presupuesto creado!");
+          });
+      }
 
     async function guardarDatosGenerales() {
-        try {
-            await updateDoc(doc(db, "usuarios", currentUserUid), {
-                categorias_personales: userData.categorias_personales,
-                metodos_pago: userData.metodos_pago,
-                fondos: userData.fondos
-            });
-        } catch(error) {
-            console.error(error);
-            toast.mostrar("Hubo un error al guardar.");
-        }
-    }
-});
+         try {
+             await updateDoc(doc(db, "usuarios", currentUserUid), {
+                 categorias_personales: userData.categorias_personales,
+                 metodos_pago: userData.metodos_pago,
+                 fondos: userData.fondos
+             });
+         } catch(error) {
+             console.error(error);
+             toast.mostrar("Hubo un error al guardar.");
+         }
+     }
+ });

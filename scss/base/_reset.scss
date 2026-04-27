@@ -1,25 +1,26 @@
 // ==========================================
 // RESETEO DE NAVEGADORES
 // ==========================================
-// Los navegadores (Chrome, Safari, Edge) traen márgenes por defecto distintos. 
-// Esto empareja la cancha para que la app se vea igual en todos los celulares.
 
 * {
-    box-sizing: border-box; // Evita que el padding rompa el ancho (width) de los elementos
+    box-sizing: border-box;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
     margin: 0;
     padding: 0;
-    background-color: $gris-claro;
-    color: #333;
-    padding-bottom: 70px; // Súper importante: Evita que el menú inferior tape el último contenido de la página
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    padding-bottom: 80px;
 }
 
-// El contenedor principal que envuelve el contenido de todas las pantallas
 .container {
     padding: 15px;
-    max-width: 800px; // Evita que la app se estire infinitamente si se abre en una PC de escritorio
-    margin: 0 auto; // Centra el contenedor en la pantalla
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+i[data-lucide] {
+    stroke: var(--text-main);
 }

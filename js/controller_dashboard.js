@@ -31,6 +31,48 @@ document.addEventListener('DOMContentLoaded', () => {
             signOut(auth).then(() => window.location.href = 'login.html');
         });
     }
+    
+    // Toggle theme en header (botón moon/sun) - ID corregido
+    const btnToggleTheme = document.getElementById('theme-toggle-btn');
+    if (btnToggleTheme) {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const iconEl = btnToggleTheme.querySelector('i');
+        
+        if (iconEl) {
+            if (currentTheme === 'light') {
+                iconEl.setAttribute('data-lucide', 'sun');
+            } else {
+                iconEl.setAttribute('data-lucide', 'moon');
+            }
+        }
+        
+        // Ejecutar después de Lucide para evitar null
+        setTimeout(() => {
+            if (window.lucide) window.lucide.createIcons();
+        }, 100);
+        
+        btnToggleTheme.addEventListener('click', () => {
+            const html = document.documentElement;
+            const isDark = html.getAttribute('data-theme') === 'dark';
+            const icon = btnToggleTheme.querySelector('i');
+            
+            if (isDark) {
+                html.setAttribute('data-theme', 'light');
+                document.body.classList.add('light-theme');
+                localStorage.setItem('theme', 'light');
+                if (icon) icon.setAttribute('data-lucide', 'sun');
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                document.body.classList.remove('light-theme');
+                localStorage.setItem('theme', 'dark');
+                if (icon) icon.setAttribute('data-lucide', 'moon');
+            }
+            
+            setTimeout(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, 50);
+        });
+    }
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -116,46 +158,46 @@ document.addEventListener('DOMContentLoaded', () => {
             if (saludoUsuario) saludoUsuario.textContent = `Hola, ${userData.nombre}`;
             if (displayAvatar) displayAvatar.textContent = userData.nombre ? userData.nombre.charAt(0).toUpperCase() : 'U';
 
-            // === TARJETA PERSONAL (LIMPIA) ===
-            const cardPersonal = document.createElement('div');
-            cardPersonal.className = 'dashboard-card-wrapper';
-            cardPersonal.innerHTML = `
-                <a href="carga.html?v=9.5&ambito=personal" class="dashboard-card-link">
-                    <span class="icon">👤</span>
-                    <span class="title">Mis Gastos</span>
-                </a>
-            `;
-            contenedorHogares.appendChild(cardPersonal);
+             // === TARJETA PERSONAL (LIMPIA) ===
+             const cardPersonal = document.createElement('div');
+             cardPersonal.className = 'dashboard-card-wrapper';
+             cardPersonal.innerHTML = `
+                 <a href="carga.html?v=9.5&ambito=personal" class="dashboard-card-link">
+                     <span class="icon"><i data-lucide="user"></i></span>
+                     <span class="title">Mis Gastos</span>
+                 </a>
+             `;
+             contenedorHogares.appendChild(cardPersonal);
 
-            // === TARJETAS HOGAR (CORREGIDAS) ===
-            const hogaresRef = collection(db, "hogares");
-            const q = query(hogaresRef, where("miembros", "array-contains", uid));
-            const querySnapshot = await getDocs(q);
+             // === TARJETAS HOGAR (CORREGIDAS) ===
+             const hogaresRef = collection(db, "hogares");
+             const q = query(hogaresRef, where("miembros", "array-contains", uid));
+             const querySnapshot = await getDocs(q);
 
-            // === TARJETAS HOGAR (LIMPIAS) ===
-            querySnapshot.forEach((docHogar) => {
-                const hogar = docHogar.data();
-                const cardHogar = document.createElement('div');
-                cardHogar.className = 'dashboard-card-wrapper';
-                
-                cardHogar.innerHTML = `
-                    <a href="carga.html?v=9.5&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
-                        <span class="icon">🏠</span>
-                        <span class="title">${hogar.nombre}</span>
-                    </a>
-                `;
-                contenedorHogares.appendChild(cardHogar);
-            });
+             // === TARJETAS HOGAR (LIMPIAS) ===
+             querySnapshot.forEach((docHogar) => {
+                 const hogar = docHogar.data();
+                 const cardHogar = document.createElement('div');
+                 cardHogar.className = 'dashboard-card-wrapper';
+                 
+                 cardHogar.innerHTML = `
+                     <a href="carga.html?v=9.5&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
+                         <span class="icon"><i data-lucide="home"></i></span>
+                         <span class="title">${hogar.nombre}</span>
+                     </a>
+                 `;
+                 contenedorHogares.appendChild(cardHogar);
+             });
 
-            const cardNuevo = document.createElement('div');
-            cardNuevo.className = 'dashboard-card-wrapper';
-            cardNuevo.innerHTML = `
-                <a href="admin_hogar.html?v=9.5&id=nuevo" class="dashboard-card-link card-add">
-                    <span class="icon">➕</span>
-                    <span class="title">Nuevo Hogar</span>
-                </a>
-            `;
-            contenedorHogares.appendChild(cardNuevo);
+             const cardNuevo = document.createElement('div');
+             cardNuevo.className = 'dashboard-card-wrapper';
+             cardNuevo.innerHTML = `
+                 <a href="admin_hogar.html?v=9.5&id=nuevo" class="dashboard-card-link card-add">
+                     <span class="icon"><i data-lucide="plus"></i></span>
+                     <span class="title">Nuevo Hogar</span>
+                 </a>
+             `;
+             contenedorHogares.appendChild(cardNuevo);
 
         } catch (error) {
             console.error("Error al cargar el dashboard:", error);

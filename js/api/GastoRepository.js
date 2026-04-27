@@ -47,7 +47,7 @@ export class GastoRepository {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
-    async eliminarGasto(idGasto) {
+    async eliminarGasto(idGasto, contexto = null) {
         return await deleteDoc(doc(db, "gastos", idGasto));
     }
 

@@ -6,6 +6,7 @@ import { ToastManager } from "./ui/ToastManager.js";
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const api = new GastoRepository();
@@ -14,47 +15,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const chartManager = new ChartManager(resumenService);
     
     const urlParams = new URLSearchParams(window.location.search);
-    let ambitoActual = urlParams.get('ambito') || 'personal';
-    if (ambitoActual === 'individual') ambitoActual = 'personal';
+    let ambitoActual = NavigationBuilder.normalizeAmbito(urlParams.get('ambito'));
 
     const hogarId = urlParams.get('id');
 
     const tituloHeader = document.getElementById('titulo-header');
-    // === INYECTAR TUERCA DE CONFIGURACIÓN EN EL HEADER ===
-    const headerSpacer = document.querySelector('.header-spacer');
-    if (headerSpacer && ambitoActual !== 'unificado') {
-        // ¿A dónde tiene que ir la tuerca?
-        const linkConfig = ambitoActual === 'hogar' ? `config_hogar.html?v=9.5&id=${hogarId}` : `perfil.html?v=9.5`;
-        
-        // Reemplazamos el espacio vacío por el botón de la tuerca
-        headerSpacer.outerHTML = `
-            <a href="${linkConfig}" class="btn-icon-white" title="Configuración" style="text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                ⚙️
-            </a>
-        `;
-    }
+    NavigationBuilder.buildConfigButton(ambitoActual, hogarId);
+    
     const contenedorDinamico = document.getElementById('contenedor-resumen-dinamico');
+
+    NavigationBuilder.buildNav(ambitoActual, hogarId, 'resumen');
 
     document.getElementById('btn-stock')?.addEventListener('click', (e) => {
         const btn = e.currentTarget;
         btn.classList.toggle('active');
         const content = btn.nextElementSibling;
-        if(content) content.style.display = content.style.display === "block" ? "none" : "block";
+if(content) content.style.display = content.style.display === "block" ? "none" : "block";
     });
-
-    // === NAVEGACIÓN INFERIOR ===
-    const navContextual = document.getElementById('nav-contextual');
-    if (navContextual) {
-        if (ambitoActual === 'unificado') {
-            navContextual.innerHTML = `<a href="resumen.html?v=9.5&ambito=unificado" class="nav-item active"><span class="icon">📈</span><span class="label">Unificado</span></a>`;
-        } else {
-            const suffix = hogarId ? `&id=${hogarId}` : '';
-            navContextual.innerHTML = `
-                <a href="carga.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">➕</span><span class="label">Cargar</span></a>
-                <a href="historial.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item"><span class="icon">📜</span><span class="label">Historial</span></a>
-                <a href="resumen.html?v=9.5&ambito=${ambitoActual}${suffix}" class="nav-item active"><span class="icon">📊</span><span class="label">Resumen</span></a>`;
-        }
-    }
 
     onAuthStateChanged(auth, async (user) => {
         if (user) await procesarPantalla(user.uid);
@@ -98,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 todosLosGastos = (await api.obtenerGastos(hogarId) || []).filter(g => g.tipo === 'general' || !g.tipo || g.tipo === 'pagoDeuda');                
                 kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos);
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
-                renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId);
+                renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
                 renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true);
 
             } else if (ambitoActual === 'unificado') {

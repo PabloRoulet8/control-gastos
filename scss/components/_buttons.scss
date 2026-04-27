@@ -4,72 +4,100 @@
 
 // Estructura base compartida entre botones primarios y secundarios
 .btn-primary, .btn-secondary {
-    width: 100%; padding: 12px; border-radius: 8px; font-weight: bold;
-    font-size: 1.1rem; cursor: pointer; border: none; margin-top: 10px;
+    width: 100%; padding: 12px; border-radius: 10px; font-weight: bold;
+    font-size: 1rem; cursor: pointer; border: none;
 }
 
-// Coloración del botón principal (verde por defecto)
 .btn-primary {
     background-color: $verde-primario; color: white;
+    transition: all 0.2s ease;
     
-    // Variantes de color usando "&" (hace referencia a .btn-primary)
-    // Ejemplo: class="btn-primary bg-orange"
-    &.bg-orange { background-color: $naranja-primario; }
-    &.bg-dark-orange { background-color: $naranja-oscuro; }
-    &.bg-blue { background-color: $azul-primario; }
+    &:hover {
+        background-color: $verde-oscuro;
+    }
 }
 
-// Coloración del botón secundario (gris para cancelar/volver)
-.btn-secondary { background-color: #ddd; color: #333; }
+.btn-secondary { 
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    
+    &:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+}
 
-// Botoncitos sutiles sin fondo (ej. la casita del header o la flecha de volver)
+// Botones de encabezado
 .btn-icon-white {
-    background: none; border: none; color: white;
-    cursor: pointer; font-size: 1.2rem; padding: 0;
-    text-decoration: none;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    
+    &:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+    
+    i[data-lucide] {
+        stroke: var(--text-main) !important;
+        width: 20px;
+        height: 20px;
+    }
 }
 
-// Estilo súper específico para cumplir con los estándares visuales de Google
-.btn-google {
-    width: 100%; padding: 12px; background-color: #ffffff; color: #444;
-    border: 1px solid #ccc; font-weight: bold; font-size: 1.1rem;
-    border-radius: 8px; cursor: pointer; display: flex;
-    align-items: center; justify-content: center; gap: 10px;
-    img { width: 20px; } // El iconito de la G
+// Botón círculo para agregar (esmeralda)
+.btn-add-circle {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 8px;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    
+    &:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
 }
 
-// Variantes de estado para los botones
-.btn-success {
-  background-color: $green-primary !important;
-  color: white;
-}
-
-.btn-danger {
-  background-color: $red-danger !important;
-  color: white;
+.btn-add-circle-primary {
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 8px;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    
+    &:hover {
+        background: var(--verde-oscuro);
+    }
 }
 
 .btn-no-margin {
   margin-top: 0 !important;
-}
-
-// Botón de configuración (Tuerca) dentro de las tarjetas
-.btn-config-gear-inline {
-    background: none;
-    border: none;
-    font-size: 1.2rem;
-    cursor: pointer;
-    text-decoration: none;
-    opacity: 0.6;
-    transition: opacity 0.2s ease-in-out;
-    padding: 5px;
-
-    &:hover {
-        opacity: 1;
-    }
-}
-
-// Ocultamos la versión vieja por si quedó en algún lado
-.btn-config-gear {
-    display: none !important;
 }

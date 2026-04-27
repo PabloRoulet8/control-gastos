@@ -8,10 +8,17 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2e7d32">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        document.documentElement.setAttribute(
+            'data-theme', 
+            localStorage.getItem('theme') || 'dark'
+        );
+    </script>
 </head>
 <body>
     <header class="header flex-between">
-        <button onclick="window.location.href='index.html'" class="btn-icon-white" title="Volver al Inicio">🏠</button>
+        <button onclick="window.location.href='index.html'" class="btn-icon-white" title="Volver al Inicio"><i data-lucide="home"></i></button>
         <h1 id="titulo-header" class="text-center flex-1">Nuevo Gasto</h1>
         <div class="header-spacer"></div>
     </header>
@@ -46,10 +53,10 @@
             </div>
 
             <div class="form-group box-info mb-15" id="fondo-group" style="display: none;">
-                <label class="box-info-toggle">
-                    ¿Pagado con tarjeta del Fondo? 🏦
-                    <input type="checkbox" id="pagado-fondo" name="pagadoFondo" checked class="checkbox-lg">
-                </label>
+<label class="box-info-toggle">
+                     ¿Pagado con tarjeta del Fondo? <i data-lucide="credit-card"></i>
+                     <input type="checkbox" id="pagado-fondo" name="pagadoFondo" checked class="checkbox-lg">
+                 </label>
                 <small class="box-info-desc">Si marcás esto, se descuenta del pozo compartido.</small>
             </div>
 
@@ -83,7 +90,7 @@
             </div>
 
             <div id="seccion-inventario" class="form-group border-top-thick" style="display: none;">
-                <label class="text-sm-green-bold">🛒 Carga de Inventario</label>
+                 <label class="text-sm-green-bold"><i data-lucide="shopping-cart"></i> Carga de Inventario</label>
                 <div class="grid-inv-row">
                     <input type="text" id="inv-prod" placeholder="Producto" class="form-control-sm">
                     <input type="number" id="inv-cant" placeholder="Cant." step="0.01" class="form-control-sm">

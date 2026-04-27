@@ -2,19 +2,26 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ingresar - Finanzas</title>
     <link rel="stylesheet" href="css/styles.css?v=9.5">
     <meta name="theme-color" content="#2e7d32">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        document.documentElement.setAttribute(
+            'data-theme', 
+            localStorage.getItem('theme') || 'dark'
+        );
+    </script>
 </head>
 <body class="login-page">
 
     <div class="login-container">
-        <div class="logo-app">
-            <h1>💸 Finanzas</h1>
-            <p>Tu gestor de gastos compartido</p>
-        </div>
+<div class="logo-app">
+             <h1><i data-lucide="dollar-sign"></i> Finanzas</h1>
+             <p>Tu gestor de gastos compartido</p>
+         </div>
 
         <div class="card">
             <h2 id="form-title" class="text-center mb-20">Iniciar Sesión</h2>
@@ -40,10 +47,10 @@
                 </button>            
             </form>
 
-            <div class="toggle-form">
-                <span id="toggle-text">¿No tenés cuenta?</span> 
-                <a id="btn-toggle-mode">Registrate acá</a>
-            </div>
+<div class="toggle-form">
+                 <span id="toggle-text">¿No tenés cuenta?</span> 
+                 <a id="btn-toggle-mode"><i data-lucide="user-plus"></i> Registrate acá</a>
+             </div>
         </div>
     </div>
 

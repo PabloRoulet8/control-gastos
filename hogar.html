@@ -2,23 +2,30 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mi Hogar</title>
     <link rel="stylesheet" href="css/styles.css?v=9.5">
     <meta name="theme-color" content="#2e7d32">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        document.documentElement.setAttribute(
+            'data-theme', 
+            localStorage.getItem('theme') || 'dark'
+        );
+    </script>
 </head>
 <body>
     <header class="header flex-between">
-        <button onclick="window.history.back()" class="btn-icon-white">← Volver</button>
+        <button onclick="window.history.back()" class="btn-icon-white"><i data-lucide="arrow-left"></i> Volver</button>
         <h1>Mi Hogar</h1>
         <div class="header-spacer"></div>
     </header>
 
     <main class="container">
-        <div class="card card-top-orange">
-            <h2 class="card-title-orange">🏦 Fondo Común</h2>
-            <p class="card-subtitle">Dinero aportado entre ambos a principio de mes para Supermercado, Carnicería y Verdulería.</p>
+<div class="card card-top-orange">
+             <h2 class="card-title-orange"><i data-lucide="bank"></i> Fondo Común</h2>
+             <p class="card-subtitle">Dinero aportado entre ambos a principio de mes para Supermercado, Carnicería y Verdulería.</p>
             
             <form id="fondo-form">
                 <div class="form-group">

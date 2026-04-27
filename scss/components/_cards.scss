@@ -2,16 +2,27 @@
 // TARJETAS Y CONTENEDORES DE INFORMACIÓN
 // ==========================================
 
-// La clásica "cajita blanca" flotante que usamos en casi todas las pantallas
+// Efecto Glassmorphism para todas las tarjetas
 .card {
-    background: white; border-radius: 12px; padding: 20px;
-    margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    background-color: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: $border-radius;
+    box-shadow: var(--shadow-light, $shadow-md);
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    
+    &:hover {
+        transform: translateY(-2px);
+    }
 }
 
-// Borde superior de colores para diferenciar secciones visualmente
-.card-top-green { border-top: 5px solid $verde-primario; }
-.card-top-blue { border-top: 5px solid $azul-primario; }
-.card-top-orange { border-top: 5px solid $naranja-primario; }
+// Iconos en tarjetas - visibles en ambos temas
+.card i[data-lucide] {
+    stroke: var(--icon-color);
+}
 
 // Títulos internos de las tarjetas
 .card-title-green { color: $verde-primario; margin-bottom: 5px; margin-top: 0; }
@@ -46,7 +57,7 @@
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px; // Menos espacio entre tarjetas
+    gap: 8px;
     margin-top: 10px;
     margin-bottom: 10px;
     padding-top: 10px;
@@ -54,23 +65,23 @@
     
     .kpi-card {
         background: var(--bg-app);
-        border: 1px solid #fecaca;
+        border: 1px solid var(--border-color);
         border-radius: 8px;
-        padding: 6px 4px; // Más chatitas
+        padding: 8px 4px;
         text-align: center;
         
         .kpi-label {
             display: block;
-            font-size: 0.65rem; // Letra más chica
+            font-size: 0.65rem;
             color: #ef4444; 
             text-transform: uppercase;
             font-weight: 700;
-            margin-bottom: 2px; // Menos espacio interno
+            margin-bottom: 2px;
         }
         
         .kpi-value {
             display: block;
-            font-size: 0.85rem; // Número más compacto
+            font-size: 0.85rem;
             font-weight: 900;
             color: var(--text-main);
         }
@@ -84,10 +95,49 @@
     align-items: center;
     width: 100%;
     padding-right: 10px;
-
+    
     .card-info-main {
         display: flex;
         align-items: center;
         gap: 15px;
+    }
+}
+
+// ==========================================
+// VARIANTES PARA TEMA OSCURO (GLASSMORPHISM)
+// ==========================================
+[data-theme='dark'] {
+    .card {
+        background-color: $glass-bg-dark;
+        border-color: $glass-border-dark;
+        backdrop-filter: $glass-blur;
+        
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+    }
+    
+    // Ajustes específicos para tema oscuro en otros componentes si es necesario
+    .kpi-card {
+        border-color: rgba(255, 255, 255, 0.1);
+        
+        .kpi-value {
+            color: var(--text-main);
+        }
+    }
+}
+
+// ==========================================
+// MODO CLARO - SOLUCIÓN DEFINITIVA CON !IMPORTANT
+// ==========================================
+[data-theme='light'] {
+    .card {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
+        border: 1px solid #e2e8f0 !important;
+        background-color: #ffffff !important;
+    }
+    
+    .card i[data-lucide] {
+        stroke: var(--primary-color) !important;
     }
 }
