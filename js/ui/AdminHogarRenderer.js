@@ -44,14 +44,17 @@ export class AdminHogarRenderer {
             });
         });
 
-        this.listaCategoriasUI.querySelectorAll('.btn-delete-cat').forEach(btn => {
+this.listaCategoriasUI.querySelectorAll('.btn-delete-cat').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const catAEliminar = categoriasBorrador.find(c => c.nombre === btn.dataset.nombre);
                 if(catAEliminar) {
                     catAEliminar.activa = false;
-                    onListChange(); // Llama a la función del controller para re-renderizar
+                    onListChange();
                 }
             });
+        });
         });
 
         this.renderizarSeleccionCategoriasFondos(categoriasBorrador);

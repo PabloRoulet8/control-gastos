@@ -10,6 +10,21 @@ export class HistorialRenderer {
           this.btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
           
           this.initModalEvents();
+          
+          // Event Delegation para eliminación de gastos
+          if (this.listaGastosUI) {
+              this.listaGastosUI.addEventListener('click', (e) => {
+                  const btn = e.target.closest('.btn-icon-danger');
+                  if (btn) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const id = btn.getAttribute('data-id');
+                      if (id && this.onDeleteCallback) {
+                          this.onDeleteCallback(id);
+                      }
+                  }
+              });
+          }
       }
   
       initModalEvents() {
@@ -91,6 +106,7 @@ getMapeoTipo(gasto) {
       renderLista(gastosFiltrados, currentUser, ambitoActual, mapaNombres, onDeleteClick) {
           if (!this.listaGastosUI) return;
           this.listaGastosUI.innerHTML = '';
+          this.onDeleteCallback = onDeleteClick;
   
           if (gastosFiltrados.length === 0) {
               this.listaGastosUI.innerHTML = '<p class="text-center text-muted p-20" style="color: var(--text-muted);">No hay movimientos con estos filtros.</p>';
@@ -154,25 +170,21 @@ const etiquetaCategoria = esPago ? 'Pago de Deuda' : (gasto.categoria || 'Sin ca
                       <span class="fecha">${fechaCorta}${metodoPago}</span>
                   </div>
                   <div class="gasto-acciones">
-                      <span class="monto" style="color: ${colorMonto};">$ ${Number(gasto.monto).toLocaleString('es-AR')}</span>
+                      <span class="monto" style="color: ${colorMonto};">$ ${Number(gasto.monto).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                       <button class="btn-icon-danger" data-id="${gasto.id}" title="Eliminar"><i data-lucide="trash-2"></i></button>
                   </div>
               `;
               this.listaGastosUI.appendChild(item);
           });
   
-          });
-  
-          // Inicializar iconos Lucide
+});
+   
+// Inicializar iconos Lucide
           if (window.lucide) {
               window.lucide.createIcons();
           }
-  
-          this.listaGastosUI.querySelectorAll('.btn-eliminar').forEach(boton => {
-              boton.addEventListener('click', (e) => onDeleteClick(e.currentTarget.getAttribute('data-id')));
-          });
       }
-  
+   
       renderizarFiltrosResponsables(mapaNombres) {
           const select = document.getElementById('filtro-responsable');
           if (!select) return;

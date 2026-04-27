@@ -102,10 +102,10 @@ export class ResumenRenderer {
                 // REGLA DE SEGURIDAD: ¿Soy Yane o soy Mostri?
                 const esInvolucrado = (currentUserId === c.de_id || currentUserId === c.para_id);
                 
-                // Solo dibuja el botón verde si soy uno de los involucrados
-                 const btnPagoHtml = esInvolucrado 
-                     ? `<button class="btn-abrir-modal-pago" data-de-id="${c.de_id}" data-de-nombre="${c.de}" data-para-id="${c.para_id}" data-monto="${c.monto}" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i data-lucide="dollar-sign"></i> Registrar Pago</button>`
-                     : ``;
+// Solo dibuja el botón verde si soy uno de los involucrados
+                  const btnPagoHtml = esInvolucrado 
+                      ? `<button type="button" class="btn-abrir-modal-pago" data-de-id="${c.de_id}" data-de-nombre="${c.de}" data-para-id="${c.para_id}" data-monto="${c.monto}" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i data-lucide="dollar-sign"></i> Registrar Pago</button>`
+                      : ``;
 
                 // REGLA DE COLOR: Si vos debés = ROJO, si te deben = VERDE
                 const colorDeudor = currentUserId === c.de_id ? '#DC2626' : '#64748b';

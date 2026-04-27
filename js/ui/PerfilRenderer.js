@@ -47,6 +47,8 @@ export class PerfilRenderer {
 
 this.listaCategoriasUI.querySelectorAll('.btn-delete-cat').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     userData.categorias_personales.splice(e.currentTarget.dataset.idx, 1);
                     await this.onDataChange();
                     this.renderizarCategorias(userData);
@@ -82,6 +84,8 @@ this.listaCategoriasUI.querySelectorAll('.btn-delete-cat').forEach(btn => {
 
         this.listaPagosUI.querySelectorAll('.btn-delete-pago').forEach(btn => {
             btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 userData.metodos_pago.splice(e.currentTarget.dataset.idx, 1);
                 await this.onDataChange();
                 this.renderizarPagos(userData);
@@ -189,6 +193,8 @@ this.listaCategoriasUI.querySelectorAll('.btn-delete-cat').forEach(btn => {
 
         this.listaFondosUI.querySelectorAll('.btn-delete-fondo').forEach(btn => {
             btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 userData.fondos.splice(e.currentTarget.dataset.idx, 1);
                 await this.onDataChange();
                 this.renderizarFondos(userData);

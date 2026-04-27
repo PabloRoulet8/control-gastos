@@ -121,57 +121,136 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
     }
 
     // ===============================================
-    // LÓGICA DE PAGOS DE DEUDA EN EL HOGAR
+    // LÓGICA DE PAGOS DE DEUDA EN EL HOGAR (ESCUDO DE CRISTAL)
     // ===============================================
-    const toastGlobal = new ToastManager(); // Lo instanciamos acá para el modal
+    const toastGlobal = new ToastManager(); 
+    const modalPago = document.getElementById('modal-pago-deuda');
+    const btnConfirmar = document.getElementById('btn-confirmar-pago');
+    const btnCerrar = document.getElementById('btn-cerrar-modal-pago');
+    let clickAbiertoTiempo = 0;
+    let modalEstaAbierto = false;
 
     contenedorDinamico.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-abrir-modal-pago')) {
+        const btn = e.target.closest('.btn-abrir-modal-pago');
+        if (btn) {
             e.preventDefault();
             e.stopPropagation();
-            const btn = e.target.closest('.btn-abrir-modal-pago');
             
-            document.getElementById('hidden-deudor-id').value = btn.dataset.deId;
-            document.getElementById('hidden-acreedor-id').value = btn.dataset.paraId;
-            document.getElementById('input-monto-pago').value = btn.dataset.monto;
-            document.getElementById('texto-info-pago').textContent = `¿Cuánto transfirió ${btn.dataset.deNombre}?`;
+            const deId = btn.dataset.deId;
+            const paraId = btn.dataset.paraId;
+            const nombre = btn.dataset.deNombre;
             
-            document.getElementById('modal-pago-deuda').style.display = 'flex';
+            document.getElementById('hidden-deudor-id').value = deId;
+            document.getElementById('hidden-acreedor-id').value = paraId;
+            document.getElementById('input-monto-pago').value = '';
+            document.getElementById('texto-info-pago').textContent = `¿Cuánto transfirió ${nombre}?`;
+            
+            clickAbiertoTiempo = Date.now();
+            modalEstaAbierto = true;
+            
+            // Guardar el monto total de la deuda para el botón MAX
+            const montoDeuda = btn.dataset.monto;
+            document.getElementById('hidden-monto-deuda').value = montoDeuda;
+            
+            // Mostrar el monto total como referencia
+            const montoFormateado = Number(montoDeuda).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('texto-info-pago').textContent = `¿Cuánto transfirió ${nombre}? (Total: $${montoFormateado})`;
+            
+            setTimeout(() => {
+                if (modalPago && modalEstaAbierto) {
+                    modalPago.style.display = 'flex';
+                    
+                    // Agregar clase .active al modal-content para que se muestre
+                    const modalContent = modalPago.querySelector('.modal-content');
+                    if (modalContent) modalContent.classList.add('active');
+                    
+                    // El overlay bloquea clicks fuera del modal-content
+                    modalPago.onclick = (e) => {
+                        if (!e.target.closest('.modal-content')) {
+                            e.stopPropagation();
+                            return false;
+                        }
+                    };
+                }
+                
+                if (btnConfirmar && modalEstaAbierto) {
+                    btnConfirmar.disabled = true;
+                    btnConfirmar.style.opacity = '0.5';
+                    setTimeout(() => {
+                        if (btnConfirmar && modalEstaAbierto) {
+                            btnConfirmar.disabled = false;
+                            btnConfirmar.style.opacity = '1';
+                        }
+                    }, 800);
+                }
+            }, 200);
         }
     });
 
-    document.getElementById('btn-cerrar-modal-pago')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        document.getElementById('modal-pago-deuda').style.display = 'none';
-    });
+    if (btnCerrar) {
+        btnCerrar.onclick = (e) => {
+            e.preventDefault();
+            modalEstaAbierto = false;
+            if (modalPago) {
+                const modalContent = modalPago.querySelector('.modal-content');
+                if (modalContent) modalContent.classList.remove('active');
+                modalPago.style.display = 'none';
+            }
+        };
+    }
 
-    document.getElementById('btn-confirmar-pago')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const deId = document.getElementById('hidden-deudor-id').value;
-        const paraId = document.getElementById('hidden-acreedor-id').value;
-        const monto = parseFloat(document.getElementById('input-monto-pago').value);
-        const btnConfirm = document.getElementById('btn-confirmar-pago');
+    // Botón MAX para completar el monto total
+    const btnMaxMonto = document.getElementById('btn-max-monto');
+    if (btnMaxMonto) {
+        btnMaxMonto.onclick = (e) => {
+            e.preventDefault();
+            const montoDeuda = document.getElementById('hidden-monto-deuda').value;
+            const inputMonto = document.getElementById('input-monto-pago');
+            if (montoDeuda && inputMonto) {
+                // Formatear con coma: 100.50 -> 100,50
+                const montoFormateado = Number(montoDeuda).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                inputMonto.value = montoDeuda;
+                inputMonto.placeholder = montoFormateado;
+            }
+        };
+    }
 
-        if (!monto || monto <= 0) return toastGlobal.mostrar("Ingresá un monto válido.");
+    if (btnConfirmar) {
+        btnConfirmar.onclick = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
 
-        btnConfirm.disabled = true;
-        btnConfirm.textContent = "Guardando...";
-
-        try {
-            await api.registrarPagoDeuda({ tipo: 'hogar', id: hogarId }, deId, paraId, monto);
-            toastGlobal.mostrar("¡Pago registrado! 💸 Las cuentas se ajustaron.");
-            document.getElementById('modal-pago-deuda').style.display = 'none';
+            if (!modalEstaAbierto) return;
             
-            // Recargamos la pantalla para ver la magia de los números ajustados
-            await procesarPantalla(auth.currentUser.uid);
-        } catch (err) {
-            console.error(err);
-            toastGlobal.mostrar("Error al registrar el pago.");
-        } finally {
-            btnConfirm.disabled = false;
-            btnConfirm.textContent = "Confirmar Pago";
-        }
-    });
+            if (Date.now() - clickAbiertoTiempo < 800) return;
+
+            const deId = document.getElementById('hidden-deudor-id').value;
+            const paraId = document.getElementById('hidden-acreedor-id').value;
+            const monto = parseFloat(document.getElementById('input-monto-pago').value);
+
+            if (!monto || monto <= 0) return toastGlobal.mostrar("Ingresá un monto válido.");
+
+            modalEstaAbierto = false;
+            btnConfirmar.disabled = true;
+            btnConfirmar.textContent = "Guardando...";
+
+            try {
+                await api.registrarPagoDeuda({ tipo: 'hogar', id: hogarId }, deId, paraId, monto);
+                toastGlobal.mostrar("¡Pago registrado! 💸 Las cuentas se ajustaron.");
+                if (modalPago) {
+                    const modalContent = modalPago.querySelector('.modal-content');
+                    if (modalContent) modalContent.classList.remove('active');
+                    modalPago.style.display = 'none';
+                }
+                
+                await procesarPantalla(auth.currentUser.uid);
+            } catch (err) {
+                console.error(err);
+                toastGlobal.mostrar("Error al registrar el pago.");
+            } finally {
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = "Confirmar Pago";
+            }
+        };
+    }
 });

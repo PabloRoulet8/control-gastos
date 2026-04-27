@@ -1,20 +1,36 @@
-const CACHE_NAME = 'gastos-v9.5';
+const CACHE_NAME = 'gastos-v10.0';
 
 const urlsToCache = [
     '/',
     '/index.html',
     '/resumen.html',
     '/historial.html',
+    '/carga.html',
+    '/perfil.html',
+    '/hogar.html',
+    '/admin_hogar.html',
+    '/config_hogar.html',
+    '/login.html',
     '/css/styles.css',
     '/js/firebase-config.js',
     '/js/api/GastoRepository.js',
     '/js/services/ResumenService.js',
+    '/js/ui/ResumenRenderer.js',
+    '/js/ui/HistorialRenderer.js',
     '/js/ui/ToastManager.js',
     '/js/ui/ModalManager.js',
     '/js/ui/ConfirmManager.js',
+    '/js/ui/ChartManager.js',
+    '/js/ui/ListRenderer.js',
     '/js/controller_carga.js',
     '/js/controller_resumen.js',
-    '/js/controller_historial.js'
+    '/js/controller_historial.js',
+    '/js/controller_perfil.js',
+    '/js/controller_dashboard.js',
+    '/js/controller_admin_hogar.js',
+    '/js/controller_config_hogar.js',
+    '/js/controller_login.js',
+    '/js/utils/NavigationBuilder.js'
 ];
 
 self.addEventListener('install', event => {
