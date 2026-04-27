@@ -27,7 +27,7 @@ export class PerfilRenderer {
                     <div class="flex-1 text-center">
                         <input type="checkbox" class="cat-checkbox toggle-stock" data-idx="${index}" ${cat.lleva_stock ? 'checked' : ''}>
                     </div>
-                    <button class="btn-delete-icon btn-delete-cat" data-idx="${index}" title="Eliminar">🗑️</button>
+                    <button class="btn-icon-danger btn-delete-cat" data-idx="${index}" title="Eliminar"><i data-lucide="trash-2"></i></button>
                 `;
                 this.listaCategoriasUI.appendChild(li);
             });
@@ -45,12 +45,15 @@ export class PerfilRenderer {
                 });
             });
 
-            this.listaCategoriasUI.querySelectorAll('.btn-delete-cat').forEach(btn => {
+this.listaCategoriasUI.querySelectorAll('.btn-delete-cat').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
-                    userData.categorias_personales.splice(e.target.dataset.idx, 1);
+                    userData.categorias_personales.splice(e.currentTarget.dataset.idx, 1);
                     await this.onDataChange();
                     this.renderizarCategorias(userData);
                 });
+            });
+            
+            if (window.lucide) window.lucide.createIcons();
             });
         }
         this.renderizarSeleccionCategoriasFondos(userData);
@@ -72,18 +75,20 @@ export class PerfilRenderer {
             li.style.padding = '12px 15px';
             li.innerHTML = `
                 <span class="text-bold-dark">${pago}</span>
-                <button class="btn-delete-icon btn-delete-pago" data-idx="${index}" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">🗑️</button>
+                <button class="btn-icon-danger btn-delete-pago" data-idx="${index}" title="Eliminar"><i data-lucide="trash-2"></i></button>
             `;
             this.listaPagosUI.appendChild(li);
         });
 
         this.listaPagosUI.querySelectorAll('.btn-delete-pago').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                userData.metodos_pago.splice(e.target.dataset.idx, 1);
+                userData.metodos_pago.splice(e.currentTarget.dataset.idx, 1);
                 await this.onDataChange();
                 this.renderizarPagos(userData);
             });
         });
+        
+        if (window.lucide) window.lucide.createIcons();
     }
 
     renderizarSeleccionCategoriasFondos(userData) {
@@ -161,14 +166,22 @@ export class PerfilRenderer {
         fondos.forEach((f, index) => {
             const li = document.createElement('li');
             li.className = 'fondo-item mb-15'; 
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'center';
+            li.style.padding = '10px 0';
+            li.style.borderBottom = '1px solid var(--border-color)';
+            
+            const catsText = f.categorias && f.categorias.length > 0 ? f.categorias.join(', ') : 'Sin categorías';
+            
             li.innerHTML = `
-                <div class="fondo-info">
-                    <strong class="fondo-titulo">${f.nombre}</strong>
-                    <span class="fondo-cats">Aplica en: ${f.categorias.join(', ')}</span>
+                <div style="display: flex; flex-direction: column; text-align: left;">
+                    <strong style="font-size: 1rem; color: var(--text-main);">${f.nombre}</strong>
+                    <span class="text-xs-gray" style="margin: 2px 0 0 0;">Aplica en: ${catsText}</span>
                 </div>
-                <div class="fondo-acciones text-right">
-                    <span class="fondo-monto">$ ${f.monto.toLocaleString('es-AR')}</span>
-                    <button class="btn-text-red btn-delete-fondo" data-idx="${index}">Eliminar</button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-weight: 700; color: var(--text-main);">$ ${f.monto.toLocaleString('es-AR')}</span>
+                    <button class="btn-icon-danger btn-delete-fondo" data-idx="${index}" title="Eliminar"><i data-lucide="trash-2"></i></button>
                 </div>
             `;
             this.listaFondosUI.appendChild(li);
@@ -176,10 +189,12 @@ export class PerfilRenderer {
 
         this.listaFondosUI.querySelectorAll('.btn-delete-fondo').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                userData.fondos.splice(e.target.dataset.idx, 1);
+                userData.fondos.splice(e.currentTarget.dataset.idx, 1);
                 await this.onDataChange();
                 this.renderizarFondos(userData);
             });
         });
+        
+        if (window.lucide) window.lucide.createIcons();
     }
 }

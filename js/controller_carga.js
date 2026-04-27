@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <span><strong>${item.producto}</strong> (${item.cantidad} ${item.unidad})</span>
                 <div class="flex-center">
                     <strong style="margin-right:10px">$${item.precio.toLocaleString('es-AR')}</strong>
-                    <button type="button" class="btn-delete-item" data-index="${index}" style="background:none; border:none; color:red; cursor:pointer; font-size:1.2rem;">✕</button>
+                    <button type="button" class="btn-icon-danger btn-delete-item" data-index="${index}"><i data-lucide="x"></i></button>
                 </div>
             `;
             listaUI.appendChild(li);
@@ -111,7 +111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (hogarSnap.exists()) {
                 const hogarData = hogarSnap.data();
                 listaCategorias = hogarData.categorias_compartidas || [];
-                if (tituloHeader) tituloHeader.textContent = `Hogar: ${hogarNombre || hogarData.nombre}`;
+                const nombreHogar = hogarNombre || hogarData.nombre;
+                if (tituloHeader) tituloHeader.textContent = nombreHogar;
                 if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto de la casa vas a anotar?";
                 if (grupoResponsable) grupoResponsable.style.display = 'block';
                 

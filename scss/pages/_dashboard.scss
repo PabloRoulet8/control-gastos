@@ -117,20 +117,22 @@
 }
 
 // ==========================================
-// MODO CLARO - DASHBOARD FIX
+// MODO CLARO - DASHBOARD FIX (Glassmorphism)
 // ==========================================
 html[data-theme='light'] {
     .dashboard-card-link {
-        background-color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.7) !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
-        border: 1px solid #e2e8f0 !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
         
         .title { color: #0f172a !important; }
         .icon { color: #10b981 !important; stroke: #10b981 !important; }
         
         &.card-add {
             border: 2px dashed #cbd5e1 !important;
-            background-color: #f8fafc !important;
+            background-color: rgba(248, 250, 255, 0.7) !important;
             .title { color: #64748b !important; }
         }
     }

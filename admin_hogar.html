@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Administrar Hogar</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css?v=9.5">
+    <link rel="stylesheet" href="css/styles.css?v=9.6">
     <meta name="theme-color" content="#10b981">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -20,7 +20,7 @@
             <i data-lucide="arrow-left"></i>
         </button>
         <h1 class="text-center flex-1" style="color: var(--text-main);">Administración</h1>
-        <div class="header-spacer"></div>
+        <button id="btn-final" class="btn-header-save">Guardar</button>
     </header>
 
     <main class="container mt-15" style="padding-bottom: 80px;">
@@ -90,14 +90,6 @@
         </section>
 
         <!-- Miembros -->
-        <section class="card">
-            <div class="flex-between mb-15">
-                <h2>Miembros del Equipo</h2>
-            </div>
-            <ul id="lista-integrantes" class="lista-integrantes">
-                <li class="text-center text-muted p-20">Cargando...</li>
-            </ul>
-        </section>
     </main>
     
     <!-- Modal Invitación -->
@@ -116,8 +108,8 @@
     <nav class="bottom-nav" id="nav-contextual"></nav>
     <div id="toast-container" class="toast"></div>
     
-    <script type="module" src="js/auth_guard.js?v=9.5"></script>
-    <script type="module" src="js/controller_admin_hogar.js?v=9.5"></script>
+    <script type="module" src="js/auth_guard.js?v=9.6"></script>
+    <script type="module" src="js/controller_admin_hogar.js?v=9.6"></script>
     <script>
         lucide.createIcons();
     </script>

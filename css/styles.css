@@ -143,6 +143,11 @@ i[data-lucide] {
   font-size: 0.9rem;
 }
 
+.text-xs-gray {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
 .text-bold-dark {
   font-weight: bold;
   color: #333;
@@ -322,6 +327,39 @@ i[data-lucide] {
   margin-top: 0 !important;
 }
 
+.btn-header-save {
+  background: transparent;
+  border: none;
+  color: var(--primary-color);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 10px;
+}
+.btn-header-save:hover {
+  opacity: 0.8;
+}
+
+.btn-icon-danger {
+  color: #ef4444 !important;
+  background: transparent;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+.btn-icon-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+.btn-icon-danger i[data-lucide] {
+  width: 18px;
+  height: 18px;
+}
+
 .card {
   background-color: var(--glass-bg);
   backdrop-filter: blur(12px);
@@ -490,9 +528,11 @@ i[data-lucide] {
 }
 
 [data-theme=light] .card {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
-  border: 1px solid #e2e8f0 !important;
-  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 [data-theme=light] .card i[data-lucide] {
   stroke: var(--primary-color) !important;
@@ -1156,9 +1196,11 @@ html[data-theme=light] select option {
 }
 
 html[data-theme=light] .dashboard-card-link {
-  background-color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 html[data-theme=light] .dashboard-card-link .title {
   color: #0f172a !important;
@@ -1169,7 +1211,7 @@ html[data-theme=light] .dashboard-card-link .icon {
 }
 html[data-theme=light] .dashboard-card-link.card-add {
   border: 2px dashed #cbd5e1 !important;
-  background-color: #f8fafc !important;
+  background-color: rgba(248, 250, 255, 0.7) !important;
 }
 html[data-theme=light] .dashboard-card-link.card-add .title {
   color: #64748b !important;

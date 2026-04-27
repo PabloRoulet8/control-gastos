@@ -31,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ambitoActual === 'hogar' && hogarId) {
                 const snap = await getDoc(doc(db, "hogares", hogarId));
                 if(snap.exists()) {
-                    if (tituloHeader) tituloHeader.textContent = `Historial: ${snap.data().nombre}`;
+                    const hogarNombre = snap.data().nombre;
+                    if (tituloHeader) tituloHeader.textContent = hogarNombre;
                     for (const uid of snap.data().miembros || []) {
                         const u = await getDoc(doc(db, "usuarios", uid));
                         if (u.exists()) mapaNombres[uid] = u.data().nombre;

@@ -128,13 +128,15 @@
 }
 
 // ==========================================
-// MODO CLARO - SOLUCIÓN DEFINITIVA CON !IMPORTANT
+// MODO CLARO - GLASSMORPHISM
 // ==========================================
 [data-theme='light'] {
     .card {
+        background-color: rgba(255, 255, 255, 0.7) !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
-        border: 1px solid #e2e8f0 !important;
-        background-color: #ffffff !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
     }
     
     .card i[data-lucide] {

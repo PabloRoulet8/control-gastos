@@ -155,7 +155,7 @@ const etiquetaCategoria = esPago ? 'Pago de Deuda' : (gasto.categoria || 'Sin ca
                   </div>
                   <div class="gasto-acciones">
                       <span class="monto" style="color: ${colorMonto};">$ ${Number(gasto.monto).toLocaleString('es-AR')}</span>
-                      <button class="btn-eliminar" data-id="${gasto.id}" title="Eliminar"><i data-lucide="trash-2"></i></button>
+                      <button class="btn-icon-danger" data-id="${gasto.id}" title="Eliminar"><i data-lucide="trash-2"></i></button>
                   </div>
               `;
               this.listaGastosUI.appendChild(item);

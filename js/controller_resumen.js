@@ -65,7 +65,8 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
             } else if (ambitoActual === 'hogar' && hogarId) {
                 const snapHogar = await getDoc(doc(db, "hogares", hogarId));
                 const dataHogar = snapHogar.exists() ? snapHogar.data() : {};
-                if (tituloHeader) tituloHeader.textContent = `Resumen: ${dataHogar.nombre || 'Hogar'}`;
+                const hogarNombre = dataHogar.nombre;
+                if (tituloHeader) tituloHeader.textContent = hogarNombre;
                 
                 for (const uid of dataHogar.miembros || []) {
                     const u = await getDoc(doc(db, "usuarios", uid));
@@ -126,6 +127,8 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
 
     contenedorDinamico.addEventListener('click', (e) => {
         if (e.target.closest('.btn-abrir-modal-pago')) {
+            e.preventDefault();
+            e.stopPropagation();
             const btn = e.target.closest('.btn-abrir-modal-pago');
             
             document.getElementById('hidden-deudor-id').value = btn.dataset.deId;
@@ -137,11 +140,15 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
         }
     });
 
-    document.getElementById('btn-cerrar-modal-pago')?.addEventListener('click', () => {
+    document.getElementById('btn-cerrar-modal-pago')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         document.getElementById('modal-pago-deuda').style.display = 'none';
     });
 
-    document.getElementById('btn-confirmar-pago')?.addEventListener('click', async () => {
+    document.getElementById('btn-confirmar-pago')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const deId = document.getElementById('hidden-deudor-id').value;
         const paraId = document.getElementById('hidden-acreedor-id').value;
         const monto = parseFloat(document.getElementById('input-monto-pago').value);

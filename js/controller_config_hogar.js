@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="btn-toggle-admin btn-secondary" data-uid="${uid}" data-isadmin="${esEsteUserAdmin}" style="padding: 6px 10px; font-size: 0.8rem; margin: 0;">
                             ${esEsteUserAdmin ? 'Quitar Admin' : 'Hacer Admin'}
                         </button>
-                        <button class="btn-delete-member" data-uid="${uid}" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 0 5px;" title="Expulsar">🗑️</button>
+                        <button class="btn-icon-danger btn-delete-member" data-uid="${uid}" title="Expulsar"><i data-lucide="trash-2"></i></button>
                     ` : ''}
                 </div>
             `;
@@ -153,6 +153,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         asignarEventosMiembros();
+        
+        if (window.lucide) window.lucide.createIcons();
     }
 
     function asignarEventosMiembros() {

@@ -58,19 +58,20 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (esModoCreacion) {
-        document.getElementById('header-titulo').textContent = "Nuevo Hogar";
+        const headerTitulo = document.getElementById('header-titulo');
+        if(headerTitulo) headerTitulo.textContent = "Nuevo Hogar";
         if(seccionNombre) seccionNombre.style.display = 'block';
-        btnAccionFinal.textContent = "Crear Hogar y Generar Link";
+        if(btnAccionFinal) btnAccionFinal.textContent = "Crear Hogar y Generar Link";
         
         renderer.renderizarCategorias(categoriasBorrador, actualizarCategorias);
         
-        if(formAddCatBox) {
+        if(formAddCatBox && btnToggleAddCat) {
              formAddCatBox.style.display = 'block';
              btnToggleAddCat.classList.add('is-active');
         }
     } else {
         if(seccionNombre) seccionNombre.style.display = 'none';
-        btnAccionFinal.textContent = "Guardar Cambios";
+        if(btnAccionFinal) btnAccionFinal.textContent = "Guardar";
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -90,21 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     ...c, activa: c.activa !== false 
                 }));
                 presupuestosBorrador = data.presupuestos_compartidos || [];
-
-                const listaIntegrantesUI = document.getElementById('lista-integrantes');
-                const seccionIntegrantes = document.getElementById('seccion-integrantes');
-                if (listaIntegrantesUI) {
-                    seccionIntegrantes.classList.remove('hidden');
-                    listaIntegrantesUI.innerHTML = '';
-                    for (const uid of data.miembros || []) {
-                        const userSnap = await getDoc(doc(db, "usuarios", uid));
-                        const nombreM = userSnap.exists() ? userSnap.data().nombre : "Usuario";
-                        const li = document.createElement('li');
-                        li.className = 'flex-between p-10 border-bottom-gray';
-                        li.innerHTML = `<span>${nombreM}</span> <span class="text-sm-gray">${uid === data.creador_id ? '👑 Dueño' : 'Miembro'}</span>`;
-                        listaIntegrantesUI.appendChild(li);
-                    }
-                }
 
                 renderer.renderizarCategorias(categoriasBorrador, actualizarCategorias);
                 renderer.renderizarPresupuestos(presupuestosBorrador, eliminarPresupuesto);
@@ -194,18 +180,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const urlBase = window.location.origin + window.location.pathname.replace('admin_hogar.html', 'index.html');
                     const linkFinal = `${urlBase}?join=${codigoGenerado}`;
-
-                    document.getElementById('modal-link-invitacion').style.display = 'flex'; 
-                    document.getElementById('input-link-generado').value = linkFinal;
-
-                    document.getElementById('btn-copiar-link-modal').onclick = () => {
-                        navigator.clipboard.writeText(linkFinal);
-                        toast.mostrar("¡Link copiado! 🔗");
-                    };
-
-                    document.getElementById('btn-cerrar-modal-link').onclick = () => {
-                        window.location.href = 'index.html'; 
-                    };
+                    
+                    const modalLink = document.getElementById('modal-link-invitacion');
+                    const inputLink = document.getElementById('input-link-generado');
+                    if (modalLink && inputLink) {
+                        modalLink.style.display = 'flex'; 
+                        inputLink.value = linkFinal;
+                        
+                        const btnCopiar = document.getElementById('btn-copiar-link-modal');
+                        const btnCerrar = document.getElementById('btn-cerrar-modal-link');
+                        
+                        if(btnCopiar) btnCopiar.onclick = () => {
+                            navigator.clipboard.writeText(linkFinal);
+                            toast.mostrar("¡Link copiado! 🔗");
+                        };
+                        
+                        if(btnCerrar) btnCerrar.onclick = () => {
+                            window.location.href = 'index.html'; 
+                        };
+                    }
 
                 } else {
                     btnAccionFinal.textContent = "Guardando...";

@@ -28,7 +28,7 @@ export class AdminHogarRenderer {
                 <div class="flex-1 text-center">
                     <input type="checkbox" class="cat-checkbox toggle-prop" data-nombre="${cat.nombre}" data-prop="lleva_stock" ${cat.lleva_stock ? 'checked' : ''}>
                 </div>
-                <button class="btn-delete-icon btn-delete-cat" data-nombre="${cat.nombre}" title="Eliminar">🗑️</button>
+                <button class="btn-icon-danger btn-delete-cat" data-nombre="${cat.nombre}" title="Eliminar"><i data-lucide="trash-2"></i></button>
             `;
             this.listaCategoriasUI.appendChild(li);
         });
@@ -147,14 +147,24 @@ export class AdminHogarRenderer {
         presupuestosBorrador.forEach(f => {
             const li = document.createElement('li');
             li.className = 'fondo-item mb-15'; 
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'center';
+            li.style.padding = '10px 0';
+            li.style.borderBottom = '1px solid var(--glass-border)';
+            
+            const catsText = f.categorias && f.categorias.length > 0 ? f.categorias.join(', ') : 'Sin categorías';
+            
             li.innerHTML = `
-                <div class="fondo-info">
-                    <strong class="fondo-titulo">${f.nombre}</strong>
-                    <span class="fondo-cats">Aplica en: ${f.categorias.join(', ')}</span>
+                <div style="display: flex; flex-direction: column; text-align: left;">
+                    <h3 style="margin: 0; font-size: 1rem; color: var(--text-main);">${f.nombre}</h3>
+                    <p class="text-xs-gray" style="margin: 2px 0 0 0;">Aplica en: ${catsText}</p>
                 </div>
-                <div class="fondo-acciones text-right">
-                    <span class="fondo-monto">$ ${f.monto.toLocaleString('es-AR')}</span>
-                    <button class="btn-text-red btn-delete-fondo" data-id="${f.id}">Eliminar</button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-weight: 700; color: var(--text-main); font-size: 1rem;">$ ${f.monto.toLocaleString('es-AR')}</span>
+                    <button class="btn-icon-danger btn-delete-fondo" data-id="${f.id}" title="Eliminar">
+                        <i data-lucide="trash-2"></i>
+                    </button>
                 </div>
             `;
             this.listaFondosUI.appendChild(li);
@@ -162,9 +172,13 @@ export class AdminHogarRenderer {
 
         this.listaFondosUI.querySelectorAll('.btn-delete-fondo').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const idAEliminar = e.target.dataset.id;
-                onListChange(idAEliminar); // Le pasamos el ID al controller para que lo borre
+                const idAEliminar = e.currentTarget.dataset.id;
+                onListChange(idAEliminar);
             });
         });
+        
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
     }
 }
