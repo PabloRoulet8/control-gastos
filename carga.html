@@ -34,7 +34,7 @@
             <div class="form-group toggle-group" id="selector-tipo-gasto" style="display: none;">
                 <input type="radio" id="tipo-general" name="tipoGasto" value="general" checked>
                 <label for="tipo-general">General</label>
-<input type="radio" id="tipo-individual" name="tipoGasto" value="individual">
+                <input type="radio" id="tipo-individual" name="tipoGasto" value="individual">
                 <label for="tipo-individual">Individual</label>
             </div>
 
@@ -53,10 +53,10 @@
             </div>
 
             <div class="form-group box-info mb-15" id="fondo-group" style="display: none;">
-<label class="box-info-toggle">
+                <label class="box-info-toggle">
                      ¿Pagado con tarjeta del Fondo? <i data-lucide="credit-card"></i>
                      <input type="checkbox" id="pagado-fondo" name="pagadoFondo" checked class="checkbox-lg">
-                 </label>
+                </label>
                 <small class="box-info-desc">Si marcás esto, se descuenta del pozo compartido.</small>
             </div>
 
@@ -71,22 +71,6 @@
                     <option value="efectivo">Efectivo / Transferencia</option>
                     <option value="tarjeta-credito">Tarjeta de Crédito</option>
                 </select>
-            </div>
-
-            <div id="opciones-tarjeta" class="box-warning" style="display: none;">
-                <div class="flex-between gap-10">
-                    <div class="form-group flex-1">
-                        <label>Cuotas</label>
-                        <input type="number" id="cantidad-cuotas" value="1" min="1" max="24" class="form-control">
-                    </div>
-                    <div class="form-group flex-2">
-                        <label>1ra cuota ingresa:</label>
-                        <select id="impacto-cuota" class="form-control">
-                            <option value="este-mes">Este mes</option>
-                            <option value="proximo-mes">Próximo mes</option>
-                        </select>
-                    </div>
-                </div>
             </div>
 
             <div id="seccion-inventario" class="form-group border-top-thick" style="display: none;">
@@ -112,6 +96,27 @@
             <div class="input-monto-giant">
                 <span class="monto-prefix">$</span>
                 <input type="number" id="monto" name="monto" placeholder="0" step="0.01" class="monto-giant-input" required>
+            </div>
+
+            <div id="contenedor-opcion-cuotas" class="card" style="display: none; margin-bottom: 20px;">
+                <div class="flex-between" style="align-items: center;">
+                    <span style="font-weight: 600; color: var(--text-main);"><i data-lucide="credit-card"></i> Pago en Cuotas</span>
+                    <label class="switch">
+                        <input type="checkbox" id="check-es-cuotas">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div id="div-cuotas-config" style="display: none; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <div class="form-group">
+                        <label>Cantidad de Cuotas</label>
+                        <input type="number" id="input-cantidad-cuotas" class="form-control" min="2" max="36" placeholder="Ej: 3">
+                    </div>
+                    <div class="flex-between mt-15" style="align-items: center;">
+                        <span class="text-sm-gray">Comprado post-cierre (Pasa al mes sig.)</span>
+                        <input type="checkbox" id="check-post-cierre" style="transform: scale(1.3);">
+                    </div>
+                </div>
             </div>
 
             <button type="submit" class="btn-primary mt-15 w-100">Guardar Gasto</button>

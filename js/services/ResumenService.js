@@ -106,24 +106,46 @@ export class ResumenService {
         return { totalBolsillo: personalInfo.total + miParteHogar, desglosePersonal: personalInfo.total, desgloseHogar: miParteHogar };
     }
 
-    // 4. FUNCIONES ESTADÍSTICAS
+    // 4. FUNCIONES ESTADÍSTICAS - ALGORITMO ANUAL BASADO EN PROMEDIOS MENSUALES
     calcularKPIsHistoricos(todosLosGastos) {
-        if (!todosLosGastos.length) return { promedio: 0, max: 0, min: 0 };
+        if (!todosLosGastos || !todosLosGastos.length) return { promedio: 0, max: 0, min: 0 };
+        
         const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda');
+        const hoy = new Date();
+        const añoActual = hoy.getFullYear();
+        
+        // A) Filtrar todos los gastos del año que el usuario está visualizando
+        const gastosAño = gastosReales.filter(g => {
+            if (!g.fecha) return false;
+            const añoGasto = parseInt(g.fecha.substring(0, 4));
+            return añoGasto === añoActual;
+        });
+        
+        // B) Agrupar y sumar los gastos por mes (del mes 1 al 12)
         const mesesMap = {};
-        gastosReales.forEach(g => {
+        for (let mes = 1; mes <= 12; mes++) {
+            const mesStr = `${añoActual}-${String(mes).padStart(2, '0')}`;
+            mesesMap[mesStr] = 0;
+        }
+        
+        gastosAño.forEach(g => {
             if (!g.fecha) return;
             const m = g.fecha.substring(0, 7);
             mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0);
         });
-        const totalesMensuales = Object.values(mesesMap);
+        
+        // C) Crear un array solo con los totales de los meses que tengan gastos mayores a 0
+        const totalesMensuales = Object.values(mesesMap).filter(total => total > 0);
+        
         if (!totalesMensuales.length) return { promedio: 0, max: 0, min: 0 };
+        
+        // D) Calcular el Mínimo, Máximo y Promedio
+        const min = Math.min(...totalesMensuales);
+        const max = Math.max(...totalesMensuales);
         const sum = totalesMensuales.reduce((a, b) => a + b, 0);
-        return { 
-            promedio: sum / totalesMensuales.length, 
-            max: Math.max(...totalesMensuales), 
-            min: Math.min(...totalesMensuales) 
-        };
+        const promedio = sum / totalesMensuales.length;
+        
+        return { promedio, max, min };
     }
 
     prepararDatosBarras(gastosMesActual, gastosMesAnterior) {

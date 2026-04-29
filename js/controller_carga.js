@@ -4,6 +4,7 @@ import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
+import { AppUtils } from "./utils/AppUtils.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
@@ -98,8 +99,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 if (tituloHeader) tituloHeader.textContent = "Gastos Personales";
                 if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto vas a anotar?"; 
-            } else if (ambitoActual === 'hogar' && hogarId) {
-                // ... resto del código para hogar
             }
         }
         
@@ -133,8 +132,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
             }
+            llenarSelectCategorias();
         }
-        llenarSelectCategorias();
+        
         const guardado = localStorage.getItem('borrador_stock');
         if (guardado) {
             arrayInventario = JSON.parse(guardado);
@@ -163,6 +163,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // 3. EVENTOS DE INTERACCIÓN
+    
+    const selectMetodoPago = document.getElementById('metodo-pago');
+    const contenedorOpcionCuotas = document.getElementById('contenedor-opcion-cuotas');
+    const checkEsCuotas = document.getElementById('check-es-cuotas');
+    const divCuotasConfig = document.getElementById('div-cuotas-config');
+    const inputCantidadCuotas = document.getElementById('input-cantidad-cuotas');
+    const checkPostCierre = document.getElementById('check-post-cierre');
+
+    // Escuchar cuando cambian a Tarjeta de Crédito
+    if (selectMetodoPago) {
+        selectMetodoPago.addEventListener('change', () => {
+            const esTarjeta = selectMetodoPago.value === 'tarjeta-credito';
+            
+            if (contenedorOpcionCuotas) {
+                contenedorOpcionCuotas.style.display = esTarjeta ? 'block' : 'none';
+            }
+            
+            // Si eligen Efectivo, reseteamos las cuotas y ocultamos todo
+            if (!esTarjeta) {
+                if (checkEsCuotas) checkEsCuotas.checked = false;
+                if (divCuotasConfig) divCuotasConfig.style.display = 'none';
+                if (inputCantidadCuotas) inputCantidadCuotas.value = '';
+                if (checkPostCierre) checkPostCierre.checked = false;
+            }
+        });
+    }
+
+    // Toggle para mostrar/ocultar los inputs de cuotas
+    if (checkEsCuotas && divCuotasConfig) {
+        checkEsCuotas.addEventListener('change', () => {
+            divCuotasConfig.style.display = checkEsCuotas.checked ? 'block' : 'none';
+            // Si apagan el switch, vaciamos los campos
+            if (!checkEsCuotas.checked) {
+                if (inputCantidadCuotas) inputCantidadCuotas.value = '';
+                if (checkPostCierre) checkPostCierre.checked = false;
+            }
+        });
+    }
+
     selectCategoria?.addEventListener('change', () => {
         const option = selectCategoria.options[selectCategoria.selectedIndex];
         
@@ -209,37 +248,111 @@ document.addEventListener('DOMContentLoaded', async () => {
             const btn = e.target.querySelector('.btn-primary');
             btn.disabled = true;
             btn.textContent = "Guardando...";
-
+            
             try {
                 const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text;
+                const metodoPago = document.getElementById('metodo-pago').value;
+                const esCuotas = document.getElementById('check-es-cuotas')?.checked || false;
+                const cantidadCuotas = parseInt(document.getElementById('input-cantidad-cuotas')?.value || '1');
                 
                 let textoReferencia = "";
                 if (grupoReferencia && grupoReferencia.style.display === 'block' && inputReferencia) {
                     textoReferencia = inputReferencia.value.trim();
                 }
-
-                const nuevoGasto = {
-                    fecha: new Date().toISOString().split('T')[0],
-                    monto: parseFloat(inputMontoGlobal.value),
-                    categoria: catElegida,
-                    detalle_inventario: arrayInventario,
-                    responsable: (ambitoActual === 'hogar') ? selectResponsable.value : currentUserIdGlobal,
-                    metodo_pago: document.getElementById('metodo-pago').value,
-                    tipo: (ambitoActual === 'hogar') ? 'general' : 'individual',
-                    referencia: textoReferencia
-                };
-
-                const contexto = (ambitoActual === 'hogar') ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
-                await api.guardarGasto(nuevoGasto, contexto);
+                
+                // Si NO es pago en cuotas, guardar normalmente
+                if (!esCuotas || metodoPago !== 'tarjeta-credito') {
+                    const monto = parseFloat(inputMontoGlobal.value);
+                    if (isNaN(monto) || monto <= 0) {
+                        toast.mostrar("Ingresá un monto válido mayor a 0.");
+                        btn.disabled = false;
+                        btn.textContent = "Guardar Gasto";
+                        return;
+                    }
+                    
+                    const nuevoGasto = {
+                        fecha: AppUtils.getFechaLocal(),
+                        monto: monto,
+                        categoria: catElegida,
+                        detalle_inventario: arrayInventario,
+                        responsable: (ambitoActual === 'hogar') ? selectResponsable.value : currentUserIdGlobal,
+                        metodo_pago: metodoPago,
+                        tipo: (ambitoActual === 'hogar') ? 'general' : 'individual',
+                        referencia: AppUtils.escapeHTML(textoReferencia)
+                    };
+                    
+                    const contexto = (ambitoActual === 'hogar') ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
+                    await api.guardarGasto(nuevoGasto, contexto);
+                } else {
+                    // LÓGICA DE PAGO EN CUOTAS
+                    const montoTotal = parseFloat(inputMontoGlobal.value);
+                    if (isNaN(montoTotal) || montoTotal <= 0) {
+                        toast.mostrar("Ingresá un monto válido mayor a 0.");
+                        btn.disabled = false;
+                        btn.textContent = "Guardar Gasto";
+                        return;
+                    }
+                    const montoCuota = montoTotal / cantidadCuotas;
+                    const compraId = 'cuotas_' + Date.now();
+                    
+                    // Obtener fecha base usando AppUtils
+                    const [y, m, d] = AppUtils.getFechaLocal().split('-').map(Number);
+                    let fechaBase = new Date(y, m - 1, d);  
+                    
+                    // Si está marcado "post-cierre", sumar 1 mes
+                    const postCierre = document.getElementById('check-post-cierre')?.checked || false;
+                    if (postCierre) {
+                        fechaBase.setMonth(fechaBase.getMonth() + 1);
+                    }
+                    
+                    // Arrays para Promises
+                    const promesasGasto = [];
+                    
+                    for (let i = 1; i <= cantidadCuotas; i++) {
+                        // Clonar fecha base y sumar (i-1) meses
+                        let fechaCuota = new Date(fechaBase);
+                        fechaCuota.setMonth(fechaBase.getMonth() + (i - 1));
+                        
+                        // Formatear fecha a YYYY-MM-DD
+                        const yearCuota = fechaCuota.getFullYear();
+                        const monthCuota = String(fechaCuota.getMonth() + 1).padStart(2, '0');
+                        const dayCuota = String(fechaCuota.getDate()).padStart(2, '0');
+                        const fechaCuotaStr = `${yearCuota}-${monthCuota}-${dayCuota}`;
+                        
+                        const gastoCuota = {
+                            fecha: fechaCuotaStr,
+                            monto: montoCuota,
+                            categoria: catElegida,
+                            detalle_inventario: [],
+                            responsable: (ambitoActual === 'hogar') ? selectResponsable.value : currentUserIdGlobal,
+                            metodo_pago: metodoPago,
+                            tipo: (ambitoActual === 'hogar') ? 'general' : 'individual',
+                            referencia: `${AppUtils.escapeHTML(textoReferencia)} (Cuota ${i} de ${cantidadCuotas}) - Total: $${montoTotal.toLocaleString('es-AR')}`,
+                            es_cuota: true,
+                            compra_id: compraId
+                        };
+                        
+                        const contexto = (ambitoActual === 'hogar') ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
+                        promesasGasto.push(api.guardarGasto(gastoCuota, contexto));
+                    }
+                    
+                    await Promise.all(promesasGasto);
+                }
                 
                 toast.mostrar("✅ ¡Gasto guardado!");
                 localStorage.removeItem('borrador_stock');
                 arrayInventario = [];
                 formGasto.reset();
                 
+                // Resetear controles de cuotas
+                const checkEsCuotas = document.getElementById('check-es-cuotas');
+                const divCuotasConfig = document.getElementById('div-cuotas-config');
+                if (checkEsCuotas) checkEsCuotas.checked = false;
+                if (divCuotasConfig) divCuotasConfig.style.display = 'none';
+                
                 if (inputReferencia) inputReferencia.value = '';
                 if (grupoReferencia) grupoReferencia.style.display = 'none';
-
+                
                 actualizarListaInventarioUI();
                 
             } catch (err) {

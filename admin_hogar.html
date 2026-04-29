@@ -12,6 +12,7 @@
         const savedTheme = localStorage.getItem('theme');
         document.documentElement.setAttribute('data-theme', savedTheme === 'light' ? 'light' : 'dark');
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <!-- HEADER -->
@@ -86,6 +87,20 @@
 
             <ul id="lista-fondos-hogar" class="lista-minimal">
                 <li class="text-center text-muted p-20">Sin presupuestos.</li>
+            </ul>
+        </section>
+
+        <!-- Medios de Pago Compartidos -->
+        <section class="card mb-20">
+            <div class="flex-between mb-15">
+                <h2>Medios de Pago Compartidos</h2>
+                <button id="btn-agregar-pago-hogar" class="btn-add-circle">
+                    <i data-lucide="plus-circle"></i>
+                </button>
+            </div>
+
+            <ul id="lista-metodos-pago-hogar" class="lista-minimal">
+                <li class="text-center text-muted p-20">Aún no hay medios de pago.</li>
             </ul>
         </section>
 

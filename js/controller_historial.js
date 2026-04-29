@@ -38,13 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (u.exists()) mapaNombres[uid] = u.data().nombre;
                     }
                 }
-                // Mostrar filtros de hogar
                 if(filtroTipoGroup) filtroTipoGroup.style.display = 'block';
                 if(filtroResponsableGroup) filtroResponsableGroup.style.display = 'block';
                 
                 renderer.renderizarFiltrosResponsables(mapaNombres);
             } else {
-                // Ocultar filtros de hogar en personal
                 if(filtroTipoGroup) filtroTipoGroup.style.display = 'none';
                 if(filtroResponsableGroup) filtroResponsableGroup.style.display = 'none';
             }
@@ -59,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const ambitoCat = ambitoActual === 'hogar' ? 'hogar' : 'personal';
         categoriasGlobales = await api.obtenerCategorias(contextoId, ambitoCat) || [];
         
-        // Si no hay categorías guardadas, extraer de los gastos actuales
         if (categoriasGlobales.length === 0 && todosLosGastos.length > 0) {
             const catsUnicas = [...new Set(todosLosGastos.map(g => g.categoria).filter(c => c))];
             categoriasGlobales = catsUnicas.sort().map(nombre => ({ nombre, es_fijo: false, lleva_stock: false }));
@@ -75,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let gastosFiltrados = todosLosGastos.filter(gasto => {
             let cumpleTipo = true;
             if (filtroTipo && filtroTipo.style.display !== 'none' && filtroTipo.value !== 'todos') {
-                // Buscamos la configuración de esa categoría para saber si es Fija o Stock
                 const catConfig = categoriasGlobales.find(c => (typeof c === 'string' ? c : c.nombre) === gasto.categoria) || {};
                 const esFijo = catConfig.es_fijo === true;
                 const llevaStock = catConfig.lleva_stock === true;
@@ -93,8 +89,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         renderer.renderLista(gastosFiltrados, auth.currentUser, ambitoActual, mapaNombres, (id) => {
+            const gastoABorrar = todosLosGastos.find(g => g.id === id);
             const contexto = ambitoActual === 'hogar' ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
-            api.eliminarGasto(id, contexto).then(() => cargarDatos());
+            
+            // BORRADO INTELIGENTE: Verificamos si es una cuota que pertenece a una compra grupal
+            if (gastoABorrar && gastoABorrar.es_cuota && gastoABorrar.compra_id) {
+                Swal.fire({
+                    title: 'Compra en Cuotas 💳',
+                    text: '¿Querés eliminar SOLO esta cuota o TODA la compra completa?',
+                    icon: 'warning',
+                    showDenyButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: 'Borrar TODAS',
+                    denyButtonText: 'Solo ESTA',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#ef4444',
+                    denyButtonColor: '#f59e0b',
+                    background: "var(--bg-app)",
+                    color: "var(--text-main)"
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        // Borrar TODAS las cuotas que comparten el mismo ID de compra
+                        const cuotas = todosLosGastos.filter(g => g.compra_id === gastoABorrar.compra_id);
+                        Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        await Promise.all(cuotas.map(c => api.eliminarGasto(c.id, contexto)));
+                        Swal.close();
+                        cargarDatos();
+                    } else if (result.isDenied) {
+                        // Borrar SOLO la cuota seleccionada
+                        await api.eliminarGasto(id, contexto);
+                        cargarDatos();
+                    }
+                });
+            } else {
+                // Borrado normal para gastos de 1 solo pago
+                Swal.fire({
+                    title: '¿Eliminar movimiento?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#ef4444',
+                    background: "var(--bg-app)",
+                    color: "var(--text-main)"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        api.eliminarGasto(id, contexto).then(() => cargarDatos());
+                    }
+                });
+            }
         });
     };
 
@@ -113,10 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
         procesarFiltrosYRenderizar();
     }
 
-    // Listener para los selects del modal y filtros
     [filtroTipo, filtroResponsable, filtroCategoria, filtroMes].forEach(f => f?.addEventListener('change', procesarFiltrosYRenderizar));
     
-    // Botón aplicar del modal
     const btnAplicarFiltros = document.getElementById('btn-aplicar-filtros');
     if (btnAplicarFiltros) {
         btnAplicarFiltros.addEventListener('click', () => {
@@ -125,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Botón limpiar filtros
     const btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
     if (btnLimpiarFiltros) {
         btnLimpiarFiltros.addEventListener('click', () => {

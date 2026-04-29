@@ -7,6 +7,7 @@ import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
+import { AppUtils } from "./utils/AppUtils.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const api = new GastoRepository();
@@ -30,8 +31,78 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = e.currentTarget;
         btn.classList.toggle('active');
         const content = btn.nextElementSibling;
-if(content) content.style.display = content.style.display === "block" ? "none" : "block";
+        if(content) content.style.display = content.style.display === "block" ? "none" : "block";
     });
+
+    // =============================================
+    // LÓGICA DE KPIs (MÍNIMO, PROMEDIO, MÁXIMO ANUAL)
+    // =============================================
+    const calcularKPIsAnuales = (gastos, year) => {
+        const prefix = year.toString();
+        
+        // Obtenemos el número del mes actual (ej: 4 para Abril)
+        const mesActualNum = new Date().getMonth() + 1; 
+
+        // Filtramos solo los gastos del año actual
+        const gastosAnio = gastos.filter(g => g.fecha && g.fecha.startsWith(prefix));
+        
+        // Armamos las "bolsitas" por mes, IGNORANDO los meses futuros
+        const sumasPorMes = {};
+        gastosAnio.forEach(g => {
+            // Extraemos el mes del gasto (ej: de "2026-05-29" saca "05" y lo convierte a 5)
+            const mesGastoNum = parseInt(g.fecha.substring(5, 7), 10);
+            
+            // REGLA CLAVE: Si el gasto es de un mes futuro (ej: cuotas de tarjeta), NO cuenta para la estadística
+            if (mesGastoNum <= mesActualNum) {
+                const mesKey = g.fecha.substring(0, 7); // Formato: YYYY-MM
+                const monto = Number(g.monto) || 0;
+                if (monto > 0) {
+                    sumasPorMes[mesKey] = (sumasPorMes[mesKey] || 0) + monto;
+                }
+            }
+        });
+        
+        const totalesMensuales = Object.values(sumasPorMes).filter(m => m > 0);
+        
+        if (totalesMensuales.length === 0) {
+            return { minimo: 0, promedio: 0, maximo: 0 };
+        }
+        
+        const minimo = Math.min(...totalesMensuales);
+        const maximo = Math.max(...totalesMensuales);
+        const sumaTotal = totalesMensuales.reduce((a,b) => a + b, 0);
+        const promedio = sumaTotal / totalesMensuales.length;
+        
+        return { minimo, promedio, maximo };
+    };
+
+    // =============================================
+    // LÓGICA DE TARJETAS DE CRÉDITO
+    // =============================================
+    const calcularMontosTarjetas = (todosLosGastos, gastosMes, mesActual) => {
+        // A) montoTarjetasMes: Gastos del mes actual con método tarjeta/crédito
+        const gastosTarjetaMes = gastosMes.filter(g => {
+            if (!g.metodo_pago) return false;
+            const metodo = g.metodo_pago.toLowerCase();
+            return metodo.includes('tarjeta') || metodo.includes('credito');
+        });
+        const montoTarjetasMes = gastosTarjetaMes.reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
+
+        // B) montoTarjetasTotal: TODOS los gastos de tarjeta desde el inicio del mes actual (deuda proyectada)
+        const [year, month] = mesActual.split('-').map(Number);
+        const inicioMesActual = new Date(year, month - 1, 1).toISOString().split('T')[0];
+
+        const gastosTarjetaTotal = todosLosGastos.filter(g => {
+            if (!g.metodo_pago || !g.fecha) return false;
+            const metodo = g.metodo_pago.toLowerCase();
+            const esTarjeta = metodo.includes('tarjeta') || metodo.includes('credito');
+            const fechaMayorOIgual = g.fecha >= inicioMesActual;
+            return esTarjeta && fechaMayorOIgual;
+        });
+        const montoTarjetasTotal = gastosTarjetaTotal.reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
+
+        return { montoTarjetasMes, montoTarjetasTotal };
+    };
 
     onAuthStateChanged(auth, async (user) => {
         if (user) await procesarPantalla(user.uid);
@@ -40,8 +111,9 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
     async function procesarPantalla(userId) {
         try {
             const hoy = new Date();
-            const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
-            const mesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1).toISOString().substring(0, 7);
+            const anioActual = hoy.getFullYear();
+            const mesActual = `${anioActual}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+            const mesAnterior = new Date(anioActual, hoy.getMonth() - 1, 1).toISOString().substring(0, 7);
             
             const snapUser = await getDoc(doc(db, "usuarios", userId));
             const userData = snapUser.exists() ? snapUser.data() : {};
@@ -57,8 +129,11 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
             if (ambitoActual === 'personal') {
                 if (tituloHeader) tituloHeader.textContent = "Mis Gastos Personales";
                 todosLosGastos = await api.obtenerGastos({ tipo: 'personal' }) || [];                
+                
+                // Calculamos KPIs con la nueva regla anual
+                kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
-                kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos);
+                
                 renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales);
                 renderer.mostrarComunes(gastosMes, categoriasPersonales, true);
 
@@ -68,14 +143,22 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
                 const hogarNombre = dataHogar.nombre;
                 if (tituloHeader) tituloHeader.textContent = hogarNombre;
                 
+                // Caché para miembros del hogar individual
+                const cacheUsuariosHogar = {};
                 for (const uid of dataHogar.miembros || []) {
-                    const u = await getDoc(doc(db, "usuarios", uid));
-                    if (u.exists()) mapaNombres[uid] = u.data().nombre;
+                    if (!cacheUsuariosHogar[uid]) {
+                        const u = await getDoc(doc(db, "usuarios", uid));
+                        if (u.exists()) cacheUsuariosHogar[uid] = u.data().nombre;
+                    }
+                    mapaNombres[uid] = cacheUsuariosHogar[uid];
                 }
                 
                 todosLosGastos = (await api.obtenerGastos(hogarId) || []).filter(g => g.tipo === 'general' || !g.tipo || g.tipo === 'pagoDeuda');                
-                kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos);
+                
+                // Calculamos KPIs con la nueva regla anual
+                kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
+                
                 renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
                 renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true);
 
@@ -87,12 +170,18 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
                 
                 let miParteHogarTotal = 0, todosHogaresParaGraficos = [], gastosHogarMesListas = [];
 
+                // Caché local para evitar lecturas repetitivas de usuarios
+                const cacheUsuarios = {};
+                
                 for (const hDoc of hogaresSnap.docs) {
                     const hData = hDoc.data();
                     const nHogar = {};
                     for (const uid of hData.miembros || []) {
-                        const u = await getDoc(doc(db, "usuarios", uid));
-                        if (u.exists()) nHogar[uid] = u.data().nombre;
+                        if (!cacheUsuarios[uid]) {
+                            const u = await getDoc(doc(db, "usuarios", uid));
+                            if (u.exists()) cacheUsuarios[uid] = u.data().nombre;
+                        }
+                        nHogar[uid] = cacheUsuarios[uid];
                     }
                     const gH = await api.obtenerGastos(hDoc.id) || [];
                     const gH_Generales = gH.filter(g => g.tipo === 'general' || !g.tipo);
@@ -104,7 +193,10 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
                 }
 
                 todosLosGastos = [...todosP, ...todosHogaresParaGraficos];
-                kpisTotales = resumenService.calcularKPIsHistoricos(todosLosGastos);
+                
+                // Calculamos KPIs con la nueva regla anual
+                kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
+                
                 renderer.renderizarUnificado({ 
                     totalBolsillo: resumenService.calcularPersonal(todosP.filter(g => g.fecha?.startsWith(mesActual)), []).total + miParteHogarTotal,
                     desglosePersonal: resumenService.calcularPersonal(todosP.filter(g => g.fecha?.startsWith(mesActual)), []).total,
@@ -114,7 +206,18 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
             }
 
             chartManager.inicializar(todosLosGastos, mesActual, mesAnterior);
-        } catch (error) { 
+
+            // CORRECCIÓN "VARIABLE FANTASMA": Creamos gastosMesGlobal fuera del if para usarlo en las tarjetas
+            const gastosMesGlobal = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
+
+            // Inyectar valores de Tarjetas de Crédito
+            const montosTarjetas = calcularMontosTarjetas(todosLosGastos, gastosMesGlobal, mesActual);
+            const elMes = document.getElementById('monto-tarjetas-mes');
+            const elTotal = document.getElementById('monto-tarjetas-total');
+            if (elMes) elMes.innerHTML = `<strong>$ ${montosTarjetas.montoTarjetasMes.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>`;
+            if (elTotal) elTotal.innerHTML = `<strong>$ ${montosTarjetas.montoTarjetasTotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>`;
+            
+        } catch (error) {
             console.error(error); 
             if(contenedorDinamico) contenedorDinamico.innerHTML = `<p class="text-center p-20" style="color:#ef4444;">Error cargando datos.</p>`;
         }
@@ -148,23 +251,18 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
             clickAbiertoTiempo = Date.now();
             modalEstaAbierto = true;
             
-            // Guardar el monto total de la deuda para el botón MAX
             const montoDeuda = btn.dataset.monto;
             document.getElementById('hidden-monto-deuda').value = montoDeuda;
             
-            // Mostrar el monto total como referencia
             const montoFormateado = Number(montoDeuda).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             document.getElementById('texto-info-pago').textContent = `¿Cuánto transfirió ${nombre}? (Total: $${montoFormateado})`;
             
             setTimeout(() => {
                 if (modalPago && modalEstaAbierto) {
                     modalPago.style.display = 'flex';
-                    
-                    // Agregar clase .active al modal-content para que se muestre
                     const modalContent = modalPago.querySelector('.modal-content');
                     if (modalContent) modalContent.classList.add('active');
                     
-                    // El overlay bloquea clicks fuera del modal-content
                     modalPago.onclick = (e) => {
                         if (!e.target.closest('.modal-content')) {
                             e.stopPropagation();
@@ -199,7 +297,6 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
         };
     }
 
-    // Botón MAX para completar el monto total
     const btnMaxMonto = document.getElementById('btn-max-monto');
     if (btnMaxMonto) {
         btnMaxMonto.onclick = (e) => {
@@ -207,7 +304,6 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
             const montoDeuda = document.getElementById('hidden-monto-deuda').value;
             const inputMonto = document.getElementById('input-monto-pago');
             if (montoDeuda && inputMonto) {
-                // Formatear con coma: 100.50 -> 100,50
                 const montoFormateado = Number(montoDeuda).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 inputMonto.value = montoDeuda;
                 inputMonto.placeholder = montoFormateado;
@@ -221,7 +317,6 @@ if(content) content.style.display = content.style.display === "block" ? "none" :
             e.stopPropagation();
 
             if (!modalEstaAbierto) return;
-            
             if (Date.now() - clickAbiertoTiempo < 800) return;
 
             const deId = document.getElementById('hidden-deudor-id').value;
