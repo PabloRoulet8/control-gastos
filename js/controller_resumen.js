@@ -27,6 +27,93 @@ document.addEventListener('DOMContentLoaded', () => {
 
     NavigationBuilder.buildNav(ambitoActual, hogarId, 'resumen');
 
+    // --- LÓGICA DE INGRESOS (BOTÓN Y MODAL) ---
+    const btnIngresos = document.getElementById('btn-header-ingresos');
+    const modalIngreso = document.getElementById('modal-ingreso');
+    const inputConceptoIngreso = document.getElementById('input-concepto-ingreso');
+    const inputMontoIngreso = document.getElementById('input-monto-ingreso');
+    const btnCerrarModalIngreso = document.getElementById('btn-cerrar-modal-ingreso');
+    const btnGuardarIngreso = document.getElementById('btn-guardar-ingreso');
+
+    // Función auxiliar para cerrar el modal con animación
+    const cerrarModalIngresoFn = () => {
+        const content = modalIngreso.querySelector('.modal-content');
+        if (content) content.classList.remove('active'); // Le sacamos la clase para que baje
+        setTimeout(() => {
+            modalIngreso.style.display = 'none';
+            inputConceptoIngreso.value = '';
+            inputMontoIngreso.value = '';
+        }, 300); // Esperamos 300ms a que termine la animación antes de apagar el display
+    };
+
+    if (btnIngresos) {
+        btnIngresos.addEventListener('click', (e) => {
+            e.preventDefault();
+            modalIngreso.style.display = 'flex';
+            // Un micro-delay para que el navegador procese el flex antes de animar
+            setTimeout(() => {
+                const content = modalIngreso.querySelector('.modal-content');
+                if (content) content.classList.add('active'); // ¡Acá está la magia!
+            }, 10);
+        });
+    }
+
+    // Cerrar tocando el botón Cancelar
+    if (btnCerrarModalIngreso) {
+        btnCerrarModalIngreso.addEventListener('click', (e) => {
+            e.preventDefault();
+            cerrarModalIngresoFn();
+        });
+    }
+
+    // Cerrar tocando lo oscuro de afuera (Mejora de UX)
+    if (modalIngreso) {
+        modalIngreso.addEventListener('click', (e) => {
+            if (e.target === modalIngreso) {
+                cerrarModalIngresoFn();
+            }
+        });
+    }
+
+    if (btnGuardarIngreso) {
+        btnGuardarIngreso.addEventListener('click', async () => {
+            const concepto = AppUtils.escapeHTML(inputConceptoIngreso.value.trim());
+            const monto = inputMontoIngreso.value.trim();
+            const toast = new ToastManager();
+
+            if (!monto || isNaN(monto) || parseFloat(monto) <= 0) {
+                toast.mostrar('El monto debe ser un número mayor a 0');
+                return;
+            }
+
+            btnGuardarIngreso.disabled = true;
+            btnGuardarIngreso.textContent = 'Guardando...';
+
+            const nuevoIngreso = {
+                fecha: AppUtils.getFechaLocal(),
+                monto: parseFloat(monto),
+                categoria: "Ingreso",
+                referencia: concepto,
+                tipo: 'ingreso',
+                responsable: auth.currentUser.uid
+            };
+
+            try {
+                await api.guardarGasto(nuevoIngreso, { tipo: 'personal' });
+                toast.mostrar('¡Ingreso guardado exitosamente! 💸');
+                cerrarModalIngresoFn(); // Usamos la nueva función con animación
+                await procesarPantalla(auth.currentUser.uid);
+            } catch (error) {
+                toast.mostrar('Error al guardar el ingreso');
+                console.error(error);
+            } finally {
+                btnGuardarIngreso.disabled = false;
+                btnGuardarIngreso.textContent = 'Guardar';
+            }
+        });
+    }
+    // ------------------------------------------
+
     document.getElementById('btn-stock')?.addEventListener('click', (e) => {
         const btn = e.currentTarget;
         btn.classList.toggle('active');
@@ -125,16 +212,21 @@ document.addEventListener('DOMContentLoaded', () => {
             let todosLosGastos = [];
             let kpisTotales = null;
             let mapaNombres = {};
+            let totalIngresosMesGlobal = 0; // NUEVA VARIABLE PARA TU BOLSILLO
 
             if (ambitoActual === 'personal') {
                 if (tituloHeader) tituloHeader.textContent = "Mis Gastos Personales";
-                todosLosGastos = await api.obtenerGastos({ tipo: 'personal' }) || [];                
+                const todos = await api.obtenerGastos({ tipo: 'personal' }) || [];                
                 
-                // Calculamos KPIs con la nueva regla anual
+                // Filtramos los ingresos para no sumarlos como gastos
+                todosLosGastos = todos.filter(g => g.tipo !== 'ingreso');
+                const ingresos = todos.filter(g => g.tipo === 'ingreso');
+                totalIngresosMesGlobal = ingresos.filter(g => g.fecha?.startsWith(mesActual)).reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
+                
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 
-                renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales);
+                renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, totalIngresosMesGlobal);
                 renderer.mostrarComunes(gastosMes, categoriasPersonales, true);
 
             } else if (ambitoActual === 'hogar' && hogarId) {
@@ -143,7 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const hogarNombre = dataHogar.nombre;
                 if (tituloHeader) tituloHeader.textContent = hogarNombre;
                 
-                // Caché para miembros del hogar individual
                 const cacheUsuariosHogar = {};
                 for (const uid of dataHogar.miembros || []) {
                     if (!cacheUsuariosHogar[uid]) {
@@ -154,8 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 todosLosGastos = (await api.obtenerGastos(hogarId) || []).filter(g => g.tipo === 'general' || !g.tipo || g.tipo === 'pagoDeuda');                
-                
-                // Calculamos KPIs con la nueva regla anual
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 
@@ -165,12 +254,16 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (ambitoActual === 'unificado') {
                 if (tituloHeader) tituloHeader.textContent = "Resumen Unificado";
                 const todosP = await api.obtenerGastos('personal') || [];
+                
+                // Filtramos los ingresos personales
+                const gastosPersonalesReales = todosP.filter(g => g.tipo !== 'ingreso');
+                const ingresosPersonales = todosP.filter(g => g.tipo === 'ingreso');
+                totalIngresosMesGlobal = ingresosPersonales.filter(g => g.fecha?.startsWith(mesActual)).reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
+
                 const q = query(collection(db, "hogares"), where("miembros", "array-contains", userId));
                 const hogaresSnap = await getDocs(q);
                 
                 let miParteHogarTotal = 0, todosHogaresParaGraficos = [], gastosHogarMesListas = [];
-
-                // Caché local para evitar lecturas repetitivas de usuarios
                 const cacheUsuarios = {};
                 
                 for (const hDoc of hogaresSnap.docs) {
@@ -192,25 +285,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     gastosHogarMesListas.push(...gH.filter(g => g.fecha?.startsWith(mesActual)));
                 }
 
-                todosLosGastos = [...todosP, ...todosHogaresParaGraficos];
-                
-                // Calculamos KPIs con la nueva regla anual
+                todosLosGastos = [...gastosPersonalesReales, ...todosHogaresParaGraficos];
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 
                 renderer.renderizarUnificado({ 
-                    totalBolsillo: resumenService.calcularPersonal(todosP.filter(g => g.fecha?.startsWith(mesActual)), []).total + miParteHogarTotal,
-                    desglosePersonal: resumenService.calcularPersonal(todosP.filter(g => g.fecha?.startsWith(mesActual)), []).total,
+                    totalBolsillo: resumenService.calcularPersonal(gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), []).total + miParteHogarTotal,
+                    desglosePersonal: resumenService.calcularPersonal(gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), []).total,
                     desgloseHogar: miParteHogarTotal
-                }, kpisTotales);
-                renderer.mostrarComunes([...todosP.filter(g => g.fecha?.startsWith(mesActual)), ...gastosHogarMesListas], [], false);
+                }, kpisTotales, totalIngresosMesGlobal); // Aca pasamos el total verde!
+                renderer.mostrarComunes([...gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), ...gastosHogarMesListas], [], false);
+            }
+
+            // Visibilidad y lógica de cambio de texto del botón de ingresos
+            const btnIngresosTexto = document.getElementById('btn-header-ingresos');
+            if (btnIngresosTexto) {
+                if (ambitoActual === 'unificado' || ambitoActual === 'personal') {
+                    btnIngresosTexto.style.display = 'block';
+                    if (totalIngresosMesGlobal > 0) {
+                        btnIngresosTexto.innerHTML = 'Sumar<br>Ingresos';
+                        btnIngresosTexto.style.lineHeight = '1.1';
+                        btnIngresosTexto.style.marginTop = '4px';
+                    } else {
+                        btnIngresosTexto.textContent = 'Ingresos';
+                        btnIngresosTexto.style.marginTop = '0';
+                    }
+                } else {
+                    btnIngresosTexto.style.display = 'none';
+                }
             }
 
             chartManager.inicializar(todosLosGastos, mesActual, mesAnterior);
 
-            // CORRECCIÓN "VARIABLE FANTASMA": Creamos gastosMesGlobal fuera del if para usarlo en las tarjetas
             const gastosMesGlobal = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
-
-            // Inyectar valores de Tarjetas de Crédito
             const montosTarjetas = calcularMontosTarjetas(todosLosGastos, gastosMesGlobal, mesActual);
             const elMes = document.getElementById('monto-tarjetas-mes');
             const elTotal = document.getElementById('monto-tarjetas-total');

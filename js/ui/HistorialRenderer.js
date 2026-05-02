@@ -163,10 +163,19 @@ export class HistorialRenderer {
                 const fechaCorta = parts.length >= 3 ? `${parts[2]}/${parts[1]}` : gasto.fecha;
                 
                 const esPago = gasto.tipo === 'pagoDeuda';
+                const esIngreso = gasto.tipo === 'ingreso'; // Detectamos si es plata que entró
                 const idDelResponsable = esPago ? gasto.pagador_id : gasto.responsable;
                 
-                const infoTipo = this.getMapeoTipo(gasto);
-                const colorMonto = infoTipo.color;
+                // Color dinámico
+                let infoTipo = this.getMapeoTipo(gasto);
+                let colorMonto = infoTipo.color;
+                
+                // Si es un ingreso, forzamos color verde y le ponemos el prefijo (+)
+                let prefijoMonto = '';
+                if (esIngreso) {
+                    colorMonto = '#10b981'; // Tu verde (primary-color)
+                    prefijoMonto = '<span style="color: #10b981; margin-right: 2px; font-weight: bold;">+</span> ';
+                }
                 
                 const etiquetaCategoria = esPago ? 'Pago de Deuda' : AppUtils.escapeHTML(gasto.categoria || 'Sin categoría');
                 const metodoPago = gasto.metodo_pago ? ` • ${AppUtils.escapeHTML(gasto.metodo_pago)}` : '';
@@ -174,6 +183,7 @@ export class HistorialRenderer {
                 // Extraemos la referencia / detalle de la cuota y la mostramos bonita debajo del título
                 const refHtml = gasto.referencia ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${AppUtils.escapeHTML(gasto.referencia)}</div>` : '';
                 
+                // Sacamos el símbolo $ harcodeado del HTML porque AppUtils.formatearARS ya lo incluye
                 item.innerHTML = `
                     <div class="gasto-info">
                         <strong>${etiquetaCategoria}</strong> 
@@ -181,7 +191,7 @@ export class HistorialRenderer {
                         <span class="fecha">${fechaCorta}${metodoPago}</span>
                     </div>
                     <div class="gasto-acciones">
-                        <span class="monto" style="color: ${colorMonto};">$ ${AppUtils.formatearARS(gasto.monto)}</span>
+                        <span class="monto" style="color: ${colorMonto};">${prefijoMonto}${AppUtils.formatearARS(gasto.monto)}</span>
                         <button class="btn-icon-danger" data-id="${gasto.id}" title="Eliminar"><i data-lucide="trash-2"></i></button>
                     </div>
                 `;

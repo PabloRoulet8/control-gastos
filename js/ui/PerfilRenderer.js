@@ -21,16 +21,25 @@ export class PerfilRenderer {
         
         cats.forEach((cat, index) => {
             const li = document.createElement('li');
-            li.className = 'cat-item flex-between mb-10';
+            li.className = 'cat-item mb-10'; // Le sacamos flex-between
+            
+            // Inyectamos la grilla estricta: 1 fracción para el texto, 70px fijos para los checks, 40px fijos para el tacho
+            li.style.display = 'grid';
+            li.style.gridTemplateColumns = '1fr 70px 70px 40px'; 
+            li.style.alignItems = 'center';
+            li.style.gap = '5px';
+            
             li.innerHTML = `
-                <span class="text-bold-dark flex-2">${AppUtils.escapeHTML(cat.nombre)}</span>
-                <div class="flex-1 text-center">
+                <span style="color: var(--text-main); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;">${AppUtils.escapeHTML(cat.nombre)}</span>
+                <div class="text-center">
                     <input type="checkbox" class="cat-checkbox toggle-fijo" data-idx="${index}" ${cat.es_fijo ? 'checked' : ''}>
                 </div>
-                <div class="flex-1 text-center">
+                <div class="text-center">
                     <input type="checkbox" class="cat-checkbox toggle-stock" data-idx="${index}" ${cat.lleva_stock ? 'checked' : ''}>
                 </div>
-                <button class="btn-icon-danger btn-delete-cat" data-idx="${index}" title="Eliminar"><i data-lucide="trash-2"></i></button>
+                <div style="text-align: right;">
+                    <button type="button" class="btn-icon-danger btn-delete-cat" data-idx="${index}" title="Eliminar"><i data-lucide="trash-2"></i></button>
+                </div>
             `;
             this.listaCategoriasUI.appendChild(li);
         });

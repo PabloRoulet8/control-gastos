@@ -18,9 +18,15 @@
 </head>
 <body>
     <header class="header flex-between">
-        <button onclick="window.location.href='index.html'" class="btn-icon-white" title="Volver al Inicio"><i data-lucide="home"></i></button>        
-        <h1 id="titulo-header" class="text-center flex-1">Cargando Resumen...</h1>
-        <div class="header-spacer"></div>
+        <button onclick="window.location.href='index.html'" class="btn-icon-white" title="Volver al Inicio"><i data-lucide="home"></i></button>
+        <h1 id="titulo-header" class="text-center flex-1">Cargando...</h1>
+        
+        <!-- Nuevo contenedor para el botón de Ingresos -->
+        <div id="contenedor-btn-ingresos" style="min-width: 80px; text-align: right; display: flex; justify-content: flex-end; align-items: center;">
+            <button id="btn-header-ingresos" style="display: none; background: none; border: none; color: var(--primary-color); font-weight: bold; cursor: pointer; font-size: 0.95rem;">
+                Ingresos
+            </button>
+        </div>
     </header>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -98,7 +104,32 @@
             </div>
         </div>
     </main>
-
+<!-- MODAL PARA REGISTRAR INGRESOS -->
+    <div id="modal-ingreso" class="modal-overlay" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000;">
+        <div class="modal-content card" style="width: 90%; max-width: 400px; padding: 20px; background: var(--bg-app);">
+            <h3 style="color: var(--primary-color); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="trending-up"></i> Registrar Ingreso
+            </h3>
+            
+            <div class="form-group mb-15">
+                <label style="color: var(--text-main);">Concepto</label>
+                <input type="text" id="input-concepto-ingreso" class="form-control" placeholder="Ej: Sueldo, Venta, Bono..." autocomplete="off">
+            </div>
+            
+            <div class="form-group mb-15">
+                <label style="color: var(--text-main);">Monto</label>
+                <div class="input-monto-giant" style="margin: 0;">
+                    <span class="monto-prefix" style="font-size: 1.5rem; color: var(--primary-color);">$</span>
+                    <input type="number" id="input-monto-ingreso" class="monto-giant-input" style="font-size: 1.8rem;" placeholder="0" step="0.01">
+                </div>
+            </div>
+            
+            <div class="flex-between gap-10 mt-20">
+                <button id="btn-cerrar-modal-ingreso" type="button" class="btn-secondary flex-1">Cancelar</button>
+                <button id="btn-guardar-ingreso" type="button" class="btn-primary flex-1">Guardar</button>
+            </div>
+        </div>
+    </div>
     <div id="toast-container" class="toast"></div>
     <nav class="bottom-nav" id="nav-contextual"></nav>
     <script type="module" src="js/auth_guard.js?v=10.0"></script>

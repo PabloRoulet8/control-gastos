@@ -192,13 +192,26 @@ export class ResumenRenderer {
         }
     }
 
-    renderizarUnificado(data, kpis) {
+    renderizarUnificado(data, kpis, totalIngresos = 0) {
+        let htmlSaldo = '';
+        if (totalIngresos > 0) {
+            const saldo = totalIngresos - data.totalBolsillo;
+            const colorSaldo = saldo >= 0 ? 'var(--primary-color)' : '#ef4444';
+            htmlSaldo = `
+                <div class="text-center" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
+                    <span style="display: block; font-size: 1.1rem; color: var(--text-main); font-weight: 600;">Saldo</span>
+                    <span style="display: block; color: ${colorSaldo}; font-size: 3.2rem; font-weight: 800; line-height: 1.1;">${AppUtils.formatearARS(saldo)}</span>
+                </div>
+            `;
+        }
+
         if(this.contenedorDinamico) {
             this.contenedorDinamico.innerHTML = `
                 <div class="card" style="border-top: 4px solid var(--primary-color);">
-                    <div class="monto-total" style="border-bottom: none;">
-                        <span class="label">Dinero Total de tu Bolsillo (Mes)</span>
-                        <span class="valor" style="color: var(--primary-color); font-size: 2.5rem;">${AppUtils.formatearARS(data.totalBolsillo)}</span>
+                    ${htmlSaldo}
+                    <div class="monto-total text-center" style="border-bottom: none; padding-top: ${totalIngresos > 0 ? '5px' : '20px'};">
+                        <span class="label" style="font-size: ${totalIngresos > 0 ? '0.75rem' : '0.85rem'};">DINERO TOTAL DE TU BOLSILLO (MES)</span>
+                        <span class="valor" style="color: var(--primary-color); font-size: ${totalIngresos > 0 ? '1.8rem' : '2.5rem'};">${AppUtils.formatearARS(data.totalBolsillo)}</span>
                     </div>
                     ${this.generarHtmlKPIs(kpis)}
                 </div>
@@ -207,13 +220,14 @@ export class ResumenRenderer {
 
                 <div class="contenedor-unificado">
                     <div class="grid-2-col gap-10 mb-30" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem;">
-                    <div class="card p-15" style="margin:0;">
-                        <span class="text-sm-gray" style="display:block;">Gastos Personales</span>
-                        <span class="text-bold-dark text-lg" style="color: var(--primary-color);">${AppUtils.formatearARS(data.desglosePersonal)}</span>
-                    </div>
-                    <div class="card p-15" style="margin:0;">
-                        <span class="text-sm-gray" style="display:block;">Tu parte del Hogar</span>
-                        <span class="text-bold-dark text-lg" style="color: var(--primary-color);">${AppUtils.formatearARS(data.desgloseHogar)}</span>
+                        <div class="card p-15" style="margin:0;">
+                            <span class="text-sm-gray" style="display:block;">Gastos Personales</span>
+                            <span class="text-bold-dark text-lg" style="color: var(--primary-color);">${AppUtils.formatearARS(data.desglosePersonal)}</span>
+                        </div>
+                        <div class="card p-15" style="margin:0;">
+                            <span class="text-sm-gray" style="display:block;">Tu parte del Hogar</span>
+                            <span class="text-bold-dark text-lg" style="color: var(--primary-color);">${AppUtils.formatearARS(data.desgloseHogar)}</span>
+                        </div>
                     </div>
                 </div>
             `;
