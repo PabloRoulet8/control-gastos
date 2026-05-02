@@ -126,34 +126,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // =============================================
     const calcularKPIsAnuales = (gastos, year) => {
         const prefix = year.toString();
-        
-        // Obtenemos el número del mes actual (ej: 4 para Abril)
         const mesActualNum = new Date().getMonth() + 1; 
 
-        // Filtramos solo los gastos del año actual
-        const gastosAnio = gastos.filter(g => g.fecha && g.fecha.startsWith(prefix));
+        // PATÓVICA PARA KPIS: Afuera Ingresos y Deudas
+        const gastosAnio = gastos.filter(g => {
+            const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
+            const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
+            return g.fecha && g.fecha.startsWith(prefix) && !isIngreso && !isPagoDeuda;
+        });
         
-        // Armamos las "bolsitas" por mes, IGNORANDO los meses futuros
         const sumasPorMes = {};
         gastosAnio.forEach(g => {
-            // Extraemos el mes del gasto (ej: de "2026-05-29" saca "05" y lo convierte a 5)
             const mesGastoNum = parseInt(g.fecha.substring(5, 7), 10);
-            
-            // REGLA CLAVE: Si el gasto es de un mes futuro (ej: cuotas de tarjeta), NO cuenta para la estadística
             if (mesGastoNum <= mesActualNum) {
-                const mesKey = g.fecha.substring(0, 7); // Formato: YYYY-MM
+                const mesKey = g.fecha.substring(0, 7); 
                 const monto = Number(g.monto) || 0;
-                if (monto > 0) {
-                    sumasPorMes[mesKey] = (sumasPorMes[mesKey] || 0) + monto;
-                }
+                if (monto > 0) sumasPorMes[mesKey] = (sumasPorMes[mesKey] || 0) + monto;
             }
         });
         
         const totalesMensuales = Object.values(sumasPorMes).filter(m => m > 0);
-        
-        if (totalesMensuales.length === 0) {
-            return { minimo: 0, promedio: 0, maximo: 0 };
-        }
+        if (totalesMensuales.length === 0) return { minimo: 0, promedio: 0, maximo: 0 };
         
         const minimo = Math.min(...totalesMensuales);
         const maximo = Math.max(...totalesMensuales);
@@ -212,37 +205,31 @@ document.addEventListener('DOMContentLoaded', () => {
             let todosLosGastos = [];
             let kpisTotales = null;
             let mapaNombres = {};
-            let totalIngresosMesGlobal = 0; // NUEVA VARIABLE PARA TU BOLSILLO
+            let totalIngresosMesGlobal = 0; 
 
-            // Visibilidad INICIAL del botón (Solo en Unificado)
             const btnIngresosTexto = document.getElementById('btn-header-ingresos');
             if (btnIngresosTexto) {
-                if (ambitoActual === 'unificado') {
-                    btnIngresosTexto.style.display = 'block';
-                } else {
-                    btnIngresosTexto.style.display = 'none';
-                }
+                if (ambitoActual === 'unificado') btnIngresosTexto.style.display = 'block';
+                else btnIngresosTexto.style.display = 'none';
             }
 
             if (ambitoActual === 'personal') {
                 if (tituloHeader) tituloHeader.textContent = "Mis Gastos Personales";
                 const todos = await api.obtenerGastos({ tipo: 'personal' }) || [];                
                 
-                // En el Personal, simplemente mostramos todos los gastos (ignoramos ingresos)
                 todosLosGastos = todos.filter(g => g.tipo !== 'ingreso');
-                
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
-                const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 
-                // Le pasamos un 0 fijo al final porque acá no hay ingresos
+                const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
+                const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); // STOCK DATA
+                
                 renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, 0);
-                renderer.mostrarComunes(gastosMes, categoriasPersonales, true);
+                renderer.mostrarComunes(gastosMes, categoriasPersonales, true, gastosMesAnt); // PASAMOS EL STOCK ANT
 
             } else if (ambitoActual === 'hogar' && hogarId) {
                 const snapHogar = await getDoc(doc(db, "hogares", hogarId));
                 const dataHogar = snapHogar.exists() ? snapHogar.data() : {};
-                const hogarNombre = dataHogar.nombre;
-                if (tituloHeader) tituloHeader.textContent = hogarNombre;
+                if (tituloHeader) tituloHeader.textContent = dataHogar.nombre;
                 
                 const cacheUsuariosHogar = {};
                 for (const uid of dataHogar.miembros || []) {
@@ -255,16 +242,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 todosLosGastos = (await api.obtenerGastos(hogarId) || []).filter(g => g.tipo === 'general' || !g.tipo || g.tipo === 'pagoDeuda');                
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
+                
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
+                const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); // STOCK DATA
                 
                 renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
-                renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true);
+                renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true, gastosMesAnt); // PASAMOS EL STOCK ANT
 
             } else if (ambitoActual === 'unificado') {
                 if (tituloHeader) tituloHeader.textContent = "Resumen Unificado";
                 const todosP = await api.obtenerGastos('personal') || [];
                 
-                // Filtramos los ingresos personales (SOLO ACA SE USAN)
                 const gastosPersonalesReales = todosP.filter(g => g.tipo !== 'ingreso');
                 const ingresosPersonales = todosP.filter(g => g.tipo === 'ingreso');
                 totalIngresosMesGlobal = ingresosPersonales.filter(g => g.fecha?.startsWith(mesActual)).reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
@@ -301,10 +289,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     totalBolsillo: resumenService.calcularPersonal(gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), []).total + miParteHogarTotal,
                     desglosePersonal: resumenService.calcularPersonal(gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), []).total,
                     desgloseHogar: miParteHogarTotal
-                }, kpisTotales, totalIngresosMesGlobal); // Aca pasamos el total verde!
-                renderer.mostrarComunes([...gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), ...gastosHogarMesListas], [], false);
+                }, kpisTotales, totalIngresosMesGlobal); 
+                
+                renderer.mostrarComunes([...gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), ...gastosHogarMesListas], [], false, []);
 
-                // Lógica de cambio de texto del botón de ingresos (Solo si hay ingresos y es unificado)
                 if (btnIngresosTexto && totalIngresosMesGlobal > 0) {
                     btnIngresosTexto.innerHTML = 'Sumar<br>Ingresos';
                     btnIngresosTexto.style.lineHeight = '1.1';

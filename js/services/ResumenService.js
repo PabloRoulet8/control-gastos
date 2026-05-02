@@ -8,6 +8,11 @@ export class ResumenService {
         categoriasConfiguradas.forEach(c => mapCategorias[typeof c === 'string' ? c : c.nombre] = c);
 
         gastos.forEach(g => {
+            // PATÓVICA: Ignorar ingresos y deudas en los gastos
+            const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
+            const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
+            if (isIngreso || isPagoDeuda) return; 
+
             const monto = Number(g.monto) || 0; 
             total += monto;
             const catNorm = g.categoria || '';
@@ -30,18 +35,21 @@ export class ResumenService {
         Object.keys(mapaNombres).forEach(id => aportes[id] = 0);
 
         gastosHogar.forEach(g => {
-            if (g.tipo === 'general' || !g.tipo) {
+            const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
+            const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
+
+            if (isPagoDeuda) {
+                // Ajustamos los saldos si hay un pago registrado (PERO NO SUMA AL GASTO TOTAL)
+                const montoPago = Number(g.monto) || 0;
+                if (aportes[g.pagador_id] !== undefined) aportes[g.pagador_id] += montoPago;
+                if (aportes[g.receptor_id] !== undefined) aportes[g.receptor_id] -= montoPago;
+            } else if (!isIngreso) {
+                // Es un gasto general real
                 const monto = Number(g.monto) || 0; 
                 totalHogar += monto;
                 const responsableId = g.responsable || 'desconocido';
                 if (aportes[responsableId] === undefined) aportes[responsableId] = 0;
                 aportes[responsableId] += monto;
-            } 
-            // 🔥 LA MAGIA: Ajustamos los saldos si hay un pago registrado
-            else if (g.tipo === 'pagoDeuda') {
-                const montoPago = Number(g.monto) || 0;
-                if (aportes[g.pagador_id] !== undefined) aportes[g.pagador_id] += montoPago;
-                if (aportes[g.receptor_id] !== undefined) aportes[g.receptor_id] -= montoPago;
             }
         });
 
@@ -52,7 +60,6 @@ export class ResumenService {
         for (const [id, aportado] of Object.entries(aportes)) {
             const balance = aportado - cuotaPorPersona;
             const nombreDisplay = mapaNombres[id] || "Desconocido";
-            // AHORA GUARDAMOS EL ID DEL USUARIO TAMBIÉN
             if (balance < -0.01) deudores.push({ id, nombre: nombreDisplay, monto: Math.abs(balance) });
             else if (balance > 0.01) acreedores.push({ id, nombre: nombreDisplay, monto: balance });
         }
@@ -60,8 +67,7 @@ export class ResumenService {
         deudores.sort((a, b) => b.monto - a.monto);
         acreedores.sort((a, b) => b.monto - a.monto);
 
-        // 🔥 MAGIA: Filtramos todos los pagos registrados para tenerlos a mano
-        const pagosRegistrados = gastosHogar.filter(g => g.tipo === 'pagoDeuda');
+        const pagosRegistrados = gastosHogar.filter(g => g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda');
 
         let compensaciones = [];
         let i = 0, j = 0;
@@ -70,15 +76,12 @@ export class ResumenService {
             let acreedor = acreedores[j];
             let montoTransferencia = Math.min(deudor.monto, acreedor.monto);
             
-            // Buscamos si existe un pago de este deudor a este acreedor
             const pagosEntreEllos = pagosRegistrados.filter(p => 
                 p.pagador_id === deudor.id && p.receptor_id === acreedor.id
             );
-            // Ordenamos para agarrar el más reciente
             pagosEntreEllos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
             const ultimoPago = pagosEntreEllos.length > 0 ? pagosEntreEllos[0] : null;
 
-            // Agregamos la data del último pago a la respuesta
             compensaciones.push({ 
                 de_id: deudor.id, de: deudor.nombre, 
                 para_id: acreedor.id, para: acreedor.nombre, 
@@ -110,18 +113,16 @@ export class ResumenService {
     calcularKPIsHistoricos(todosLosGastos) {
         if (!todosLosGastos || !todosLosGastos.length) return { promedio: 0, max: 0, min: 0 };
         
-        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda');
+        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
         const hoy = new Date();
         const añoActual = hoy.getFullYear();
         
-        // A) Filtrar todos los gastos del año que el usuario está visualizando
         const gastosAño = gastosReales.filter(g => {
             if (!g.fecha) return false;
             const añoGasto = parseInt(g.fecha.substring(0, 4));
             return añoGasto === añoActual;
         });
         
-        // B) Agrupar y sumar los gastos por mes (del mes 1 al 12)
         const mesesMap = {};
         for (let mes = 1; mes <= 12; mes++) {
             const mesStr = `${añoActual}-${String(mes).padStart(2, '0')}`;
@@ -134,12 +135,9 @@ export class ResumenService {
             mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0);
         });
         
-        // C) Crear un array solo con los totales de los meses que tengan gastos mayores a 0
         const totalesMensuales = Object.values(mesesMap).filter(total => total > 0);
-        
         if (!totalesMensuales.length) return { promedio: 0, max: 0, min: 0 };
         
-        // D) Calcular el Mínimo, Máximo y Promedio
         const min = Math.min(...totalesMensuales);
         const max = Math.max(...totalesMensuales);
         const sum = totalesMensuales.reduce((a, b) => a + b, 0);
@@ -149,8 +147,8 @@ export class ResumenService {
     }
 
     prepararDatosBarras(gastosMesActual, gastosMesAnterior) {
-        const gastosAct = gastosMesActual.filter(g => g.tipo !== 'pagoDeuda');
-        const gastosAnt = gastosMesAnterior.filter(g => g.tipo !== 'pagoDeuda');
+        const gastosAct = gastosMesActual.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
+        const gastosAnt = gastosMesAnterior.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
         
         const mapActual = {}, mapAnterior = {}, categoriasUnicas = new Set();
         gastosAct.forEach(g => {
@@ -167,8 +165,7 @@ export class ResumenService {
         const categoriasOrdenadas = Array.from(categoriasUnicas).sort((a, b) => (mapActual[b] || 0) - (mapActual[a] || 0));
         const top5 = categoriasOrdenadas.slice(0, 5);
         
-        let otrosActual = 0;
-        let otrosAnterior = 0;
+        let otrosActual = 0, otrosAnterior = 0;
         categoriasOrdenadas.slice(5).forEach(c => {
             otrosActual += (mapActual[c] || 0);
             otrosAnterior += (mapAnterior[c] || 0);
@@ -188,7 +185,7 @@ export class ResumenService {
     }
 
     prepararDatosLineas(todosLosGastos, categoriaSeleccionada, rangoStr) {
-        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda');
+        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
         let gastos = categoriaSeleccionada === 'todas' ? gastosReales : gastosReales.filter(g => (g.categoria || 'Sin Categoría') === categoriaSeleccionada);
         const mesesMap = {};
         gastos.forEach(g => { if(g.fecha) { const m = g.fecha.substring(0, 7); mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0); }});

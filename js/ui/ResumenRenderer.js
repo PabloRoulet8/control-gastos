@@ -92,7 +92,7 @@ export class ResumenRenderer {
             
             if (tipoGasto === 'fijo' || tipoGasto === 'stock' || configCat.es_fijo === true) {
                 totalFijosStock += monto;
-            } else if (tipoGasto !== 'pagodeuda') { 
+            } else if (tipoGasto !== 'pagodeuda' && tipoGasto !== 'ingreso') { 
                 totalVariables += monto;
             }
         });
@@ -233,10 +233,14 @@ export class ResumenRenderer {
         }
     }
 
-    mostrarComunes(gastos, catConfig, mostrarListasExtras) {
+    mostrarComunes(gastos, catConfig, mostrarListasExtras, gastosMesAnterior = []) {
         if (!mostrarListasExtras) return;
 
-        const categoriasFijas = catConfig.filter(c => c.activa !== false && c.es_fijo === true).map(c => c.nombre);
+        // 1. DIBUJAR CHECKLIST
+        const categoriasFijas = catConfig
+            .map(c => typeof c === 'string' ? {nombre: c, es_fijo: false} : c)
+            .filter(c => c.activa !== false && c.es_fijo === true)
+            .map(c => c.nombre);
 
         if (categoriasFijas.length > 0 && this.seccionChecklist) {
             this.seccionChecklist.style.display = 'block';
@@ -245,17 +249,13 @@ export class ResumenRenderer {
                 ulCheck.innerHTML = '';
                 categoriasFijas.forEach(fija => {
                     const pagado = gastos.some(g => (g.categoria || "").toLowerCase().trim() === fija.toLowerCase().trim());
-                    const icono = pagado 
-                        ? '<i data-lucide="check-circle" style="color: #10b981;"></i>' 
-                        : '<i data-lucide="x-circle" style="color: #ef4444;"></i>';
+                    const icono = pagado ? '<i data-lucide="check-circle" style="color: #10b981;"></i>' : '<i data-lucide="x-circle" style="color: #ef4444;"></i>';
                     const estadoTexto = pagado ? 'Pagado' : 'Pendiente';
                     const estadoColor = pagado ? '#10b981' : '#ef4444';
 
                     ulCheck.innerHTML += `
                         <li class="flex-between" style="padding: 14px 0; border-bottom: 1px solid var(--glass-border);">
-                            <span style="display: flex; align-items: center; gap: 8px; color: var(--text-main);">
-                                ${icono} ${AppUtils.escapeHTML(fija)}
-                            </span>
+                            <span style="display: flex; align-items: center; gap: 8px; color: var(--text-main);">${icono} ${AppUtils.escapeHTML(fija)}</span>
                             <span style="font-weight: 600; font-size: 0.85rem; color: ${estadoColor};">${estadoTexto}</span>
                         </li>`;
                 });
@@ -264,26 +264,155 @@ export class ResumenRenderer {
             this.seccionChecklist.style.display = 'none';
         }
 
-        const itemsStock = gastos.flatMap(g => g.detalle_inventario || []);
-        if (itemsStock.length > 0 && this.seccionStock) {
+        // 2. DIBUJAR STOCK CON ACORDEONES ANIDADOS
+        const catsMarcadas = catConfig
+            .map(c => typeof c === 'string' ? {nombre: c, lleva_stock: false} : c)
+            .filter(c => c.activa !== false && c.lleva_stock === true)
+            .map(c => c.nombre);
+
+        const todosLosGastos = [...gastos, ...gastosMesAnterior];
+        const gastosConInventario = todosLosGastos.filter(g => g.detalle_inventario && g.detalle_inventario.length > 0);
+        const catsConInventario = gastosConInventario.map(g => g.categoria);
+
+        const categoriasStockSet = new Set();
+        [...catsMarcadas, ...catsConInventario].forEach(c => {
+            if(c) categoriasStockSet.add(c.toLowerCase().trim());
+        });
+
+        const categoriasStockFinales = Array.from(categoriasStockSet);
+
+        if (categoriasStockFinales.length > 0 && this.seccionStock) {
             this.seccionStock.style.display = 'block';
-            const ulStock = document.getElementById('lista-stock-categorizada');
-            if(ulStock) {
-                ulStock.innerHTML = '';
-                const stockAgrupado = itemsStock.reduce((acc, item) => {
-                    const n = item.producto.toLowerCase();
-                    if (!acc[n]) acc[n] = { cant: 0, unidad: item.unidad };
-                    acc[n].cant += Number(item.cantidad) || 0;
-                    return acc;
-                }, {});
-                for (const [nombre, info] of Object.entries(stockAgrupado)) {
-                    ulStock.innerHTML += `
-                        <div class="flex-between border-bottom-gray mb-10" style="padding: 8px 0;">
-                            <span style="text-transform: capitalize;">${AppUtils.escapeHTML(nombre)}</span>
-                            <span class="text-bold-dark">${info.cant} ${info.unidad}</span>
-                        </div>`;
+            this.seccionStock.innerHTML = ''; 
+
+            let hayProductos = false;
+            
+            // ACORDEÓN PRINCIPAL: "Stock Mensual"
+            let htmlStock = `
+                <div class="card dashboard-card" style="padding: 15px; border-top: 4px solid var(--primary-color);">
+                    <div class="flex-between toggle-stock-main" style="cursor: pointer; user-select: none;">
+                        <h2 style="color: var(--text-main); margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="package"></i> Stock Mensual
+                        </h2>
+                        <i data-lucide="chevron-down" class="chevron-main" style="transition: transform 0.3s ease; color: var(--text-muted);"></i>
+                    </div>
+                    
+                    <div class="content-stock-main" style="display: none; padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--border-color);">
+            `;
+
+            categoriasStockFinales.forEach(catNombreNorm => {
+                const gastoRef = gastosConInventario.find(g => (g.categoria || '').toLowerCase().trim() === catNombreNorm);
+                const nombreCatReal = gastoRef ? gastoRef.categoria : (catNombreNorm.charAt(0).toUpperCase() + catNombreNorm.slice(1));
+
+                const agruparProductos = (listaGastos) => {
+                    const items = listaGastos
+                        .filter(g => (g.categoria || "").toLowerCase().trim() === catNombreNorm)
+                        .flatMap(g => g.detalle_inventario || []);
+                    
+                    return items.reduce((acc, item) => {
+                        const n = item.producto.toLowerCase().trim();
+                        if (!acc[n]) acc[n] = { cant: 0, unidad: item.unidad || 'u' };
+                        acc[n].cant += Number(item.cantidad) || 0;
+                        return acc;
+                    }, {});
+                };
+
+                const stockActual = agruparProductos(gastos);
+                const stockAnterior = agruparProductos(gastosMesAnterior);
+                const todosLosProductos = new Set([...Object.keys(stockActual), ...Object.keys(stockAnterior)]);
+
+                if (todosLosProductos.size > 0) {
+                    hayProductos = true;
+                    
+                    // ACORDEÓN SECUNDARIO: Categoría (Ej: Supermercado)
+                    htmlStock += `
+                        <div class="dashboard-card mb-15" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 0; border-radius: 8px; overflow: hidden;">
+                            <div class="flex-between toggle-stock-cat" style="background: var(--bg-app); padding: 12px 15px; cursor: pointer; user-select: none;">
+                                <h3 style="color: var(--primary-color); margin: 0; font-size: 0.95rem; text-transform: uppercase;">
+                                    ${AppUtils.escapeHTML(nombreCatReal)}
+                                </h3>
+                                <i data-lucide="chevron-down" class="chevron-cat" style="transition: transform 0.3s ease; color: var(--text-muted);"></i>
+                            </div>
+                            
+                            <div class="content-stock-cat" style="display: none;">
+                                <div class="flex-between text-xs-gray" style="padding: 8px 15px; background: rgba(0,0,0,0.1); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); text-transform: uppercase;">
+                                    <span>Producto</span>
+                                    <span>Mes Act. <span style="color:var(--glass-border); margin:0 5px;">|</span> Mes Ant.</span>
+                                </div>
+                                <ul class="lista-minimal" style="padding: 0 15px;">
+                    `;
+
+                    Array.from(todosLosProductos).sort().forEach(prod => {
+                        const act = stockActual[prod] || { cant: 0, unidad: (stockAnterior[prod]?.unidad || '') };
+                        const ant = stockAnterior[prod] || { cant: 0, unidad: act.unidad };
+                        
+                        const cantActFmt = act.cant % 1 === 0 ? act.cant : act.cant.toFixed(2);
+                        const cantAntFmt = ant.cant % 1 === 0 ? ant.cant : ant.cant.toFixed(2);
+                        const colorAct = act.cant > 0 ? 'var(--primary-color)' : 'var(--text-muted)';
+
+                        htmlStock += `
+                            <li class="flex-between" style="padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                                <span style="text-transform: capitalize; color: var(--text-main); font-weight: 500;">${AppUtils.escapeHTML(prod)}</span>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-weight: 700; color: ${colorAct}; font-size: 1rem;">${cantActFmt} <span style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">${act.unidad}</span></span>
+                                    <span style="color: var(--glass-border);">|</span>
+                                    <span style="color: var(--text-muted); font-size: 0.85rem;">${cantAntFmt}</span>
+                                </div>
+                            </li>
+                        `;
+                    });
+                    htmlStock += `</ul></div></div>`; 
                 }
+            });
+
+            htmlStock += `</div></div>`; // Cierra acordeón principal
+
+            if (hayProductos) {
+                this.seccionStock.innerHTML = htmlStock;
+
+                // Re-renderizar iconos de Lucide porque inyectamos HTML nuevo
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+
+                // --- LÓGICA DE CLICS PARA LOS ACORDEONES ---
+                
+                // 1. Acordeón Principal (Stock Mensual)
+                const mainToggle = this.seccionStock.querySelector('.toggle-stock-main');
+                const mainContent = this.seccionStock.querySelector('.content-stock-main');
+                const mainChevron = this.seccionStock.querySelector('.chevron-main');
+
+                if(mainToggle && mainContent) {
+                    mainToggle.addEventListener('click', () => {
+                        const isVisible = mainContent.style.display === 'block';
+                        mainContent.style.display = isVisible ? 'none' : 'block';
+                        if(mainChevron) {
+                            mainChevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
+                        }
+                    });
+                }
+
+                // 2. Acordeones Secundarios (Categorías)
+                const catToggles = this.seccionStock.querySelectorAll('.toggle-stock-cat');
+                catToggles.forEach(toggle => {
+                    toggle.addEventListener('click', (e) => {
+                        const content = e.currentTarget.nextElementSibling;
+                        const chevron = e.currentTarget.querySelector('.chevron-cat');
+                        
+                        if (content) {
+                            const isVisible = content.style.display === 'block';
+                            content.style.display = isVisible ? 'none' : 'block';
+                            if (chevron) {
+                                chevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
+                            }
+                        }
+                    });
+                });
+
+            } else {
+                this.seccionStock.style.display = 'none';
             }
+
         } else if (this.seccionStock) {
             this.seccionStock.style.display = 'none';
         }
