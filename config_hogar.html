@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Panel de Control</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css?v=9.6">
+    <link rel="stylesheet" href="css/styles.css?v=11.0">
     <meta name="theme-color" content="#10b981">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -23,7 +23,7 @@
         <button id="btn-guardar" class="btn-header-save">Guardar</button>
     </header>
 
-    <main class="container mt-15" style="padding-bottom: 80px;">
+    <main class="container mt-15" style="padding-bottom: calc(90px + env(safe-area-inset-bottom));">
         
         <!-- Sección: Nombre del Hogar -->
         <section class="card">
@@ -93,8 +93,8 @@
     <nav class="bottom-nav" id="nav-contextual"></nav>
     <div id="toast-container" class="toast"></div>
     
-    <script type="module" src="js/auth_guard.js?v=9.6"></script>
-    <script type="module" src="js/controller_config_hogar.js?v=9.6"></script>
+    <script type="module" src="js/auth_guard.js?v=11.0"></script>
+    <script type="module" src="js/controller_config_hogar.js?v=11.0"></script>
     <script>
         lucide.createIcons();
     </script>

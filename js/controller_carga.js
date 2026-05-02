@@ -84,12 +84,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (grupoResponsable) grupoResponsable.style.display = 'none';
         }
         
-        const userSnap = await getDoc(doc(db, "usuarios", userId));
-        if (userSnap.exists()) {
-            const userData = userSnap.data();
+        try {
+            const userSnap = await getDoc(doc(db, "usuarios", userId));
+            const userData = userSnap.exists() ? userSnap.data() : {};
+            
+            // Forzamos a que SIEMPRE lea tus categorías de Firebase primero
+            let categoriasPropias = userData.categorias_personales || [];
+            
             if (ambitoActual === 'personal') {
-                listaCategorias = userData.categorias_personales || [];
-                if (!listaCategorias || listaCategorias.length === 0) {
+                listaCategorias = [...categoriasPropias];
+                
+                // Solo ponemos las de por defecto si REALMENTE está vacío en Firebase
+                if (listaCategorias.length === 0) {
                     listaCategorias = [
                         { nombre: 'Supermercado', lleva_stock: false, es_fijo: false },
                         { nombre: 'Transporte', lleva_stock: false, es_fijo: false },
@@ -99,46 +105,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 if (tituloHeader) tituloHeader.textContent = "Gastos Personales";
                 if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto vas a anotar?"; 
+                llenarSelectCategorias(); // Llenamos de inmediato
             }
-        }
-        
-        // Categories are loaded, now fill the select
-        llenarSelectCategorias();
 
-        if (ambitoActual === 'hogar' && hogarId) {
-            const hogarSnap = await getDoc(doc(db, "hogares", hogarId));
-            if (hogarSnap.exists()) {
-                const hogarData = hogarSnap.data();
-                listaCategorias = hogarData.categorias_compartidas || [];
-                const nombreHogar = hogarNombre || hogarData.nombre;
-                if (tituloHeader) tituloHeader.textContent = nombreHogar;
-                if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto de la casa vas a anotar?";
-                if (grupoResponsable) grupoResponsable.style.display = 'block';
-                
-                if (selectResponsable) {
-                    selectResponsable.innerHTML = '';
-                    for (const uid of hogarData.miembros || []) {
-                        const uSnap = await getDoc(doc(db, "usuarios", uid));
-                        let nombreMostrar = "Usuario";
-                        if (uSnap.exists() && uSnap.data().nombre) {
-                            nombreMostrar = uSnap.data().nombre;
+            if (ambitoActual === 'hogar' && hogarId) {
+                const hogarSnap = await getDoc(doc(db, "hogares", hogarId));
+                if (hogarSnap.exists()) {
+                    const hogarData = hogarSnap.data();
+                    
+                    // Acá cargamos EXCLUSIVAMENTE las categorías compartidas del hogar
+                    listaCategorias = hogarData.categorias_compartidas || [];
+                    
+                    const nombreHogar = hogarNombre || hogarData.nombre;
+                    if (tituloHeader) tituloHeader.textContent = nombreHogar;
+                    if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto de la casa vas a anotar?";
+                    if (grupoResponsable) grupoResponsable.style.display = 'block';
+                    
+                    if (selectResponsable) {
+                        selectResponsable.innerHTML = '';
+                        for (const uid of hogarData.miembros || []) {
+                            const uSnap = await getDoc(doc(db, "usuarios", uid));
+                            let nombreMostrar = "Usuario";
+                            if (uSnap.exists() && uSnap.data().nombre) {
+                                nombreMostrar = uSnap.data().nombre;
+                            }
+
+                            const opt = document.createElement('option');
+                            opt.value = uid; 
+                            opt.textContent = nombreMostrar;
+                            if (uid === userId) opt.selected = true;
+                            selectResponsable.appendChild(opt);
                         }
-
-                        const opt = document.createElement('option');
-                        opt.value = uid; 
-                        opt.textContent = nombreMostrar;
-                        if (uid === userId) opt.selected = true;
-                        selectResponsable.appendChild(opt);
                     }
                 }
+                llenarSelectCategorias(); // Llenamos con las del hogar
             }
-            llenarSelectCategorias();
-        }
-        
-        const guardado = localStorage.getItem('borrador_stock');
-        if (guardado) {
-            arrayInventario = JSON.parse(guardado);
-            actualizarListaInventarioUI();
+            
+            const guardado = localStorage.getItem('borrador_stock');
+            if (guardado) {
+                arrayInventario = JSON.parse(guardado);
+                actualizarListaInventarioUI();
+            }
+        } catch (error) {
+            console.error("Error cargando perfil:", error);
         }
     };
 

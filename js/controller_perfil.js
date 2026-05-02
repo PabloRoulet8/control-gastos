@@ -115,14 +115,32 @@ if (btnCancelarEdit) {
             const nombre = capitalizar(inputNuevaCat.value.trim());
             if (!nombre) return;
             
-            const existe = userData.categorias_personales.find(c => c.nombre.toLowerCase() === nombre.toLowerCase());
+            // BLINDAJE 1: Nos aseguramos de que el array exista antes de buscar nada
+            if (!userData.categorias_personales) {
+                userData.categorias_personales = [];
+            }
+            
+            // BLINDAJE 2: Buscamos de forma segura, incluso si la categoría guardada es un texto simple en vez de un objeto
+            const existe = userData.categorias_personales.find(c => {
+                const nombreCat = typeof c === 'string' ? c : c.nombre;
+                return nombreCat && nombreCat.toLowerCase() === nombre.toLowerCase();
+            });
+            
             if (existe) return toast.mostrar("Esa categoría ya existe");
             
-            userData.categorias_personales.push({ nombre, es_fijo: false, lleva_stock: false });
+            // BLINDAJE 3: Forzamos el guardado de la nueva categoría como un objeto
+            userData.categorias_personales.push({ nombre: nombre, es_fijo: false, lleva_stock: false });
             inputNuevaCat.value = '';
             
-            await guardarDatosGenerales();
-            renderer.renderizarCategorias(userData);
+            try {
+                // Guardamos, notificamos y re-dibujamos
+                await guardarDatosGenerales();
+                renderer.renderizarCategorias(userData);
+                toast.mostrar("¡Categoría agregada!"); // Le damos feedback visual a Yane
+            } catch (error) {
+                console.error("Error al guardar la categoría:", error);
+                toast.mostrar("Error al guardar en la nube.");
+            }
         });
     }
 
@@ -175,14 +193,28 @@ toast.mostrar("¡Presupuesto creado!");
 
     async function guardarDatosGenerales() {
          try {
-             await updateDoc(doc(db, "usuarios", currentUserUid), {
-                 categorias_personales: userData.categorias_personales,
-                 metodos_pago: userData.metodos_pago,
-                 fondos: userData.fondos
-             });
+             // 1. EL BLINDAJE: Nos aseguramos de que NINGÚN dato viaje como "undefined".
+             // Si no existen, le mandamos un array vacío a Firebase para que no se cuelgue.
+             const datosLimpios = {
+                 categorias_personales: userData.categorias_personales || [],
+                 metodos_pago: userData.metodos_pago || ["Efectivo / Transferencia"],
+                 fondos: userData.fondos || []
+             };
+
+             // 2. Guardamos en Firebase usando los datos limpios
+             await updateDoc(doc(db, "usuarios", currentUserUid), datosLimpios);
+             
+             // Si llega hasta acá, Firebase lo aceptó perfecto.
+             console.log("Guardado exitoso en Firebase");
+             
          } catch(error) {
              console.error(error);
+             
+             // 3. LA SONDA DE DIAGNÓSTICO: Este cartelito feo va a saltar en el medio 
+             // de la pantalla del iPhone de Yane gritándonos cuál es el problema real.
+             alert("⚠️ ERROR DE FIREBASE: " + error.message);
+             
              toast.mostrar("Hubo un error al guardar.");
          }
-     }
+    }
  });

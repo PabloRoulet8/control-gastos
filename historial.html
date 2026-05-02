@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Historial</title>
-    <link rel="stylesheet" href="css/styles.css?v=9.6">
+    <link rel="stylesheet" href="css/styles.css?v=11.0">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
         </button>
     </header>
 
-    <main class="container mt-15" style="padding-bottom: 80px;">
+    <main class="container mt-15" style="padding-bottom: calc(90px + env(safe-area-inset-bottom));">
         <section class="card">
             <div class="flex-between mb-15">
                 <h2 style="color: var(--text-main); margin: 0;">Últimos Movimientos</h2>
@@ -103,8 +103,8 @@
     <div id="toast-container" class="toast"></div>
 
     <nav class="bottom-nav" id="nav-contextual"></nav>
-    <script type="module" src="js/auth_guard.js?v=9.6"></script>
-    <script type="module" src="js/controller_historial.js?v=9.6"></script>
+    <script type="module" src="js/auth_guard.js?v=11.0"></script>
+    <script type="module" src="js/controller_historial.js?v=11.0"></script>
     <script>
         lucide.createIcons();
     </script>

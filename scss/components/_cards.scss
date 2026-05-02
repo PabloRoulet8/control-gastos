@@ -57,18 +57,20 @@
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 6px; // Achicamos apenitas el gap
     margin-top: 10px;
     margin-bottom: 10px;
     padding-top: 10px;
     border-top: 1px dashed var(--border-color);
+    overflow-x: hidden; // Clave para que no empuje la pantalla
     
     .kpi-card {
         background: var(--bg-app);
         border: 1px solid var(--border-color);
         border-radius: 8px;
-        padding: 8px 4px;
+        padding: 8px 2px; // Menos padding a los costados
         text-align: center;
+        word-break: break-word; // Clave para que los números bajen de renglón si no entran
         
         .kpi-label {
             display: block;
@@ -81,7 +83,7 @@
         
         .kpi-value {
             display: block;
-            font-size: 0.85rem;
+            font-size: 0.8rem; // Achicamos apenitas la fuente del número
             font-weight: 900;
             color: var(--text-main);
         }

@@ -167,7 +167,7 @@ export class AdminHogarRenderer {
                     <p class="text-xs-gray" style="margin: 2px 0 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">Aplica en: ${catsText}</p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
-                    <span style="font-weight: 700; color: var(--text-main); font-size: 1rem; white-space: nowrap;">$ ${AppUtils.formatearARS(f.monto)}</span>
+                    <span style="font-weight: 700; color: var(--text-main); font-size: 1rem; white-space: nowrap;"> ${AppUtils.formatearARS(f.monto)}</span>
                     <button class="btn-icon-danger btn-delete-fondo" data-id="${f.id}" title="Eliminar">
                         <i data-lucide="trash-2"></i>
                     </button>

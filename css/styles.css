@@ -61,6 +61,7 @@ body {
   background-color: var(--bg-app);
   color: var(--text-main);
   padding-bottom: 80px;
+  overflow-x: hidden;
 }
 
 .container {
@@ -471,18 +472,20 @@ i[data-lucide] {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
   margin-top: 10px;
   margin-bottom: 10px;
   padding-top: 10px;
   border-top: 1px dashed var(--border-color);
+  overflow-x: hidden;
 }
 .kpi-grid .kpi-card {
   background: var(--bg-app);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 8px 4px;
+  padding: 8px 2px;
   text-align: center;
+  word-break: break-word;
 }
 .kpi-grid .kpi-card .kpi-label {
   display: block;
@@ -494,7 +497,7 @@ i[data-lucide] {
 }
 .kpi-grid .kpi-card .kpi-value {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 900;
   color: var(--text-main);
 }
@@ -1021,6 +1024,7 @@ html[data-theme=light] select option {
   justify-content: space-around;
   padding: 12px 0;
   z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .bottom-nav .nav-item {
   text-align: center;

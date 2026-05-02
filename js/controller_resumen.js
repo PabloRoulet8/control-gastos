@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 categoria: "Ingreso",
                 referencia: concepto,
                 tipo: 'ingreso',
-                responsable: auth.currentUser.uid
+                responsable: auth.currentUser?.uid || ""
             };
 
             try {
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) await procesarPantalla(user.uid);
     });
 
-    async function procesarPantalla(userId) {
+   async function procesarPantalla(userId) {
         try {
             const hoy = new Date();
             const anioActual = hoy.getFullYear();
@@ -214,19 +214,28 @@ document.addEventListener('DOMContentLoaded', () => {
             let mapaNombres = {};
             let totalIngresosMesGlobal = 0; // NUEVA VARIABLE PARA TU BOLSILLO
 
+            // Visibilidad INICIAL del botón (Solo en Unificado)
+            const btnIngresosTexto = document.getElementById('btn-header-ingresos');
+            if (btnIngresosTexto) {
+                if (ambitoActual === 'unificado') {
+                    btnIngresosTexto.style.display = 'block';
+                } else {
+                    btnIngresosTexto.style.display = 'none';
+                }
+            }
+
             if (ambitoActual === 'personal') {
                 if (tituloHeader) tituloHeader.textContent = "Mis Gastos Personales";
                 const todos = await api.obtenerGastos({ tipo: 'personal' }) || [];                
                 
-                // Filtramos los ingresos para no sumarlos como gastos
+                // En el Personal, simplemente mostramos todos los gastos (ignoramos ingresos)
                 todosLosGastos = todos.filter(g => g.tipo !== 'ingreso');
-                const ingresos = todos.filter(g => g.tipo === 'ingreso');
-                totalIngresosMesGlobal = ingresos.filter(g => g.fecha?.startsWith(mesActual)).reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
                 
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 
-                renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, totalIngresosMesGlobal);
+                // Le pasamos un 0 fijo al final porque acá no hay ingresos
+                renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, 0);
                 renderer.mostrarComunes(gastosMes, categoriasPersonales, true);
 
             } else if (ambitoActual === 'hogar' && hogarId) {
@@ -255,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tituloHeader) tituloHeader.textContent = "Resumen Unificado";
                 const todosP = await api.obtenerGastos('personal') || [];
                 
-                // Filtramos los ingresos personales
+                // Filtramos los ingresos personales (SOLO ACA SE USAN)
                 const gastosPersonalesReales = todosP.filter(g => g.tipo !== 'ingreso');
                 const ingresosPersonales = todosP.filter(g => g.tipo === 'ingreso');
                 totalIngresosMesGlobal = ingresosPersonales.filter(g => g.fecha?.startsWith(mesActual)).reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
@@ -294,23 +303,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     desgloseHogar: miParteHogarTotal
                 }, kpisTotales, totalIngresosMesGlobal); // Aca pasamos el total verde!
                 renderer.mostrarComunes([...gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), ...gastosHogarMesListas], [], false);
-            }
 
-            // Visibilidad y lógica de cambio de texto del botón de ingresos
-            const btnIngresosTexto = document.getElementById('btn-header-ingresos');
-            if (btnIngresosTexto) {
-                if (ambitoActual === 'unificado' || ambitoActual === 'personal') {
-                    btnIngresosTexto.style.display = 'block';
-                    if (totalIngresosMesGlobal > 0) {
-                        btnIngresosTexto.innerHTML = 'Sumar<br>Ingresos';
-                        btnIngresosTexto.style.lineHeight = '1.1';
-                        btnIngresosTexto.style.marginTop = '4px';
-                    } else {
-                        btnIngresosTexto.textContent = 'Ingresos';
-                        btnIngresosTexto.style.marginTop = '0';
-                    }
-                } else {
-                    btnIngresosTexto.style.display = 'none';
+                // Lógica de cambio de texto del botón de ingresos (Solo si hay ingresos y es unificado)
+                if (btnIngresosTexto && totalIngresosMesGlobal > 0) {
+                    btnIngresosTexto.innerHTML = 'Sumar<br>Ingresos';
+                    btnIngresosTexto.style.lineHeight = '1.1';
+                    btnIngresosTexto.style.marginTop = '4px';
+                } else if (btnIngresosTexto) {
+                    btnIngresosTexto.textContent = 'Ingresos';
+                    btnIngresosTexto.style.marginTop = '0';
                 }
             }
 

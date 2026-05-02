@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mi Perfil</title>
-    <link rel="stylesheet" href="css/styles.css?v=9.6">
+    <link rel="stylesheet" href="css/styles.css?v=11.0">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -23,7 +23,7 @@
         <button id="btn-guardar-perfil" class="btn-header-save">Guardar</button>
     </header>
 
-    <main class="container mt-15" style="padding-bottom: 50px;">
+    <main class="container mt-15" style="padding-bottom: calc(90px + env(safe-area-inset-bottom));">
         <!-- Tus Datos - Glassmorphism -->
         <section class="card mb-20">
             <h2 class="mb-15" style="color: var(--primary-color);">Tus Datos</h2>
@@ -122,8 +122,8 @@
     <nav class="bottom-nav" id="nav-contextual"></nav>
     <div id="toast-container" class="toast"></div>
     
-    <script type="module" src="js/auth_guard.js?v=9.6"></script>
-    <script type="module" src="js/controller_perfil.js?v=9.6"></script>
+    <script type="module" src="js/auth_guard.js?v=11.0"></script>
+    <script type="module" src="js/controller_perfil.js?v=11.0"></script>
     <script>
         lucide.createIcons();
     </script>

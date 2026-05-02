@@ -200,7 +200,7 @@ export class ResumenRenderer {
             htmlSaldo = `
                 <div class="text-center" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
                     <span style="display: block; font-size: 1.1rem; color: var(--text-main); font-weight: 600;">Saldo</span>
-                    <span style="display: block; color: ${colorSaldo}; font-size: 3.2rem; font-weight: 800; line-height: 1.1;">${AppUtils.formatearARS(saldo)}</span>
+                    <span style="display: block; color: ${colorSaldo}; font-size: clamp(1.8rem, 8vw, 3.2rem); font-weight: 800; line-height: 1.1; word-break: break-word; padding: 0 5px;">${AppUtils.formatearARS(saldo)}</span>
                 </div>
             `;
         }
@@ -210,14 +210,13 @@ export class ResumenRenderer {
                 <div class="card" style="border-top: 4px solid var(--primary-color);">
                     ${htmlSaldo}
                     <div class="monto-total text-center" style="border-bottom: none; padding-top: ${totalIngresos > 0 ? '5px' : '20px'};">
-                        <span class="label" style="font-size: ${totalIngresos > 0 ? '0.75rem' : '0.85rem'};">DINERO TOTAL DE TU BOLSILLO (MES)</span>
-                        <span class="valor" style="color: var(--primary-color); font-size: ${totalIngresos > 0 ? '1.8rem' : '2.5rem'};">${AppUtils.formatearARS(data.totalBolsillo)}</span>
+                        <span class="label" style="font-size: ${totalIngresos > 0 ? '0.75rem' : '0.85rem'};">Total gastado</span>
+                        <span class="valor" style="color: var(--primary-color); font-size: clamp(1.5rem, 6vw, ${totalIngresos > 0 ? '1.8rem' : '2.5rem'}); word-break: break-word;">${AppUtils.formatearARS(data.totalBolsillo)}</span>
                     </div>
                     ${this.generarHtmlKPIs(kpis)}
                 </div>
 
                 <h3 class="mt-20 mb-10" style="font-size: 0.9rem; text-transform: uppercase; padding-left: 10px; color: var(--text-muted);">¿De dónde sale este número?</h3>
-
                 <div class="contenedor-unificado">
                     <div class="grid-2-col gap-10 mb-30" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem;">
                         <div class="card p-15" style="margin:0;">
