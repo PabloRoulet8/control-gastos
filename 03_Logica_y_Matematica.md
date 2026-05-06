@@ -1,0 +1,243 @@
+### ARCHIVO js/services/ResumenService.js
+
+export class ResumenService {
+    
+    // 1. RESUMEN PERSONAL
+    calcularPersonal(gastos, categoriasConfiguradas) {
+        let total = 0, fijos = 0, fijosStock = 0, variables = 0;
+        let listaFijos = [], listaStock = [];
+        const mapCategorias = {};
+        categoriasConfiguradas.forEach(c => mapCategorias[typeof c === 'string' ? c : c.nombre] = c);
+
+        gastos.forEach(g => {
+            // PATÓVICA: Ignorar ingresos y deudas en los gastos
+            const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
+            const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
+            if (isIngreso || isPagoDeuda) return; 
+
+            const monto = Number(g.monto) || 0; 
+            total += monto;
+            const catNorm = g.categoria || '';
+            const configCat = mapCategorias[catNorm] || { es_fijo: false, lleva_stock: false };
+
+            if (configCat.es_fijo) {
+                if (configCat.lleva_stock) { fijosStock += monto; listaStock.push(g); } 
+                else { fijos += monto; listaFijos.push(g); }
+            } else {
+                variables += monto;
+            }
+        });
+        return { total, fijos, fijosStock, variables, listaFijos, listaStock };
+    }
+
+    // 2. RESUMEN HOGAR 
+    calcularHogar(gastosHogar, mapaNombres) {
+        let totalHogar = 0;
+        let aportes = {};
+        Object.keys(mapaNombres).forEach(id => aportes[id] = 0);
+
+        gastosHogar.forEach(g => {
+            const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
+            const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
+
+            if (isPagoDeuda) {
+                // Ajustamos los saldos si hay un pago registrado (PERO NO SUMA AL GASTO TOTAL)
+                const montoPago = Number(g.monto) || 0;
+                if (aportes[g.pagador_id] !== undefined) aportes[g.pagador_id] += montoPago;
+                if (aportes[g.receptor_id] !== undefined) aportes[g.receptor_id] -= montoPago;
+            } else if (!isIngreso) {
+                // Es un gasto general real
+                const monto = Number(g.monto) || 0; 
+                totalHogar += monto;
+                const responsableId = g.responsable || 'desconocido';
+                if (aportes[responsableId] === undefined) aportes[responsableId] = 0;
+                aportes[responsableId] += monto;
+            }
+        });
+
+        const cantidadMiembros = Object.keys(mapaNombres).length > 0 ? Object.keys(mapaNombres).length : 1;
+        const cuotaPorPersona = totalHogar / cantidadMiembros;
+
+        let deudores = [], acreedores = [];
+        for (const [id, aportado] of Object.entries(aportes)) {
+            const balance = aportado - cuotaPorPersona;
+            const nombreDisplay = mapaNombres[id] || "Desconocido";
+            if (balance < -0.01) deudores.push({ id, nombre: nombreDisplay, monto: Math.abs(balance) });
+            else if (balance > 0.01) acreedores.push({ id, nombre: nombreDisplay, monto: balance });
+        }
+
+        deudores.sort((a, b) => b.monto - a.monto);
+        acreedores.sort((a, b) => b.monto - a.monto);
+
+        const pagosRegistrados = gastosHogar.filter(g => g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda');
+
+        let compensaciones = [];
+        let i = 0, j = 0;
+        while (i < deudores.length && j < acreedores.length) {
+            let deudor = deudores[i];
+            let acreedor = acreedores[j];
+            let montoTransferencia = Math.min(deudor.monto, acreedor.monto);
+            
+            const pagosEntreEllos = pagosRegistrados.filter(p => 
+                p.pagador_id === deudor.id && p.receptor_id === acreedor.id
+            );
+            pagosEntreEllos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            const ultimoPago = pagosEntreEllos.length > 0 ? pagosEntreEllos[0] : null;
+
+            compensaciones.push({ 
+                de_id: deudor.id, de: deudor.nombre, 
+                para_id: acreedor.id, para: acreedor.nombre, 
+                monto: montoTransferencia,
+                ultimoPagoInfo: ultimoPago ? { monto: ultimoPago.monto, fecha: ultimoPago.fecha } : null
+            });
+            
+            deudor.monto -= montoTransferencia;
+            acreedor.monto -= montoTransferencia;
+            if (deudor.monto < 0.01) i++;
+            if (acreedor.monto < 0.01) j++;
+        }
+
+        return { totalHogar, cuotaPorPersona, aportes, compensaciones };
+    }
+
+    // 3. RESUMEN UNIFICADO
+    calcularUnificado(gastosPersonales, gastosHogar, mapaNombres) {
+        const personalInfo = this.calcularPersonal(gastosPersonales, []);
+        let miParteHogar = 0;
+        if (gastosHogar && gastosHogar.length > 0) {
+            const hogarInfo = this.calcularHogar(gastosHogar, mapaNombres);
+            miParteHogar = hogarInfo.cuotaPorPersona;
+        }
+        return { totalBolsillo: personalInfo.total + miParteHogar, desglosePersonal: personalInfo.total, desgloseHogar: miParteHogar };
+    }
+
+    // 4. FUNCIONES ESTADÍSTICAS - ALGORITMO ANUAL BASADO EN PROMEDIOS MENSUALES
+    calcularKPIsHistoricos(todosLosGastos) {
+        if (!todosLosGastos || !todosLosGastos.length) return { promedio: 0, max: 0, min: 0 };
+        
+        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
+        const hoy = new Date();
+        const añoActual = hoy.getFullYear();
+        
+        const gastosAño = gastosReales.filter(g => {
+            if (!g.fecha) return false;
+            const añoGasto = parseInt(g.fecha.substring(0, 4));
+            return añoGasto === añoActual;
+        });
+        
+        const mesesMap = {};
+        for (let mes = 1; mes <= 12; mes++) {
+            const mesStr = `${añoActual}-${String(mes).padStart(2, '0')}`;
+            mesesMap[mesStr] = 0;
+        }
+        
+        gastosAño.forEach(g => {
+            if (!g.fecha) return;
+            const m = g.fecha.substring(0, 7);
+            mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0);
+        });
+        
+        const totalesMensuales = Object.values(mesesMap).filter(total => total > 0);
+        if (!totalesMensuales.length) return { promedio: 0, max: 0, min: 0 };
+        
+        const min = Math.min(...totalesMensuales);
+        const max = Math.max(...totalesMensuales);
+        const sum = totalesMensuales.reduce((a, b) => a + b, 0);
+        const promedio = sum / totalesMensuales.length;
+        
+        return { promedio, max, min };
+    }
+
+    prepararDatosBarras(gastosMesActual, gastosMesAnterior) {
+        const gastosAct = gastosMesActual.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
+        const gastosAnt = gastosMesAnterior.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
+        
+        const mapActual = {}, mapAnterior = {}, categoriasUnicas = new Set();
+        gastosAct.forEach(g => {
+            const cat = g.categoria || 'Sin Categoría';
+            mapActual[cat] = (mapActual[cat] || 0) + (Number(g.monto) || 0);
+            categoriasUnicas.add(cat);
+        });
+        gastosAnt.forEach(g => {
+            const cat = g.categoria || 'Sin Categoría';
+            mapAnterior[cat] = (mapAnterior[cat] || 0) + (Number(g.monto) || 0);
+            categoriasUnicas.add(cat);
+        });
+        
+        const categoriasOrdenadas = Array.from(categoriasUnicas).sort((a, b) => (mapActual[b] || 0) - (mapActual[a] || 0));
+        const top5 = categoriasOrdenadas.slice(0, 5);
+        
+        let otrosActual = 0, otrosAnterior = 0;
+        categoriasOrdenadas.slice(5).forEach(c => {
+            otrosActual += (mapActual[c] || 0);
+            otrosAnterior += (mapAnterior[c] || 0);
+        });
+
+        const labels = [...top5];
+        const dataActual = top5.map(c => mapActual[c] || 0);
+        const dataAnterior = top5.map(c => mapAnterior[c] || 0);
+
+        if (categoriasOrdenadas.length > 5) {
+            labels.push('Resto (Otras)');
+            dataActual.push(otrosActual);
+            dataAnterior.push(otrosAnterior);
+        }
+
+        return { labels, dataActual, dataAnterior };
+    }
+
+    prepararDatosLineas(todosLosGastos, categoriaSeleccionada, rangoStr) {
+        const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
+        let gastos = categoriaSeleccionada === 'todas' ? gastosReales : gastosReales.filter(g => (g.categoria || 'Sin Categoría') === categoriaSeleccionada);
+        const mesesMap = {};
+        gastos.forEach(g => { if(g.fecha) { const m = g.fecha.substring(0, 7); mesesMap[m] = (mesesMap[m] || 0) + (Number(g.monto) || 0); }});
+        const mesesOrdenados = Object.keys(mesesMap).sort();
+        let cantidad = 6;
+        if(rangoStr === '1M') cantidad = 1; if(rangoStr === '1A') cantidad = 12; if(rangoStr === '3A') cantidad = 36;
+        const filtrados = rangoStr === 'MAX' ? mesesOrdenados : mesesOrdenados.slice(-cantidad);
+        return { 
+            labels: filtrados.map(m => { const [y, mm] = m.split('-'); return new Date(y, mm - 1).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }); }), 
+            data: filtrados.map(m => mesesMap[m]) 
+        };
+    }
+}
+
+### ARCHIVO js/utils/AppUtils.js
+
+/**
+ * Cerebro de Utilidades - Centraliza lógica repetitiva para evitar Deuda Técnica
+ */
+export const AppUtils = {
+    // 1. Capitalizar texto (Ej: "juan" -> "Juan")
+    capitalizar: (str) => {
+        if (!str) return "";
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    },
+
+    // 2. Formateador de Moneda Argentino (Ej: 1500.5 -> $ 1.500,50)
+    formatearARS: (monto) => {
+        const n = Number(monto) || 0;
+        return n.toLocaleString('es-AR', {
+            style: 'currency',
+            currency: 'ARS',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    },
+
+    // 3. Sanitizador de HTML para evitar XSS (Crucial para la seguridad)
+    escapeHTML: (str) => {
+        if (!str) return "";
+        const p = document.createElement('p');
+        p.textContent = str;
+        return p.innerHTML;
+    },
+
+    // 4. Manejador de Fechas (YYYY-MM-DD local)
+    getFechaLocal: (date = new Date()) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+};

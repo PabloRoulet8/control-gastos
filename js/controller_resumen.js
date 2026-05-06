@@ -35,30 +35,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCerrarModalIngreso = document.getElementById('btn-cerrar-modal-ingreso');
     const btnGuardarIngreso = document.getElementById('btn-guardar-ingreso');
 
-    // Función auxiliar para cerrar el modal con animación
     const cerrarModalIngresoFn = () => {
         const content = modalIngreso.querySelector('.modal-content');
-        if (content) content.classList.remove('active'); // Le sacamos la clase para que baje
+        if (content) content.classList.remove('active'); 
         setTimeout(() => {
             modalIngreso.style.display = 'none';
             inputConceptoIngreso.value = '';
             inputMontoIngreso.value = '';
-        }, 300); // Esperamos 300ms a que termine la animación antes de apagar el display
+        }, 300); 
     };
 
     if (btnIngresos) {
         btnIngresos.addEventListener('click', (e) => {
             e.preventDefault();
             modalIngreso.style.display = 'flex';
-            // Un micro-delay para que el navegador procese el flex antes de animar
             setTimeout(() => {
                 const content = modalIngreso.querySelector('.modal-content');
-                if (content) content.classList.add('active'); // ¡Acá está la magia!
+                if (content) content.classList.add('active'); 
             }, 10);
         });
     }
 
-    // Cerrar tocando el botón Cancelar
     if (btnCerrarModalIngreso) {
         btnCerrarModalIngreso.addEventListener('click', (e) => {
             e.preventDefault();
@@ -66,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Cerrar tocando lo oscuro de afuera (Mejora de UX)
     if (modalIngreso) {
         modalIngreso.addEventListener('click', (e) => {
             if (e.target === modalIngreso) {
@@ -101,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await api.guardarGasto(nuevoIngreso, { tipo: 'personal' });
                 toast.mostrar('¡Ingreso guardado exitosamente! 💸');
-                cerrarModalIngresoFn(); // Usamos la nueva función con animación
+                cerrarModalIngresoFn(); 
                 await procesarPantalla(auth.currentUser.uid);
             } catch (error) {
                 toast.mostrar('Error al guardar el ingreso');
@@ -112,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    // ------------------------------------------
 
     document.getElementById('btn-stock')?.addEventListener('click', (e) => {
         const btn = e.currentTarget;
@@ -121,14 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if(content) content.style.display = content.style.display === "block" ? "none" : "block";
     });
 
-    // =============================================
-    // LÓGICA DE KPIs (MÍNIMO, PROMEDIO, MÁXIMO ANUAL)
-    // =============================================
     const calcularKPIsAnuales = (gastos, year) => {
         const prefix = year.toString();
         const mesActualNum = new Date().getMonth() + 1; 
 
-        // PATÓVICA PARA KPIS: Afuera Ingresos y Deudas
         const gastosAnio = gastos.filter(g => {
             const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
             const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
@@ -156,11 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return { minimo, promedio, maximo };
     };
 
-    // =============================================
-    // LÓGICA DE TARJETAS DE CRÉDITO
-    // =============================================
     const calcularMontosTarjetas = (todosLosGastos, gastosMes, mesActual) => {
-        // A) montoTarjetasMes: Gastos del mes actual con método tarjeta/crédito
         const gastosTarjetaMes = gastosMes.filter(g => {
             if (!g.metodo_pago) return false;
             const metodo = g.metodo_pago.toLowerCase();
@@ -168,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const montoTarjetasMes = gastosTarjetaMes.reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
 
-        // B) montoTarjetasTotal: TODOS los gastos de tarjeta desde el inicio del mes actual (deuda proyectada)
         const [year, month] = mesActual.split('-').map(Number);
         const inicioMesActual = new Date(year, month - 1, 1).toISOString().split('T')[0];
 
@@ -221,10 +207,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
-                const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); // STOCK DATA
+                const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); 
                 
                 renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, 0);
-                renderer.mostrarComunes(gastosMes, categoriasPersonales, true, gastosMesAnt); // PASAMOS EL STOCK ANT
+                renderer.mostrarComunes(gastosMes, categoriasPersonales, true, gastosMesAnt); 
 
             } else if (ambitoActual === 'hogar' && hogarId) {
                 const snapHogar = await getDoc(doc(db, "hogares", hogarId));
@@ -244,10 +230,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
-                const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); // STOCK DATA
+                const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); 
                 
-                renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
-                renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true, gastosMesAnt); // PASAMOS EL STOCK ANT
+                // LE PASAMOS LOS PRESUPUESTOS AL SERVICIO
+                renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres, dataHogar.presupuestos_compartidos || []), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
+                renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true, gastosMesAnt); 
 
             } else if (ambitoActual === 'unificado') {
                 if (tituloHeader) tituloHeader.textContent = "Resumen Unificado";
@@ -275,7 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     const gH = await api.obtenerGastos(hDoc.id) || [];
                     const gH_Generales = gH.filter(g => g.tipo === 'general' || !g.tipo);
-                    const cuota = resumenService.calcularHogar(gH_Generales.filter(g => g.fecha?.startsWith(mesActual)), nHogar).cuotaPorPersona;
+                    
+                    // LE PASAMOS LOS PRESUPUESTOS AL SERVICIO EN UNIFICADO TAMBIÉN
+                    const cuota = resumenService.calcularHogar(gH_Generales.filter(g => g.fecha?.startsWith(mesActual)), nHogar, hData.presupuestos_compartidos || []).cuotaPorPersona;
                     miParteHogarTotal += cuota;
                     
                     todosHogaresParaGraficos.push(...gH_Generales.map(g => ({ ...g, monto: Number(g.monto) / (hData.miembros?.length || 1) })));
@@ -318,9 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ===============================================
-    // LÓGICA DE PAGOS DE DEUDA EN EL HOGAR (ESCUDO DE CRISTAL)
-    // ===============================================
     const toastGlobal = new ToastManager(); 
     const modalPago = document.getElementById('modal-pago-deuda');
     const btnConfirmar = document.getElementById('btn-confirmar-pago');

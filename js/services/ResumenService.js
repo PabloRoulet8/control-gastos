@@ -1,24 +1,28 @@
 export class ResumenService {
     
     // 1. RESUMEN PERSONAL
-    calcularPersonal(gastos, categoriasConfiguradas) {
+    calcularPersonal(gastos, categoriasConfiguradas, fondos = []) {
         let total = 0, fijos = 0, fijosStock = 0, variables = 0;
         let listaFijos = [], listaStock = [];
+        
+        const normalizeCat = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
         const mapCategorias = {};
-        categoriasConfiguradas.forEach(c => mapCategorias[typeof c === 'string' ? c : c.nombre] = c);
+        categoriasConfiguradas.forEach(c => {
+            const nombre = typeof c === 'string' ? c : c.nombre;
+            mapCategorias[normalizeCat(nombre)] = c;
+        });
 
         gastos.forEach(g => {
-            // PATÓVICA: Ignorar ingresos y deudas en los gastos
             const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
             const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
             if (isIngreso || isPagoDeuda) return; 
 
             const monto = Number(g.monto) || 0; 
             total += monto;
-            const catNorm = g.categoria || '';
+            const catNorm = normalizeCat(g.categoria);
             const configCat = mapCategorias[catNorm] || { es_fijo: false, lleva_stock: false };
 
-            if (configCat.es_fijo) {
+            if (configCat.es_fijo || configCat.lleva_stock) {
                 if (configCat.lleva_stock) { fijosStock += monto; listaStock.push(g); } 
                 else { fijos += monto; listaFijos.push(g); }
             } else {
@@ -28,28 +32,63 @@ export class ResumenService {
         return { total, fijos, fijosStock, variables, listaFijos, listaStock };
     }
 
-    // 2. RESUMEN HOGAR 
-    calcularHogar(gastosHogar, mapaNombres) {
+    // 2. RESUMEN HOGAR (AQUÍ ESTÁ LA NUEVA MAGIA DEL ESCUDO)
+    calcularHogar(gastosHogar, mapaNombres, fondos = []) {
         let totalHogar = 0;
         let aportes = {};
         Object.keys(mapaNombres).forEach(id => aportes[id] = 0);
 
-        gastosHogar.forEach(g => {
+        const normalizeCat = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+        // Armamos las billeteras virtuales de cada presupuesto
+        const saldosFondos = {};
+        fondos.forEach(f => {
+            saldosFondos[f.id || f.nombre] = Number(f.monto) || 0;
+        });
+
+        // Mapeamos qué categoría pertenece a qué billetera
+        const catAFondo = {};
+        fondos.forEach(f => {
+            (f.categorias || []).forEach(cat => {
+                catAFondo[normalizeCat(cat)] = f.id || f.nombre;
+            });
+        });
+
+        // Ordenamos los gastos desde el más viejo al más nuevo para descontar bien
+        const gastosOrdenados = [...gastosHogar].sort((a, b) => {
+            const dateA = new Date(a.fecha + 'T00:00:00');
+            const dateB = new Date(b.fecha + 'T00:00:00');
+            return dateA - dateB;
+        });
+
+        gastosOrdenados.forEach(g => {
             const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
             const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
 
             if (isPagoDeuda) {
-                // Ajustamos los saldos si hay un pago registrado (PERO NO SUMA AL GASTO TOTAL)
                 const montoPago = Number(g.monto) || 0;
                 if (aportes[g.pagador_id] !== undefined) aportes[g.pagador_id] += montoPago;
                 if (aportes[g.receptor_id] !== undefined) aportes[g.receptor_id] -= montoPago;
             } else if (!isIngreso) {
-                // Es un gasto general real
-                const monto = Number(g.monto) || 0; 
-                totalHogar += monto;
-                const responsableId = g.responsable || 'desconocido';
-                if (aportes[responsableId] === undefined) aportes[responsableId] = 0;
-                aportes[responsableId] += monto;
+                let montoAImputar = Number(g.monto) || 0;
+                const catNorm = normalizeCat(g.categoria);
+                const fondoId = catAFondo[catNorm];
+
+                // Si pertenece a un fondo, el escudo lo absorbe primero
+                if (fondoId && saldosFondos[fondoId] > 0) {
+                    const saldoDisponible = saldosFondos[fondoId];
+                    const montoCubierto = Math.min(montoAImputar, saldoDisponible);
+                    saldosFondos[fondoId] -= montoCubierto;
+                    montoAImputar -= montoCubierto; // Descontamos lo que cubrió el fondo
+                }
+
+                // SÓLO LO QUE REBALSA (o no es de fondo) entra en la división y en el Total Gastado
+                if (montoAImputar > 0) {
+                    totalHogar += montoAImputar; 
+                    const responsableId = g.responsable || 'desconocido';
+                    if (aportes[responsableId] === undefined) aportes[responsableId] = 0;
+                    aportes[responsableId] += montoAImputar;
+                }
             }
         });
 
@@ -99,35 +138,30 @@ export class ResumenService {
     }
 
     // 3. RESUMEN UNIFICADO
-    calcularUnificado(gastosPersonales, gastosHogar, mapaNombres) {
+    calcularUnificado(gastosPersonales, gastosHogar, mapaNombres, presupuestosHogar = []) {
         const personalInfo = this.calcularPersonal(gastosPersonales, []);
         let miParteHogar = 0;
         if (gastosHogar && gastosHogar.length > 0) {
-            const hogarInfo = this.calcularHogar(gastosHogar, mapaNombres);
+            const hogarInfo = this.calcularHogar(gastosHogar, mapaNombres, presupuestosHogar);
             miParteHogar = hogarInfo.cuotaPorPersona;
         }
         return { totalBolsillo: personalInfo.total + miParteHogar, desglosePersonal: personalInfo.total, desgloseHogar: miParteHogar };
     }
 
-    // 4. FUNCIONES ESTADÍSTICAS - ALGORITMO ANUAL BASADO EN PROMEDIOS MENSUALES
+    // 4. FUNCIONES ESTADÍSTICAS
     calcularKPIsHistoricos(todosLosGastos) {
         if (!todosLosGastos || !todosLosGastos.length) return { promedio: 0, max: 0, min: 0 };
-        
         const gastosReales = todosLosGastos.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
         const hoy = new Date();
         const añoActual = hoy.getFullYear();
         
         const gastosAño = gastosReales.filter(g => {
             if (!g.fecha) return false;
-            const añoGasto = parseInt(g.fecha.substring(0, 4));
-            return añoGasto === añoActual;
+            return parseInt(g.fecha.substring(0, 4)) === añoActual;
         });
         
         const mesesMap = {};
-        for (let mes = 1; mes <= 12; mes++) {
-            const mesStr = `${añoActual}-${String(mes).padStart(2, '0')}`;
-            mesesMap[mesStr] = 0;
-        }
+        for (let mes = 1; mes <= 12; mes++) { mesesMap[`${añoActual}-${String(mes).padStart(2, '0')}`] = 0; }
         
         gastosAño.forEach(g => {
             if (!g.fecha) return;
@@ -137,13 +171,11 @@ export class ResumenService {
         
         const totalesMensuales = Object.values(mesesMap).filter(total => total > 0);
         if (!totalesMensuales.length) return { promedio: 0, max: 0, min: 0 };
-        
-        const min = Math.min(...totalesMensuales);
-        const max = Math.max(...totalesMensuales);
-        const sum = totalesMensuales.reduce((a, b) => a + b, 0);
-        const promedio = sum / totalesMensuales.length;
-        
-        return { promedio, max, min };
+        return { 
+            promedio: totalesMensuales.reduce((a, b) => a + b, 0) / totalesMensuales.length, 
+            max: Math.max(...totalesMensuales), 
+            min: Math.min(...totalesMensuales) 
+        };
     }
 
     prepararDatosBarras(gastosMesActual, gastosMesAnterior) {
@@ -151,36 +183,17 @@ export class ResumenService {
         const gastosAnt = gastosMesAnterior.filter(g => g.tipo !== 'pagoDeuda' && g.tipo !== 'ingreso');
         
         const mapActual = {}, mapAnterior = {}, categoriasUnicas = new Set();
-        gastosAct.forEach(g => {
-            const cat = g.categoria || 'Sin Categoría';
-            mapActual[cat] = (mapActual[cat] || 0) + (Number(g.monto) || 0);
-            categoriasUnicas.add(cat);
-        });
-        gastosAnt.forEach(g => {
-            const cat = g.categoria || 'Sin Categoría';
-            mapAnterior[cat] = (mapAnterior[cat] || 0) + (Number(g.monto) || 0);
-            categoriasUnicas.add(cat);
-        });
+        gastosAct.forEach(g => { const cat = g.categoria || 'Sin Categoría'; mapActual[cat] = (mapActual[cat] || 0) + (Number(g.monto) || 0); categoriasUnicas.add(cat); });
+        gastosAnt.forEach(g => { const cat = g.categoria || 'Sin Categoría'; mapAnterior[cat] = (mapAnterior[cat] || 0) + (Number(g.monto) || 0); categoriasUnicas.add(cat); });
         
         const categoriasOrdenadas = Array.from(categoriasUnicas).sort((a, b) => (mapActual[b] || 0) - (mapActual[a] || 0));
         const top5 = categoriasOrdenadas.slice(0, 5);
         
         let otrosActual = 0, otrosAnterior = 0;
-        categoriasOrdenadas.slice(5).forEach(c => {
-            otrosActual += (mapActual[c] || 0);
-            otrosAnterior += (mapAnterior[c] || 0);
-        });
+        categoriasOrdenadas.slice(5).forEach(c => { otrosActual += (mapActual[c] || 0); otrosAnterior += (mapAnterior[c] || 0); });
 
-        const labels = [...top5];
-        const dataActual = top5.map(c => mapActual[c] || 0);
-        const dataAnterior = top5.map(c => mapAnterior[c] || 0);
-
-        if (categoriasOrdenadas.length > 5) {
-            labels.push('Resto (Otras)');
-            dataActual.push(otrosActual);
-            dataAnterior.push(otrosAnterior);
-        }
-
+        const labels = [...top5]; const dataActual = top5.map(c => mapActual[c] || 0); const dataAnterior = top5.map(c => mapAnterior[c] || 0);
+        if (categoriasOrdenadas.length > 5) { labels.push('Resto (Otras)'); dataActual.push(otrosActual); dataAnterior.push(otrosAnterior); }
         return { labels, dataActual, dataAnterior };
     }
 

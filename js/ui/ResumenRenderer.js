@@ -19,18 +19,33 @@ export class ResumenRenderer {
 
     generarHtmlFondos(fondos, gastosMes) {
         if (!fondos || fondos.length === 0) return '';
-        let htmlFondos = `<div class="mt-20"><span class="text-sm-gray" style="text-transform: uppercase;">Estado de Presupuestos</span>`;
+        
+        // Damos más aire arriba (mt-30) y abajo (mb-20)
+        let htmlFondos = `<div class="mt-30 mb-20" style="padding-top: 10px;">
+            <span class="text-sm-gray" style="text-transform: uppercase; letter-spacing: 0.5px;">Estado de Presupuestos</span>`;
+        
+        const normalizeCat = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
         fondos.forEach(f => {
+            const catsFondoNorm = (f.categorias || []).map(normalizeCat);
             const gastado = gastosMes
-                .filter(g => f.categorias && f.categorias.includes(g.categoria))
+                .filter(g => catsFondoNorm.includes(normalizeCat(g.categoria)))
                 .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
-            const restante = Number(f.monto) - gastado;
-            const colorTexto = restante < 0 ? '#ef4444' : 'var(--primary-color)';
             
+            const restante = Number(f.monto) - gastado;
+            
+            let lineaMonto = '';
+            if (restante < 0) {
+                lineaMonto = `<span style="font-weight: 800; color: #ef4444;">Excedente: -${AppUtils.formatearARS(Math.abs(restante))}</span>`;
+            } else {
+                lineaMonto = `<span style="font-weight: 800; color: var(--primary-color);">${AppUtils.formatearARS(restante)}</span>`;
+            }
+
+            // Aumentamos el padding interno de cada presupuesto (padding: 12px 0)
             htmlFondos += `
-                <div class="flex-between mt-10" style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                    <span style="font-weight: bold; color: var(--text-main);">${AppUtils.escapeHTML(f.nombre)}</span>
-                    <span style="font-weight: 800; color: ${colorTexto};">${AppUtils.formatearARS(restante)}</span>
+                <div class="flex-between mt-10" style="border-bottom: 1px solid var(--border-color); padding: 12px 0;">
+                    <span style="font-weight: bold; color: var(--text-main); font-size: 1.05rem;">${AppUtils.escapeHTML(f.nombre)}</span>
+                    ${lineaMonto}
                 </div>`;
         });
         htmlFondos += `</div>`;
@@ -76,21 +91,24 @@ export class ResumenRenderer {
     }
 
     renderizarHogar(data, nombreHogar, kpis, fondos, gastosMes, currentUserId, categoriasHogar) {
+        const normalizeCat = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
         const mapCategorias = {};
         (categoriasHogar || []).forEach(c => {
-            mapCategorias[(c.nombre || '').toLowerCase()] = c;
+            mapCategorias[normalizeCat(c.nombre)] = c;
         });
         
         let totalFijosStock = 0;
         let totalVariables = 0;
         
         gastosMes.forEach(g => {
-            const catNorm = (g.categoria || '').toLowerCase().trim();
+            const catNorm = normalizeCat(g.categoria);
             const configCat = mapCategorias[catNorm] || {};
             const monto = Number(g.monto) || 0;
             const tipoGasto = (g.tipo || '').toLowerCase().trim();
             
-            if (tipoGasto === 'fijo' || tipoGasto === 'stock' || configCat.es_fijo === true) {
+            // LA CORRECCIÓN CLAVE: Sumamos si es fijo, o si es stock en la db o en el config
+            if (tipoGasto === 'fijo' || tipoGasto === 'stock' || configCat.es_fijo === true || configCat.lleva_stock === true) {
                 totalFijosStock += monto;
             } else if (tipoGasto !== 'pagodeuda' && tipoGasto !== 'ingreso') { 
                 totalVariables += monto;
@@ -103,11 +121,7 @@ export class ResumenRenderer {
         } else {
             data.compensaciones.forEach(c => {
                 const msj = encodeURIComponent(`Hola ${c.de}, te recuerdo que tenemos un saldo pendiente en la App de Gastos de ${AppUtils.formatearARS(c.monto)}. ¡Avisame cuando puedas transferir! <i data-lucide="dollar-sign"></i>`);
-                
-                const textoUltimoPago = c.ultimoPagoInfo 
-                    ? `<span style="font-size: 0.75rem; color: #6b7280; display: block; margin-top: 4px;">Último pago: ${AppUtils.formatearARS(c.ultimoPagoInfo.monto)} el ${c.ultimoPagoInfo.fecha.split('-').reverse().join('/')}</span>` 
-                    : '';
-                
+                const textoUltimoPago = c.ultimoPagoInfo ? `<span style="font-size: 0.75rem; color: #6b7280; display: block; margin-top: 4px;">Último pago: ${AppUtils.formatearARS(c.ultimoPagoInfo.monto)} el ${c.ultimoPagoInfo.fecha.split('-').reverse().join('/')}</span>` : '';
                 const esInvolucrado = (currentUserId === c.de_id || currentUserId === c.para_id);
                 
                 const btnPagoHtml = esInvolucrado 
@@ -175,9 +189,9 @@ export class ResumenRenderer {
 
                     ${this.generarHtmlFondos(fondos, gastosMes)}
 
-                    <div class="mt-15 text-center pt-10" style="border-top: 1px solid var(--border-color);">
+                    <div class="mt-20 text-center pt-20" style="border-top: 1px solid var(--border-color);">
                         <span class="text-sm-gray">A cada uno le corresponde poner:</span>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main); margin-top: 5px;">${AppUtils.formatearARS(data.cuotaPorPersona)}</div>
+                        <div style="font-size: 1.6rem; font-weight: bold; color: var(--text-main); margin-top: 5px;">${AppUtils.formatearARS(data.cuotaPorPersona)}</div>
                     </div>
                 </div>
 
@@ -236,7 +250,6 @@ export class ResumenRenderer {
     mostrarComunes(gastos, catConfig, mostrarListasExtras, gastosMesAnterior = []) {
         if (!mostrarListasExtras) return;
 
-        // 1. DIBUJAR CHECKLIST
         const categoriasFijas = catConfig
             .map(c => typeof c === 'string' ? {nombre: c, es_fijo: false} : c)
             .filter(c => c.activa !== false && c.es_fijo === true)
@@ -264,7 +277,6 @@ export class ResumenRenderer {
             this.seccionChecklist.style.display = 'none';
         }
 
-        // 2. DIBUJAR STOCK CON ACORDEONES ANIDADOS
         const catsMarcadas = catConfig
             .map(c => typeof c === 'string' ? {nombre: c, lleva_stock: false} : c)
             .filter(c => c.activa !== false && c.lleva_stock === true)
@@ -286,8 +298,6 @@ export class ResumenRenderer {
             this.seccionStock.innerHTML = ''; 
 
             let hayProductos = false;
-            
-            // ACORDEÓN PRINCIPAL: "Stock Mensual"
             let htmlStock = `
                 <div class="card dashboard-card" style="padding: 15px; border-top: 4px solid var(--primary-color);">
                     <div class="flex-between toggle-stock-main" style="cursor: pointer; user-select: none;">
@@ -296,7 +306,6 @@ export class ResumenRenderer {
                         </h2>
                         <i data-lucide="chevron-down" class="chevron-main" style="transition: transform 0.3s ease; color: var(--text-muted);"></i>
                     </div>
-                    
                     <div class="content-stock-main" style="display: none; padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--border-color);">
             `;
 
@@ -323,8 +332,6 @@ export class ResumenRenderer {
 
                 if (todosLosProductos.size > 0) {
                     hayProductos = true;
-                    
-                    // ACORDEÓN SECUNDARIO: Categoría (Ej: Supermercado)
                     htmlStock += `
                         <div class="dashboard-card mb-15" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 0; border-radius: 8px; overflow: hidden;">
                             <div class="flex-between toggle-stock-cat" style="background: var(--bg-app); padding: 12px 15px; cursor: pointer; user-select: none;">
@@ -333,7 +340,6 @@ export class ResumenRenderer {
                                 </h3>
                                 <i data-lucide="chevron-down" class="chevron-cat" style="transition: transform 0.3s ease; color: var(--text-muted);"></i>
                             </div>
-                            
                             <div class="content-stock-cat" style="display: none;">
                                 <div class="flex-between text-xs-gray" style="padding: 8px 15px; background: rgba(0,0,0,0.1); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); text-transform: uppercase;">
                                     <span>Producto</span>
@@ -365,54 +371,38 @@ export class ResumenRenderer {
                 }
             });
 
-            htmlStock += `</div></div>`; // Cierra acordeón principal
+            htmlStock += `</div></div>`;
 
             if (hayProductos) {
                 this.seccionStock.innerHTML = htmlStock;
+                if (window.lucide) window.lucide.createIcons();
 
-                // Re-renderizar iconos de Lucide porque inyectamos HTML nuevo
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-
-                // --- LÓGICA DE CLICS PARA LOS ACORDEONES ---
-                
-                // 1. Acordeón Principal (Stock Mensual)
                 const mainToggle = this.seccionStock.querySelector('.toggle-stock-main');
                 const mainContent = this.seccionStock.querySelector('.content-stock-main');
                 const mainChevron = this.seccionStock.querySelector('.chevron-main');
-
                 if(mainToggle && mainContent) {
                     mainToggle.addEventListener('click', () => {
                         const isVisible = mainContent.style.display === 'block';
                         mainContent.style.display = isVisible ? 'none' : 'block';
-                        if(mainChevron) {
-                            mainChevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
-                        }
+                        if(mainChevron) mainChevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
                     });
                 }
 
-                // 2. Acordeones Secundarios (Categorías)
                 const catToggles = this.seccionStock.querySelectorAll('.toggle-stock-cat');
                 catToggles.forEach(toggle => {
                     toggle.addEventListener('click', (e) => {
                         const content = e.currentTarget.nextElementSibling;
                         const chevron = e.currentTarget.querySelector('.chevron-cat');
-                        
                         if (content) {
                             const isVisible = content.style.display === 'block';
                             content.style.display = isVisible ? 'none' : 'block';
-                            if (chevron) {
-                                chevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
-                            }
+                            if (chevron) chevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
                         }
                     });
                 });
-
             } else {
                 this.seccionStock.style.display = 'none';
             }
-
         } else if (this.seccionStock) {
             this.seccionStock.style.display = 'none';
         }
