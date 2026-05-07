@@ -1,7 +1,7 @@
 export class ResumenService {
     
     // 1. RESUMEN PERSONAL
-    calcularPersonal(gastos, categoriasConfiguradas, fondos = []) {
+    calcularPersonal(gastos, categoriasConfiguradas) {
         let total = 0, fijos = 0, fijosStock = 0, variables = 0;
         let listaFijos = [], listaStock = [];
         
@@ -32,9 +32,10 @@ export class ResumenService {
         return { total, fijos, fijosStock, variables, listaFijos, listaStock };
     }
 
-    // 2. RESUMEN HOGAR (AQUÍ ESTÁ LA NUEVA MAGIA DEL ESCUDO)
+    // 2. RESUMEN HOGAR (NUEVA LÓGICA DE DOBLE CONTABILIDAD)
     calcularHogar(gastosHogar, mapaNombres, fondos = []) {
-        let totalHogar = 0;
+        let totalHogar = 0; // El gasto real, físico y total de la casa (El número gigante de arriba)
+        let totalADividir = 0; // La plata "huérfana" que rebalsa de los fondos y hay que dividir
         let aportes = {};
         Object.keys(mapaNombres).forEach(id => aportes[id] = 0);
 
@@ -70,11 +71,16 @@ export class ResumenService {
                 if (aportes[g.pagador_id] !== undefined) aportes[g.pagador_id] += montoPago;
                 if (aportes[g.receptor_id] !== undefined) aportes[g.receptor_id] -= montoPago;
             } else if (!isIngreso) {
-                let montoAImputar = Number(g.monto) || 0;
+                const montoOriginal = Number(g.monto) || 0;
+                
+                // 1. SUMAMOS AL TOTAL VISUAL SIEMPRE (Representa el gasto total de la casa)
+                totalHogar += montoOriginal; 
+
+                let montoAImputar = montoOriginal;
                 const catNorm = normalizeCat(g.categoria);
                 const fondoId = catAFondo[catNorm];
 
-                // Si pertenece a un fondo, el escudo lo absorbe primero
+                // 2. APLICAMOS EL ESCUDO DEL PRESUPUESTO
                 if (fondoId && saldosFondos[fondoId] > 0) {
                     const saldoDisponible = saldosFondos[fondoId];
                     const montoCubierto = Math.min(montoAImputar, saldoDisponible);
@@ -82,9 +88,9 @@ export class ResumenService {
                     montoAImputar -= montoCubierto; // Descontamos lo que cubrió el fondo
                 }
 
-                // SÓLO LO QUE REBALSA (o no es de fondo) entra en la división y en el Total Gastado
+                // 3. SOLO LO QUE REBALSA SUMA A LA DIVISIÓN CONTABLE Y A LAS DEUDAS
                 if (montoAImputar > 0) {
-                    totalHogar += montoAImputar; 
+                    totalADividir += montoAImputar; 
                     const responsableId = g.responsable || 'desconocido';
                     if (aportes[responsableId] === undefined) aportes[responsableId] = 0;
                     aportes[responsableId] += montoAImputar;
@@ -93,7 +99,9 @@ export class ResumenService {
         });
 
         const cantidadMiembros = Object.keys(mapaNombres).length > 0 ? Object.keys(mapaNombres).length : 1;
-        const cuotaPorPersona = totalHogar / cantidadMiembros;
+        
+        // LA CUOTA SE CALCULA SOBRE LO QUE REBALSÓ, NO SOBRE EL TOTAL GASTADO
+        const cuotaPorPersona = totalADividir / cantidadMiembros;
 
         let deudores = [], acreedores = [];
         for (const [id, aportado] of Object.entries(aportes)) {
