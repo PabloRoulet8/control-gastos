@@ -164,6 +164,39 @@
     font-size: 0.9rem; 
     white-space: nowrap;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+
+    // Se muestra al agregar la clase .show (agregada por ToastManager)
+    &.show {
+        display: block;
+        animation: toast-in 0.25s ease;
+    }
+
+    // Variantes por tipo
+    &.toast-info {
+        border-color: rgba(59, 130, 246, 0.55);
+        color: $azul-primario;
+    }
+
+    &.toast-success {
+        border-color: rgba(16, 185, 129, 0.55);
+        color: $verde-dark;
+    }
+
+    &.toast-error {
+        border-color: rgba(239, 68, 68, 0.55);
+        color: #ef4444;
+    }
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 12px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
 }
 
 // Modal de confirmación (centrado)

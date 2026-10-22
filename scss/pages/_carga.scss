@@ -1,0 +1,189 @@
+// ==========================================
+// PÁGINA DE CARGA DE GASTOS
+// ==========================================
+
+// Botón de dictado por voz (SpeechRecognition + IA)
+.btn-dictar-gasto {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    border-radius: $border-radius;
+    border: 1px dashed rgba(16, 185, 129, 0.45);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(59, 130, 246, 0.14));
+    color: var(--primary-color);
+    font-family: $font-main;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+
+    // Push-to-talk: evita seleccionar texto, el menú contextual del long-press
+    // y los gestos de scroll/zoom mientras se mantiene presionado el botón.
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+
+    i[data-lucide],
+    svg {
+        width: 22px;
+        height: 22px;
+        stroke: currentColor;
+    }
+
+    &:hover {
+        border-style: solid;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.25);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn-dictar-texto {
+        line-height: 1.25;
+    }
+
+    // Estado "escuchando": cambia de color y late para dar feedback visual
+    &.is-listening {
+        .btn-dictar-texto {
+            font-size: 0.9rem;
+        }
+
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(245, 158, 11, 0.18));
+        border-color: rgba(239, 68, 68, 0.55);
+        border-style: solid;
+        color: #ef4444;
+        animation: dictar-pulse 1.4s ease-in-out infinite;
+
+        i[data-lucide],
+        svg {
+            animation: dictar-mic 1.4s ease-in-out infinite;
+        }
+    }
+}
+
+// Acciones finales del formulario: dictado + guardar apilados en columna,
+// con targets grandes y separación cómoda para usar con el pulgar.
+.acciones-gasto {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+
+    .btn-dictar-gasto,
+    .btn-guardar-gasto {
+        width: 100%;
+        min-height: 52px;
+        font-size: 1rem;
+    }
+
+    // El gap del contenedor reemplaza los márgenes sueltos de cada pieza
+    .btn-dictar-gasto,
+    .dictado-transcripcion,
+    .dictar-hint {
+        margin: 0;
+    }
+
+    .btn-guardar-gasto {
+        padding: 14px 16px;
+    }
+}
+
+.dictar-hint {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    opacity: 0.85;
+    margin: 0 0 18px;
+    padding: 0 10px;
+}
+
+// Transcripción parcial en vivo mientras el usuario habla
+.dictado-transcripcion {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--primary-color);
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.09);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    font-style: italic;
+    line-height: 1.35;
+    text-align: left;
+    max-height: 90px;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    animation: dictado-fade-in 0.2s ease;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+html[data-theme='light'] .dictado-transcripcion {
+    background: rgba(16, 185, 129, 0.12);
+}
+
+@keyframes dictado-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+// En modo claro el verde primary queda muy claro sobre fondo blanco
+html[data-theme='light'] .btn-dictar-gasto {
+    color: $verde-dark;
+
+    &.is-listening {
+        color: #dc2626;
+    }
+}
+
+@keyframes dictar-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+    }
+}
+
+@keyframes dictar-mic {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.18);
+    }
+}
+
+// Acciones (precio + eliminar) de cada ítem del inventario
+.inv-item-acciones {
+    gap: 10px;
+    white-space: nowrap;
+
+    .btn-icon-danger svg,
+    .btn-icon-danger i[data-lucide] {
+        width: 18px;
+        height: 18px;
+    }
+}

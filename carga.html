@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cargar Gasto</title>
-    <link rel="stylesheet" href="css/styles.css?v=11.2">
+    <link rel="stylesheet" href="css/styles.css?v=11.13">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2e7d32">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -30,7 +30,6 @@
         </div>
 
         <form id="expense-form" class="card">
-            
             <div class="form-group toggle-group" id="selector-tipo-gasto" style="display: none;">
                 <input type="radio" id="tipo-general" name="tipoGasto" value="general" checked>
                 <label for="tipo-general">General</label>
@@ -48,7 +47,18 @@
             <div class="form-group">
                 <label for="categoria">Categoría</label>
                 <select id="categoria" name="categoria" class="form-control" required>
-                    <option value="" disabled selected>Cargando categorías...</option>
+                    <option value="" disabled selected>Seleccioná una categoría</option>
+                    <option value="supermercado">Supermercado</option>
+                    <option value="carniceria">Carnicería</option>
+                    <option value="fiambreria">Fiambrería</option>
+                    <option value="verduleria">Verdulería</option>
+                    <option value="panaderia">Panadería</option>
+                    <option value="farmacia">Farmacia</option>
+                    <option value="hogar">Hogar</option>
+                    <option value="transporte">Transporte</option>
+                    <option value="salidas">Salidas</option>
+                    <option value="delivery">Delivery</option>
+                    <option value="otros">Otros</option>
                 </select>
             </div>
 
@@ -119,7 +129,16 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn-primary mt-15 w-100">Guardar Gasto</button>
+            <!-- Acciones finales: dictado y guardar, grandes y al alcance del pulgar -->
+            <div class="acciones-gasto">
+                <p id="dictado-transcripcion" class="dictado-transcripcion" hidden></p>
+                <p class="dictar-hint">Probá: &ldquo;compré 2500 de carne en el supermercado con tarjeta de cr&eacute;dito&rdquo;</p>
+                <button type="button" id="btn-dictar-gasto" class="btn-dictar-gasto" title="Mantén presionado para dictar">
+                    <i data-lucide="mic"></i>
+                    <span class="btn-dictar-texto">Mantén presionado para dictar</span>
+                </button>
+                <button type="submit" class="btn-primary btn-guardar-gasto">Guardar Gasto</button>
+            </div>
         </form>
     </main>
 
@@ -128,6 +147,6 @@
     <div id="toast-container" class="toast"></div>
 
     <script type="module" src="js/auth_guard.js?v=11.2"></script>
-    <script type="module" src="js/controller_carga.js?v=11.2"></script>   
+    <script type="module" src="js/controller_carga.js?v=11.14"></script>   
 </body>
 </html>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v10.0';
+const CACHE_NAME = 'gastos-v11.14';
 
 const urlsToCache = [
     '/',
@@ -30,7 +30,8 @@ const urlsToCache = [
     '/js/controller_admin_hogar.js',
     '/js/controller_config_hogar.js',
     '/js/controller_login.js',
-    '/js/utils/NavigationBuilder.js'
+    '/js/utils/NavigationBuilder.js',
+    '/js/utils/AppUtils.js'
 ];
 
 self.addEventListener('install', event => {
