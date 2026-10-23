@@ -473,9 +473,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let reconocimiento = null;
     let temporizadorReinicio = null;
-    let transcripcionFinal = '';    // resultados ya consolidados por el motor
     let transcripcionInterina = ''; // lo que el motor está interpretando ahora
-    let transcripcionHistorica = ''; // sesiones anteriores ya consolidadas
+    let fragmentosConfirmados = []; // fragmentos finales únicos por sesión
 
     // Normaliza texto para comparar (minúsculas y sin acentos)
     const normalizar = (texto) => (texto || '')
@@ -672,11 +671,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const actualizarTranscripcionUI = () => {
         if (!dictadoTranscripcion) return;
 
-        const partes = [transcripcionFinal, transcripcionInterina]
-            .map(parte => (parte || '').trim())
-            .filter(Boolean);
-
-        const texto = limpiarEcoVisual(partes.join(' '));
+        const base = fragmentosConfirmados.join(' ');
+        const textoCrudo = base ? (transcripcionInterina ? `${base} ${transcripcionInterina}` : base) : (transcripcionInterina || '');
+        const texto = limpiarEcoVisual(textoCrudo.trim());
         dictadoTranscripcion.textContent = texto;
         dictadoTranscripcion.hidden = (texto === '');
     };
@@ -705,9 +702,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         yaConsolidado = false;
         stopSolicitado = false;
         reiniciosSilencio = 0;
-        transcripcionFinal = '';
+        fragmentosConfirmados = [];
         transcripcionInterina = '';
-        transcripcionHistorica = '';
 
         if (temporizadorReinicio) {
             clearTimeout(temporizadorReinicio);
@@ -802,7 +798,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         reconocimiento.lang = 'es-AR';
-        reconocimiento.continuous = true;       // soporta pausas sin cortar el dictado
+        reconocimiento.continuous = false;       // modo burst para evitar eco nativo en Android
         reconocimiento.interimResults = true;   // transcripción parcial en tiempo real
         reconocimiento.maxAlternatives = 1;
 
@@ -810,46 +806,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Si el usuario ya pidió finalizar (doble clic muy rápido), no reabrimos el micrófono
             if (stopSolicitado) return;
 
-            // Nueva sesión del motor: se reconstruye desde cero, pero se
-            // conserva el texto histórico de sesiones anteriores.
-            transcripcionFinal = '';
-            transcripcionInterina = '';
-
             isRecording = true;
             pintarBotonDictar('recording');
             actualizarTranscripcionUI();
         };
 
         reconocimiento.onresult = (evento) => {
-            // Reconstrucción absoluta: Android no respeta resultIndex ni la
-            // inmutabilidad de resultados previos. Se rearma toda la sesión
-            // desde i = 0 y se ignora cualquier superposición fantasma.
-            let huboFinal = false;
-            let finalSesion = '';
-            let interinoSesion = '';
+            reiniciosSilencio = 0;
+            transcripcionInterina = '';
 
-            for (let i = 0; i < evento.results.length; i++) {
+            for (let i = evento.resultIndex; i < evento.results.length; i++) {
                 const resultado = evento.results[i];
-                const texto = resultado[0]?.transcript || '';
+                const texto = (resultado[0]?.transcript || '').trim();
+                if (!texto) continue;
 
                 if (resultado.isFinal) {
-                    finalSesion += `${texto} `;
-                    huboFinal = true;
+                    const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
+                    if (ultimo && ultimo === texto) {
+                        // evita duplicados inmediatos por eco
+                        continue;
+                    }
+                    fragmentosConfirmados.push(texto);
                 } else {
-                    interinoSesion += `${texto} `;
+                    transcripcionInterina = texto;
                 }
             }
 
-            transcripcionFinal = transcripcionHistorica + finalSesion;
-            transcripcionInterina = interinoSesion;
-
-            reiniciosSilencio = 0;
-            transcripcionInterina = transcripcionInterina.trim();
             actualizarTranscripcionUI();
 
-            // Bypass de onend: si el usuario ya soltó y este bloque quedó final
-            // (sin interino pendiente), disparamos el fetch de inmediato.
-            if (stopSolicitado && huboFinal && !transcripcionInterina) {
+            if (stopSolicitado && !transcripcionInterina) {
                 consolidarYProcesar();
             }
         };
@@ -876,9 +861,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         reconocimiento.onend = () => {
-            // Si el texto ya se envió desde onresult, onend NO vuelve a enviar:
-            // solo apaga el micrófono y limpia el estado de grabación. El fetch
-            // en curso hace el reset final cuando termina.
+            // Si el texto ya se envió desde onresult, onend NO vuelve a enviar
             if (yaConsolidado) {
                 isRecording = false;
                 reiniciosSilencio = 0;
@@ -891,36 +874,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            // Fallback: el usuario soltó y el motor terminó sin entregar un
-            // bloque final (ej. no hubo audio reconocible).
+            // Fallback: el usuario soltó y el motor terminó sin entregar un bloque final
             if (stopSolicitado) {
+                // Pasa lo que quede interino a fragmentos confirmados evitando duplicado
+                if (transcripcionInterina) {
+                    const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
+                    if (!(ultimo && ultimo === transcripcionInterina)) {
+                        fragmentosConfirmados.push(transcripcionInterina);
+                    }
+                    transcripcionInterina = '';
+                    actualizarTranscripcionUI();
+                }
                 consolidarYProcesar();
                 return;
             }
 
             if (!isRecording) return;
 
-            // El motor se detuvo solo (pausa o red): reconectamos mientras
-            // el usuario siga manteniendo presionado el botón.
-            if (isRecording) {
-                temporizadorReinicio = setTimeout(() => {
-                    if (!isRecording || stopSolicitado) return;
-
-                    // Lo parcial que quedó colgado pasa a final antes de reconectar
-                    if (transcripcionInterina) {
-                        transcripcionFinal += `${transcripcionInterina} `;
-                        transcripcionInterina = '';
-                        actualizarTranscripcionUI();
-                    }
-
-                    // Lo consolidado de esta sesión pasa al histórico para que
-                    // la próxima reconstrucción lo anteponga.
-                    transcripcionHistorica = transcripcionFinal || transcripcionHistorica;
-
-                    try { reconocimiento.start(); } catch (e) {}
-                }, REINICIO_DEMORA_MS);
-                return;
+            // Modo burst: el motor corta solo tras cada ráfaga; lo reeniciamos
+            // manualmente mientras el usuario siga manteniendo presionado.
+            if (transcripcionInterina) {
+                const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
+                if (!(ultimo && ultimo === transcripcionInterina)) {
+                    fragmentosConfirmados.push(transcripcionInterina);
+                }
+                transcripcionInterina = '';
+                actualizarTranscripcionUI();
             }
+
+            temporizadorReinicio = setTimeout(() => {
+                if (!isRecording || stopSolicitado) return;
+                try { reconocimiento.start(); } catch (e) {}
+            }, REINICIO_DEMORA_MS);
         };
 
         return true;
@@ -935,9 +920,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (isRecording || isProcessing) return;
 
-        transcripcionFinal = '';
+        fragmentosConfirmados = [];
         transcripcionInterina = '';
-        transcripcionHistorica = '';
         reiniciosSilencio = 0;
         yaConsolidado = false;
         stopSolicitado = false;
@@ -990,7 +974,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             temporizadorReinicio = null;
         }
 
-        const texto = `${transcripcionFinal} ${transcripcionInterina}`.replace(/\s+/g, ' ').trim();
+        // Flushea interino si quedó
+        if (transcripcionInterina) {
+            const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
+            if (!(ultimo && ultimo === transcripcionInterina)) {
+                fragmentosConfirmados.push(transcripcionInterina);
+            }
+            transcripcionInterina = '';
+        }
+
+        const texto = fragmentosConfirmados.join(' ').replace(/\s+/g, ' ').trim();
 
         isRecording = false;
         stopSolicitado = false;
