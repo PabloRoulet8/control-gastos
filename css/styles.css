@@ -1888,3 +1888,31 @@ html[data-theme=light] .btn-dictar-gasto.is-listening {
   width: 18px;
   height: 18px;
 }
+
+/* Modal personalizado de "Limpiar todo" (scopeado para no alterar otros modales) */
+.d-flex {
+  display: flex;
+}
+#modal-limpiar.modal-overlay {
+  top: 0;
+  height: 100%;
+  align-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.6);
+}
+#modal-limpiar .modal-content {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  max-width: 350px;
+  max-height: none;
+  margin: auto;
+  transform: none;
+  opacity: 1;
+  padding: 24px;
+  border-radius: 12px;
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+}

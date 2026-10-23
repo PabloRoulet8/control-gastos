@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let listaCategorias = [];
     let currentUserIdGlobal = null;
 
+    const getBorradorKey = () => `borrador_v2_${currentUserIdGlobal}_${ambitoActual}_${hogarId || 'personal'}`;
+
     // Lista estándar de rubros. El value se normaliza en llenarSelectCategorias()
     // (minúsculas y sin tildes): "Carnicería" -> "carniceria".
     const CATEGORIAS_ESTANDAR = [
@@ -53,7 +55,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. GESTIÓN DE BORRADOR Y NAVEGACIÓN
     const guardarBorradorStock = () => {
-        localStorage.setItem('borrador_stock', JSON.stringify(arrayInventario));
+        try {
+            const estado = {
+                items: arrayInventario,
+                monto: inputMontoGlobal.value,
+                categoria: selectCategoria?.value || '',
+                metodoPago: document.getElementById('metodo-pago')?.value || 'efectivo'
+            };
+            localStorage.setItem(getBorradorKey(), JSON.stringify(estado));
+        } catch (error) {
+            console.warn('No se pudo guardar el borrador:', error);
+            toast.mostrar('No se pudo guardar el borrador automático.', 'error');
+        }
     };
 
     const actualizarListaInventarioUI = () => {
@@ -66,20 +79,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const li = document.createElement('li');
             li.className = 'flex-between p-10 border-bottom-gray';
-            li.innerHTML = `
-                <span><strong>${item.producto}</strong> (${item.cantidad} ${item.unidad})</span>
-                <div class="flex-center inv-item-acciones">
-                    <strong>$${precio.toLocaleString('es-AR')}</strong>
-                    <button
-                        type="button"
-                        class="btn-icon-danger btn-delete-item"
-                        data-index="${index}"
-                        title="Eliminar producto"
-                        aria-label="Eliminar producto del inventario">
-                        <i data-lucide="trash-2"></i>
-                    </button>
-                </div>
-            `;
+
+            const descripcion = document.createElement('span');
+            const nombre = document.createElement('strong');
+            nombre.textContent = String(item.producto ?? '');
+            descripcion.appendChild(nombre);
+            descripcion.appendChild(document.createTextNode(
+                ` (${Number(item.cantidad) || 0} ${String(item.unidad ?? '')})`
+            ));
+
+            const acciones = document.createElement('div');
+            acciones.className = 'flex-center inv-item-acciones';
+
+            if (precio > 0) {
+                const precioEl = document.createElement('strong');
+                precioEl.textContent = `$${precio.toLocaleString('es-AR')}`;
+                acciones.appendChild(precioEl);
+            }
+
+            const boton = document.createElement('button');
+            boton.type = 'button';
+            boton.className = 'btn-icon-danger btn-delete-item';
+            boton.dataset.index = String(index);
+            boton.title = 'Eliminar producto';
+            boton.setAttribute('aria-label', 'Eliminar producto del inventario');
+            boton.innerHTML = '<i data-lucide="trash-2"></i>'; // markup estático y seguro
+
+            acciones.appendChild(boton);
+            li.appendChild(descripcion);
+            li.appendChild(acciones);
             listaUI.appendChild(li);
         });
 
@@ -100,12 +128,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // volver a renderizarlos para que el botón de eliminar sea visible.
         window.lucide?.createIcons();
 
-        if (arrayInventario.length > 0) {
-            // Si los ítems no traen precio (ej. los inyecta la IA), no pisamos
-            // el monto que ya cargó el usuario o la IA.
-            if (totalAcumulado > 0) {
-                inputMontoGlobal.value = totalAcumulado.toFixed(2);
-            }
+        // Solo el total de precios reales manda. Los ítems que inyecta la IA
+        // con precio 0 no deben pisar el monto dictado con $0.
+        if (totalAcumulado > 0) {
+            inputMontoGlobal.value = totalAcumulado.toFixed(2);
             inputMontoGlobal.readOnly = true;
         } else {
             inputMontoGlobal.readOnly = false;
@@ -220,10 +246,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                 llenarSelectCategorias(); // Llenamos con las del hogar
             }
             
-            const guardado = localStorage.getItem('borrador_stock');
+            localStorage.removeItem('borrador_stock');
+            const guardado = localStorage.getItem(getBorradorKey());
             if (guardado) {
-                arrayInventario = JSON.parse(guardado);
-                actualizarListaInventarioUI();
+                try {
+                    const estado = JSON.parse(guardado);
+                    arrayInventario = estado.items || [];
+                    if (estado.categoria && selectCategoria) {
+                        selectCategoria.value = estado.categoria;
+                        selectCategoria.dispatchEvent(new Event('change'));
+                    }
+                    if (estado.metodoPago) {
+                        const selectMetodoPago = document.getElementById('metodo-pago');
+                        if (selectMetodoPago) {
+                            selectMetodoPago.value = estado.metodoPago;
+                            selectMetodoPago.dispatchEvent(new Event('change'));
+                        }
+                    }
+                    if (estado.monto && inputMontoGlobal) inputMontoGlobal.value = estado.monto;
+                    actualizarListaInventarioUI();
+                    const seccionStock = document.getElementById('seccion-inventario');
+                    if (seccionStock && arrayInventario.length > 0) {
+                        seccionStock.style.display = 'block';
+                    }
+                } catch (e) {
+                    console.error("Error leyendo borrador:", e);
+                }
             }
         } catch (error) {
             console.error("Error cargando perfil:", error);
@@ -323,6 +371,82 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         actualizarListaInventarioUI();
         guardarBorradorStock();
+    });
+
+    const modalLimpiar = document.getElementById('modal-limpiar');
+    const btnLimpiarTodo = document.getElementById('btn-limpiar-todo');
+    const btnCancelarLimpiar = document.getElementById('btn-cancelar-limpiar');
+    const btnConfirmarLimpiar = document.getElementById('btn-confirmar-limpiar');
+    let focoPrevioLimpiar = null;
+
+    const cerrarModalLimpiar = () => {
+        if (!modalLimpiar) return;
+        modalLimpiar.style.display = 'none';
+        if (focoPrevioLimpiar && typeof focoPrevioLimpiar.focus === 'function') {
+            focoPrevioLimpiar.focus();
+        }
+        focoPrevioLimpiar = null;
+    };
+
+    const abrirModalLimpiar = () => {
+        if (!modalLimpiar) return;
+        focoPrevioLimpiar = document.activeElement;
+        modalLimpiar.style.display = 'flex';
+        btnCancelarLimpiar?.focus();
+    };
+
+    btnLimpiarTodo?.addEventListener('click', abrirModalLimpiar);
+    btnCancelarLimpiar?.addEventListener('click', cerrarModalLimpiar);
+
+    modalLimpiar?.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            cerrarModalLimpiar();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+
+        const focusables = modalLimpiar.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+
+        const primero = focusables[0];
+        const ultimo = focusables[focusables.length - 1];
+
+        if (e.shiftKey && document.activeElement === primero) {
+            e.preventDefault();
+            ultimo.focus();
+        } else if (!e.shiftKey && document.activeElement === ultimo) {
+            e.preventDefault();
+            primero.focus();
+        }
+    });
+
+    modalLimpiar?.addEventListener('click', (e) => {
+        if (e.target === modalLimpiar) cerrarModalLimpiar();
+    });
+
+    btnConfirmarLimpiar?.addEventListener('click', () => {
+        arrayInventario = [];
+        localStorage.removeItem(getBorradorKey());
+        localStorage.removeItem('borrador_stock');
+        if (formGasto) formGasto.reset();
+        if (inputMontoGlobal) {
+            inputMontoGlobal.value = '';
+            inputMontoGlobal.readOnly = false;
+        }
+        if (inputReferencia) inputReferencia.value = '';
+        if (grupoReferencia) grupoReferencia.style.display = 'none';
+        const seccionStock = document.getElementById('seccion-inventario');
+        if (seccionStock) seccionStock.style.display = 'none';
+        const checkCuotas = document.getElementById('check-es-cuotas');
+        const divCuotasConfig = document.getElementById('div-cuotas-config');
+        if (checkCuotas) checkCuotas.checked = false;
+        if (divCuotasConfig) divCuotasConfig.style.display = 'none';
+        actualizarListaInventarioUI();
+        cerrarModalLimpiar();
+        toast.mostrar('Inventario y formulario limpiados.', 'info');
     });
 
     // ==========================================
@@ -446,10 +570,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Monto
         const monto = typeof datos.monto === 'number' ? datos.monto : parseFloat(datos.monto);
         if (!isNaN(monto) && monto > 0) {
-            if (arrayInventario.length > 0) {
-                toast.mostrar('Hay productos cargados: el monto se calcula solo.', 'info');
+            // Solo hay un total propio si los ítems ya cargados tienen precio.
+            // Si todos valen 0 (típico de la IA), se respeta el monto dictado.
+            const totalPrecios = arrayInventario.reduce(
+                (acc, item) => acc + (Number(item.precio) || 0),
+                0
+            );
+
+            if (totalPrecios > 0) {
+                toast.mostrar('Hay productos con precio: el monto se calcula solo.', 'info');
             } else {
-                inputMontoGlobal.value = monto;
+                const montoAnterior = parseFloat(inputMontoGlobal.value) || 0;
+                inputMontoGlobal.value = (montoAnterior + monto).toFixed(2);
                 inputMontoGlobal.readOnly = false;
                 completados.push('monto');
             }
@@ -530,7 +662,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const actualizarTranscripcionUI = () => {
         if (!dictadoTranscripcion) return;
 
-        const texto = `${transcripcionFinal} ${transcripcionInterina}`.replace(/\s+/g, ' ').trim();
+        const partes = [transcripcionFinal, transcripcionInterina]
+            .map(parte => (parte || '').trim())
+            .filter(Boolean);
+
+        const texto = partes.join(' ');
         dictadoTranscripcion.textContent = texto;
         dictadoTranscripcion.hidden = (texto === '');
     };
@@ -591,11 +727,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.time('Tiempo Fetch');
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
         try {
+            const usuarioActual = auth.currentUser;
+            if (!usuarioActual) {
+                throw new Error('Sesión no válida. Iniciá sesión nuevamente.');
+            }
+
+            // El backend debe validar este token con Firebase Admin antes de
+            // procesar la solicitud (Authorization: Bearer <ID token>).
+            const idToken = await usuarioActual.getIdToken();
+
             const respuesta = await fetch(API_IA_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ texto, categorias: categoriasDisponibles })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ texto, categorias: categoriasDisponibles }),
+                signal: controller.signal
             });
 
             if (!respuesta.ok) {
@@ -610,11 +762,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             terminarTiempoFetch();
             console.error('Error al procesar el gasto con IA:', error);
-            const mensaje = error?.name === 'TypeError'
-                ? 'No se pudo conectar con el servidor de IA. ¿Está corriendo en localhost:3000?'
-                : (error?.message || 'No se pudo procesar el gasto con IA.');
+
+            let mensaje;
+            if (error?.name === 'AbortError') {
+                mensaje = 'La IA tardó demasiado en responder. Intentá de nuevo.';
+            } else if (error instanceof TypeError) {
+                mensaje = 'Sin conexión. Revisá tu internet e intentá de nuevo.';
+            } else {
+                mensaje = error?.message || 'No se pudo procesar el gasto con IA.';
+            }
+
             toast.mostrar(`❌ ${mensaje}`, 'error', 6000);
         } finally {
+            clearTimeout(timeoutId);
             resetEstado();
         }
     };
@@ -642,7 +802,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         reconocimiento.onresult = (evento) => {
-            let interino = '';
+            // Android puede reenviar parciales de un evento anterior. Se
+            // reinicia antes del bucle para que el nuevo parcial reemplace
+            // al viejo en vez de concatenarse (efecto eco).
+            transcripcionInterina = '';
             let huboFinal = false;
 
             for (let i = evento.resultIndex; i < evento.results.length; i++) {
@@ -651,14 +814,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (resultado.isFinal) {
                     transcripcionFinal += `${texto} `;
-                    reiniciosSilencio = 0; // volvió a hablar: resetea los cortes por silencio
                     huboFinal = true;
                 } else {
-                    interino += `${texto} `;
+                    transcripcionInterina += `${texto} `;
                 }
             }
 
-            transcripcionInterina = interino.trim();
+            reiniciosSilencio = 0;
+            transcripcionInterina = transcripcionInterina.trim();
             actualizarTranscripcionUI();
 
             // Bypass de onend: si el usuario ya soltó y este bloque quedó final
@@ -714,11 +877,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (!isRecording) return;
 
-            // El navegador cortó solo (pausa larga o red): reconectamos sin perder lo dicho
-            if (reiniciosSilencio < MAX_REINICIOS_SILENCIO) {
-                reiniciosSilencio++;
-                console.debug(`Reconocimiento cortado solo (${reiniciosSilencio}/${MAX_REINICIOS_SILENCIO}). Reintentando...`);
-
+            // El motor se detuvo solo (pausa o red): reconectamos mientras
+            // el usuario siga manteniendo presionado el botón.
+            if (isRecording) {
                 temporizadorReinicio = setTimeout(() => {
                     if (!isRecording || stopSolicitado) return;
 
@@ -729,18 +890,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         actualizarTranscripcionUI();
                     }
 
-                    try { reconocimiento.start(); } catch (e) { /* ya está iniciado */ }
+                    try { reconocimiento.start(); } catch (e) {}
                 }, REINICIO_DEMORA_MS);
                 return;
             }
-
-            // Demasiados cortes seguidos: finalizamos con lo que haya
-            // (ya estamos en onend, no hace falta volver a llamar a stop())
-            stopSolicitado = true;
-            isRecording = false;
-            isProcessing = true;
-            pintarBotonDictar('processing');
-            consolidarYProcesar();
         };
 
         return true;
@@ -847,9 +1000,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const alSoltar = (e) => {
+        if (!isRecording) return;
+
         if (e.type.startsWith('touch')) {
             ultimoTouch = Date.now();
-            e.preventDefault();
+            e.preventDefault?.();
         } else if (e.type.startsWith('mouse') && esMouseSintetico()) {
             return;
         }
@@ -860,10 +1015,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnDictar?.addEventListener('mousedown', alPresionar);
     btnDictar?.addEventListener('touchstart', alPresionar, { passive: false });
 
-    btnDictar?.addEventListener('mouseup', alSoltar);
-    btnDictar?.addEventListener('mouseleave', alSoltar);
-    btnDictar?.addEventListener('touchend', alSoltar, { passive: false });
-    btnDictar?.addEventListener('touchcancel', alSoltar, { passive: false });
+    document.addEventListener('mouseup', alSoltar);
+    document.addEventListener('touchend', alSoltar, { passive: false });
+    document.addEventListener('touchcancel', alSoltar, { passive: false });
 
     // El long-press en móvil puede abrir el menú contextual aunque touchstart
     // tenga preventDefault(); lo bloqueamos explícitamente.
@@ -983,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 toast.mostrar("✅ ¡Gasto guardado!");
-                localStorage.removeItem('borrador_stock');
+                localStorage.removeItem(getBorradorKey());
                 arrayInventario = [];
                 formGasto.reset();
                 

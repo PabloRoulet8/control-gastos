@@ -99,7 +99,10 @@
                     <input type="number" id="inv-precio" placeholder="Precio Total ($)" step="0.01" class="form-control flex-2">
                     <button type="button" id="btn-add-inv" class="btn-primary flex-1">Agregar</button>
                 </div>
-                <ul id="lista-inventario" class="lista-minimal"></ul>
+                <ul id="lista-inventario" class="lista-minimal" aria-live="polite" aria-label="Productos del inventario"></ul>
+                    <button type="button" id="btn-limpiar-todo" class="btn-secondary w-100 mt-15">
+                    <i data-lucide="trash-2"></i> Limpiar todo
+                </button>
             </div>
 
             <!-- MONTO PROMINENTE (ubicado antes del botón guardar) -->
@@ -131,7 +134,7 @@
 
             <!-- Acciones finales: dictado y guardar, grandes y al alcance del pulgar -->
             <div class="acciones-gasto">
-                <p id="dictado-transcripcion" class="dictado-transcripcion" hidden></p>
+                <p id="dictado-transcripcion" class="dictado-transcripcion" role="status" aria-live="polite" hidden></p>
                 <p class="dictar-hint">Probá: &ldquo;compré 2500 de carne en el supermercado con tarjeta de cr&eacute;dito&rdquo;</p>
                 <button type="button" id="btn-dictar-gasto" class="btn-dictar-gasto" title="Mantén presionado para dictar">
                     <i data-lucide="mic"></i>
@@ -144,7 +147,21 @@
 
     <nav class="bottom-nav" id="nav-contextual"></nav>
 
-    <div id="toast-container" class="toast"></div>
+    <div id="toast-container" class="toast" role="status" aria-live="polite"></div>
+
+    <div id="modal-limpiar" class="modal-overlay" style="display: none;"
+         role="dialog" aria-modal="true"
+         aria-labelledby="modal-limpiar-titulo"
+         aria-describedby="modal-limpiar-desc">
+        <div class="modal-content text-center">
+            <h3 id="modal-limpiar-titulo" class="mb-10">¿Limpiar formulario?</h3>
+            <p id="modal-limpiar-desc" class="mb-20 text-muted">Se vaciará el inventario y los datos cargados. Esta acción no se puede deshacer.</p>
+            <div class="d-flex gap-10">
+                <button type="button" id="btn-cancelar-limpiar" class="btn-secondary flex-1">Cancelar</button>
+                <button type="button" id="btn-confirmar-limpiar" class="btn-primary flex-1" style="background-color: var(--color-danger, #ef4444);">Sí, limpiar</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="js/auth_guard.js?v=11.2"></script>
     <script type="module" src="js/controller_carga.js?v=11.14"></script>   
