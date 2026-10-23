@@ -475,7 +475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let temporizadorReinicio = null;
     let transcripcionFinal = '';    // resultados ya consolidados por el motor
     let transcripcionInterina = ''; // lo que el motor está interpretando ahora
-    let resultadosFinalesProcesados = new Set(); // índices finales ya volcados
+    let transcripcionHistorica = ''; // sesiones anteriores ya consolidadas
 
     // Normaliza texto para comparar (minúsculas y sin acentos)
     const normalizar = (texto) => (texto || '')
@@ -698,6 +698,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         reiniciosSilencio = 0;
         transcripcionFinal = '';
         transcripcionInterina = '';
+        transcripcionHistorica = '';
 
         if (temporizadorReinicio) {
             clearTimeout(temporizadorReinicio);
@@ -797,11 +798,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         reconocimiento.maxAlternatives = 1;
 
         reconocimiento.onstart = () => {
-            // Nueva sesión del motor: los índices de `event.results` vuelven a 0.
-            resultadosFinalesProcesados.clear();
-
             // Si el usuario ya pidió finalizar (doble clic muy rápido), no reabrimos el micrófono
             if (stopSolicitado) return;
+
+            // Nueva sesión del motor: se reconstruye desde cero, pero se
+            // conserva el texto histórico de sesiones anteriores.
+            transcripcionFinal = '';
+            transcripcionInterina = '';
 
             isRecording = true;
             pintarBotonDictar('recording');
@@ -809,28 +812,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         reconocimiento.onresult = (evento) => {
-            // Android puede reenviar parciales de un evento anterior. Se
-            // reinicia antes del bucle para que el nuevo parcial reemplace
-            // al viejo en vez de concatenarse (efecto eco).
-            transcripcionInterina = '';
+            // Reconstrucción absoluta: Android no respeta resultIndex ni la
+            // inmutabilidad de resultados previos. Se rearma toda la sesión
+            // desde i = 0 y se ignora cualquier superposición fantasma.
             let huboFinal = false;
+            let finalSesion = '';
+            let interinoSesion = '';
 
-            for (let i = evento.resultIndex; i < evento.results.length; i++) {
+            for (let i = 0; i < evento.results.length; i++) {
                 const resultado = evento.results[i];
                 const texto = resultado[0]?.transcript || '';
 
                 if (resultado.isFinal) {
-                    // Android puede reemitir un final ya procesado (mismo
-                    // índice) al usar continuous:true. Lo ignoramos.
-                    if (resultadosFinalesProcesados.has(i)) continue;
-
-                    resultadosFinalesProcesados.add(i);
-                    transcripcionFinal += `${texto} `;
+                    finalSesion += `${texto} `;
                     huboFinal = true;
                 } else {
-                    transcripcionInterina += `${texto} `;
+                    interinoSesion += `${texto} `;
                 }
             }
+
+            transcripcionFinal = transcripcionHistorica + finalSesion;
+            transcripcionInterina = interinoSesion;
 
             reiniciosSilencio = 0;
             transcripcionInterina = transcripcionInterina.trim();
@@ -902,6 +904,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         actualizarTranscripcionUI();
                     }
 
+                    // Lo consolidado de esta sesión pasa al histórico para que
+                    // la próxima reconstrucción lo anteponga.
+                    transcripcionHistorica = transcripcionFinal || transcripcionHistorica;
+
                     try { reconocimiento.start(); } catch (e) {}
                 }, REINICIO_DEMORA_MS);
                 return;
@@ -922,6 +928,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         transcripcionFinal = '';
         transcripcionInterina = '';
+        transcripcionHistorica = '';
         reiniciosSilencio = 0;
         yaConsolidado = false;
         stopSolicitado = false;
