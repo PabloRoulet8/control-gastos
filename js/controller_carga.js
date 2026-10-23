@@ -659,6 +659,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    // Filtro SOLO visual: colapsa repeticiones contiguas exactas (eco de Android).
+    // No se usa sobre el texto que se envía a la IA.
+    const limpiarEcoVisual = (texto) => {
+        if (!texto) return '';
+        // Filtro visual seguro: elimina una duplicación exacta de bloques de 1 a 3 palabras
+        // Evita el catastrophic backtracking y preserva repeticiones intencionales complejas
+        return texto.replace(/\b([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,2})\s+\1\b/gi, '$1').trim();
+    };
+
     // Muestra la transcripción en vivo (consolidado + lo que se está interpretando)
     const actualizarTranscripcionUI = () => {
         if (!dictadoTranscripcion) return;
@@ -667,7 +676,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             .map(parte => (parte || '').trim())
             .filter(Boolean);
 
-        const texto = partes.join(' ');
+        const texto = limpiarEcoVisual(partes.join(' '));
         dictadoTranscripcion.textContent = texto;
         dictadoTranscripcion.hidden = (texto === '');
     };

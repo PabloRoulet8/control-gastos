@@ -915,7 +915,11 @@ html[data-theme=light] select option {
   z-index: 9999;
   display: none;
   font-size: 0.9rem;
-  white-space: nowrap;
+  max-width: 90vw;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  text-align: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 .toast.show {
