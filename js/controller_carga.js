@@ -475,6 +475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let temporizadorReinicio = null;
     let transcripcionFinal = '';    // resultados ya consolidados por el motor
     let transcripcionInterina = ''; // lo que el motor está interpretando ahora
+    let resultadosFinalesProcesados = new Set(); // índices finales ya volcados
 
     // Normaliza texto para comparar (minúsculas y sin acentos)
     const normalizar = (texto) => (texto || '')
@@ -709,7 +710,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Envía el texto transcrito al backend de IA y completa el formulario
     const procesarConIA = async (texto) => {
-        toast.mostrar('Procesando con IA...', 'info');
+        // Diagnóstico: permite distinguir error acústico (texto mal transcripto)
+        // de una mala extracción del backend.
+        console.log('[IA] Texto consolidado enviado:', JSON.stringify(texto));
+        toast.mostrar(`🎤 Enviado: "${texto}" — procesando...`, 'info', 4000);
 
         // Mandamos las categorías reales del select para que la IA elija una y no invente nombres
         const categoriasDisponibles = selectCategoria
@@ -793,6 +797,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         reconocimiento.maxAlternatives = 1;
 
         reconocimiento.onstart = () => {
+            // Nueva sesión del motor: los índices de `event.results` vuelven a 0.
+            resultadosFinalesProcesados.clear();
+
             // Si el usuario ya pidió finalizar (doble clic muy rápido), no reabrimos el micrófono
             if (stopSolicitado) return;
 
@@ -813,6 +820,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const texto = resultado[0]?.transcript || '';
 
                 if (resultado.isFinal) {
+                    // Android puede reemitir un final ya procesado (mismo
+                    // índice) al usar continuous:true. Lo ignoramos.
+                    if (resultadosFinalesProcesados.has(i)) continue;
+
+                    resultadosFinalesProcesados.add(i);
                     transcripcionFinal += `${texto} `;
                     huboFinal = true;
                 } else {
