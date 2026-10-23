@@ -182,6 +182,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         return true;
     };
 
+    // Solicita permiso de micrófono al ingresar para evitar el prompt en el primer toque
+    const solicitarPermisoMicrofonoInicial = async () => {
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Liberamos el micrófono inmediatamente para no mantenerlo activo
+            stream.getTracks().forEach(track => track.stop());
+        } catch (error) {
+            console.warn('Permiso de micrófono denegado o ignorado:', error?.name || error);
+        }
+    };
+
     // 2. INICIALIZACIÓN DE DATOS
     const inicializarPagina = async (userId) => {
         currentUserIdGlobal = userId;
@@ -273,6 +288,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error("Error leyendo borrador:", e);
                 }
             }
+
+            await solicitarPermisoMicrofonoInicial();
         } catch (error) {
             console.error("Error cargando perfil:", error);
         }
