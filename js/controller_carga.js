@@ -7,8 +7,7 @@ import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 import { AppUtils } from "./utils/AppUtils.js";
 import { DraftService } from "./services/DraftService.js";
 import { InventarioService } from "./services/InventarioService.js";
-import { InventarioService } from "./services/InventarioService.js";
-import { DraftService } from "./services/DraftService.js";
+import { CategoryService } from "./services/CategoryService.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
@@ -26,19 +25,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let arrayInventario = [];
     let listaCategorias = [];
     let currentUserIdGlobal = null;
-
-    // Lista estándar de rubros. El value se normaliza en llenarSelectCategorias()
-    // (minúsculas y sin tildes): "Carnicería" -> "carniceria".
-    const CATEGORIAS_ESTANDAR = [
-        'Supermercado', 'Carnicería', 'Fiambrería', 'Verdulería', 'Panadería',
-        'Farmacia', 'Hogar', 'Transporte', 'Salidas', 'Delivery', 'Otros'
-    ];
-
-    const categoriasEstandar = () => CATEGORIAS_ESTANDAR.map(nombre => ({
-        nombre,
-        lleva_stock: false,
-        es_fijo: false
-    }));
 
     const selectCategoria = document.getElementById('categoria');
     const selectResponsable = document.getElementById('responsable');
@@ -197,12 +183,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             let categoriasPropias = userData.categorias_personales || [];
             
             if (ambitoActual === 'personal') {
-                listaCategorias = [...categoriasPropias];
-                
-                // Solo ponemos las de por defecto si REALMENTE está vacío en Firebase
-                if (listaCategorias.length === 0) {
-                    listaCategorias = categoriasEstandar();
-                }
+                listaCategorias = CategoryService.obtenerCategoriasParaAmbito('personal', {
+                    personales: categoriasPropias
+                });
+
                 if (tituloHeader) tituloHeader.textContent = "Gastos Personales";
                 if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto vas a anotar?"; 
                 llenarSelectCategorias(); // Llenamos de inmediato
@@ -214,10 +198,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const hogarData = hogarSnap.data();
                     
                     // Acá cargamos EXCLUSIVAMENTE las categorías compartidas del hogar
-                    listaCategorias = hogarData.categorias_compartidas || [];
-                    if (listaCategorias.length === 0) {
-                        listaCategorias = categoriasEstandar();
-                    }
+                    listaCategorias = CategoryService.obtenerCategoriasParaAmbito('hogar', {
+                        hogar: hogarData.categorias_compartidas || []
+                    });
                     
                     const nombreHogar = hogarNombre || hogarData.nombre;
                     if (tituloHeader) tituloHeader.textContent = nombreHogar;
@@ -275,21 +258,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const llenarSelectCategorias = () => {
         if (!selectCategoria) return;
+
         selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
-        listaCategorias.sort((a, b) => {
-            const nameA = (typeof a === 'string' ? a : a.nombre).toLowerCase();
-            const nameB = (typeof b === 'string' ? b : b.nombre).toLowerCase();
-            return nameA.localeCompare(nameB);
-        }).forEach(cat => {
-            const c = typeof cat === 'string' ? { nombre: cat, lleva_stock: false, es_fijo: false } : cat;
-            if (c.activa !== false) {
-                const option = document.createElement('option');
-                option.value = c.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                option.textContent = c.nombre;
-                option.dataset.llevaStock = c.lleva_stock;
-                option.dataset.esFijo = c.es_fijo; 
-                selectCategoria.appendChild(option);
-            }
+
+        CategoryService.prepararCategorias(listaCategorias).forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.valor;
+            option.textContent = cat.nombre;
+            option.dataset.llevaStock = cat.lleva_stock;
+            option.dataset.esFijo = cat.es_fijo;
+            selectCategoria.appendChild(option);
         });
     };
 
@@ -472,49 +450,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let fragmentosConfirmados = []; // fragmentos finales únicos por sesión
 
     // Normaliza texto para comparar (minúsculas y sin acentos)
-    const normalizar = (texto) => (texto || '')
-        .toString()
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
+    const normalizar = (texto) => CategoryService.normalizarTexto(texto);
 
-    // Busca la categoría del select que mejor corresponde a lo que devolvió la IA
+    // Busca la categoría que mejor corresponde a lo que devolvió la IA
     const buscarCategoriaIA = (nombreIA) => {
-        if (!selectCategoria || !nombreIA) return null;
-
-        const objetivo = normalizar(nombreIA);
-        if (!objetivo) return null;
-
-        const opciones = Array.from(selectCategoria.options).filter(o => o.value);
-        if (opciones.length === 0) return null;
-
-        // 1) Coincidencia exacta contra el value o el texto visible
-        let opcion = opciones.find(o =>
-            normalizar(o.value) === objetivo || normalizar(o.textContent) === objetivo
-        );
-        if (opcion) return opcion;
-
-        // 2) Una opción está contenida en la respuesta de la IA (o al revés)
-        opcion = opciones.find(o => {
-            const valor = normalizar(o.value);
-            const texto = normalizar(o.textContent);
-            return objetivo.includes(valor) || objetivo.includes(texto) ||
-                   valor.includes(objetivo) || texto.includes(objetivo);
-        });
-        if (opcion) return opcion;
-
-        // 3) Coincidencia por palabras compartidas ("gasto de supermercado" -> "Supermercado")
-        const palabras = objetivo.split(/[\s,._-]+/).filter(p => p.length > 3);
-        if (palabras.length > 0) {
-            opcion = opciones.find(o => {
-                const tokens = new Set(normalizar(`${o.value} ${o.textContent}`).split(/[\s,._-]+/));
-                return palabras.some(p => tokens.has(p));
-            });
-            if (opcion) return opcion;
-        }
-
-        return null;
+        if (!nombreIA) return null;
+        return CategoryService.buscarCategoria(nombreIA, listaCategorias);
     };
 
     // Traduce el método de pago de la IA a las opciones reales del select
@@ -583,9 +524,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Categoría
-        const opcionCategoria = buscarCategoriaIA(datos.categoria);
-        if (opcionCategoria) {
-            selectCategoria.value = opcionCategoria.value;
+        const categoriaIA = buscarCategoriaIA(datos.categoria);
+        if (categoriaIA && selectCategoria) {
+            selectCategoria.value = categoriaIA.valor;
             // Disparamos el change para que se actualicen stock / referencia
             selectCategoria.dispatchEvent(new Event('change'));
             completados.push('categoría');
@@ -716,10 +657,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('[IA] Texto consolidado enviado:', JSON.stringify(texto));
         toast.mostrar(`🎤 Enviado: "${texto}" — procesando...`, 'info', 4000);
 
-        // Mandamos las categorías reales del select para que la IA elija una y no invente nombres
-        const categoriasDisponibles = selectCategoria
-            ? Array.from(selectCategoria.options).filter(o => o.value).map(o => o.value)
-            : [];
+        // Mandamos las categorías reales para que la IA elija una y no invente nombres
+        const categoriasDisponibles = CategoryService
+            .prepararCategorias(listaCategorias)
+            .map(cat => cat.valor);
 
         // Medimos desde que sale el request hasta que el JSON está resuelto.
         // (No incluye el pintado del formulario posterior.)
