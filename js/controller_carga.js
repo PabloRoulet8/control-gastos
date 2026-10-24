@@ -6,6 +6,8 @@ import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 import { AppUtils } from "./utils/AppUtils.js";
 import { DraftService } from "./services/DraftService.js";
+import { InventarioService } from "./services/InventarioService.js";
+import { InventarioService } from "./services/InventarioService.js";
 import { DraftService } from "./services/DraftService.js";
 
 // Backend de IA (procesamiento del gasto dictado)
@@ -116,9 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         listaUI.querySelectorAll('.btn-delete-item').forEach(btn => {
             btn.onclick = (e) => {
                 const idx = Number(e.currentTarget.dataset.index);
-                if (!Number.isInteger(idx) || idx < 0 || idx >= arrayInventario.length) return;
-
-                arrayInventario.splice(idx, 1);
+                arrayInventario = InventarioService.eliminarItem(arrayInventario, idx);
 
                 // Redibuja la lista y dispara 'change' sobre #lista-inventario
                 actualizarListaInventarioUI();
@@ -132,8 +132,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Solo el total de precios reales manda. Los ítems que inyecta la IA
         // con precio 0 no deben pisar el monto dictado con $0.
-        if (totalAcumulado > 0) {
-            inputMontoGlobal.value = totalAcumulado.toFixed(2);
+        const totalInventario = InventarioService.calcularTotal(arrayInventario);
+        if (totalInventario > 0) {
+            inputMontoGlobal.value = totalInventario.toFixed(2);
             inputMontoGlobal.readOnly = true;
         } else {
             inputMontoGlobal.readOnly = false;
@@ -150,38 +151,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Normaliza la unidad que devuelve la IA a las opciones del select de inventario
-    const normalizarUnidadInventario = (unidad) => {
-        const u = String(unidad || '')
-            .trim()
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '');
-
-        if (['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(u)) return 'kg';
-        if (['l', 'lt', 'lts', 'litro', 'litros'].includes(u)) return 'litro';
-        if (['pack', 'paquete', 'paquetes'].includes(u)) return 'pack';
-        return 'unid';
-    };
-
     // Lógica única para agregar un producto al inventario (manual o por IA)
     const agregarProductoInventario = ({ producto, cantidad, unidad, precio = 0 }) => {
-        const nombre = String(producto || '').trim();
-        const cant = parseFloat(cantidad);
-        const precioNum = parseFloat(precio);
-
-        if (!nombre || !Number.isFinite(cant) || cant <= 0) return false;
-
-        const nombreLimpio = nombre.charAt(0).toUpperCase() + nombre.slice(1);
-
-        arrayInventario.push({
-            producto: nombreLimpio,
-            cantidad: cant,
-            unidad: normalizarUnidadInventario(unidad),
-            precio: Number.isFinite(precioNum) ? precioNum : 0
+        const inventarioAntes = Array.isArray(arrayInventario) ? arrayInventario.length : 0;
+        arrayInventario = InventarioService.agregarItem(arrayInventario, {
+            producto,
+            cantidad,
+            unidad,
+            precio
         });
+        const inventarioDespues = Array.isArray(arrayInventario) ? arrayInventario.length : 0;
 
-        return true;
+        return inventarioDespues >= inventarioAntes && arrayInventario.length > 0;
     };
 
     // Solicita permiso de micrófono al ingresar para evitar el prompt en el primer toque
