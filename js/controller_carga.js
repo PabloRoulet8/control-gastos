@@ -9,6 +9,7 @@ import { DraftService } from "./services/DraftService.js";
 import { InventarioService } from "./services/InventarioService.js";
 import { CategoryService } from "./services/CategoryService.js";
 import { FormService } from "./services/FormService.js";
+import { IAService } from "./services/IAService.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
@@ -730,31 +731,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const timeoutId = setTimeout(() => controller.abort(), 20000);
 
         try {
-            const usuarioActual = auth.currentUser;
-            if (!usuarioActual) {
-                throw new Error('Sesión no válida. Iniciá sesión nuevamente.');
-            }
-
-            // El backend debe validar este token con Firebase Admin antes de
-            // procesar la solicitud (Authorization: Bearer <ID token>).
-            const idToken = await usuarioActual.getIdToken();
-
-            const respuesta = await fetch(API_IA_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
-                },
-                body: JSON.stringify({ texto, categorias: categoriasDisponibles }),
-                signal: controller.signal
+            const datos = await IAService.procesarTexto({
+                texto,
+                categoriasDisponibles,
+                signal: controller.signal,
+                auth,
+                apiUrl: API_IA_URL
             });
 
-            if (!respuesta.ok) {
-                const detalle = await respuesta.json().catch(() => null);
-                throw new Error(detalle?.error || `El servidor de IA respondió ${respuesta.status}`);
-            }
-
-            const datos = await respuesta.json();
             terminarTiempoFetch();
 
             if (idProcesamiento !== idProcesamientoIA) return;
