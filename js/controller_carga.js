@@ -8,6 +8,7 @@ import { AppUtils } from "./utils/AppUtils.js";
 import { DraftService } from "./services/DraftService.js";
 import { InventarioService } from "./services/InventarioService.js";
 import { CategoryService } from "./services/CategoryService.js";
+import { FormService } from "./services/FormService.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
@@ -283,13 +284,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Escuchar cuando cambian a Tarjeta de Crédito
     if (selectMetodoPago) {
         selectMetodoPago.addEventListener('change', () => {
-            const esTarjeta = selectMetodoPago.value === 'tarjeta-credito';
-            
+            const esTarjeta = FormService.admiteCuotas(selectMetodoPago.value);
+
             if (contenedorOpcionCuotas) {
                 contenedorOpcionCuotas.style.display = esTarjeta ? 'block' : 'none';
             }
-            
-            // Si eligen Efectivo, reseteamos las cuotas y ocultamos todo
+
             if (!esTarjeta) {
                 if (checkEsCuotas) checkEsCuotas.checked = false;
                 if (divCuotasConfig) divCuotasConfig.style.display = 'none';
@@ -313,7 +313,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     selectCategoria?.addEventListener('change', () => {
         const option = selectCategoria.options[selectCategoria.selectedIndex];
-        
+        if (!option) return;
+
         const llevaStock = option.dataset.llevaStock === "true";
         const esFijo = option.dataset.esFijo === "true";
 
@@ -321,8 +322,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (seccionStock) seccionStock.style.display = llevaStock ? 'block' : 'none';
 
         if (grupoReferencia) {
-            const esVariable = !esFijo && !llevaStock;
-            grupoReferencia.style.display = esVariable ? 'block' : 'none';
+            grupoReferencia.style.display = FormService.esCategoriaVariable({ esFijo, llevaStock })
+                ? 'block'
+                : 'none';
         }
     });
 
@@ -996,120 +998,101 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (window.lucide) window.lucide.createIcons();
 
-    if(formGasto) {
+    if (formGasto) {
         formGasto.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('.btn-primary');
             btn.disabled = true;
             btn.textContent = "Guardando...";
-            
+
             try {
-                const catElegida = selectCategoria.options[selectCategoria.selectedIndex].text;
+                const catElegida = selectCategoria?.value
+                    ? selectCategoria.options[selectCategoria.selectedIndex]?.text || ''
+                    : '';
                 const metodoPago = document.getElementById('metodo-pago').value;
                 const esCuotas = document.getElementById('check-es-cuotas')?.checked || false;
-                const cantidadCuotas = parseInt(document.getElementById('input-cantidad-cuotas')?.value || '1');
-                
+                const cantidadCuotas = document.getElementById('input-cantidad-cuotas')?.value || '';
+                const postCierre = document.getElementById('check-post-cierre')?.checked || false;
+
                 let textoReferencia = "";
                 if (grupoReferencia && grupoReferencia.style.display === 'block' && inputReferencia) {
                     textoReferencia = inputReferencia.value.trim();
                 }
-                
-                // Si NO es pago en cuotas, guardar normalmente
-                if (!esCuotas || metodoPago !== 'tarjeta-credito') {
-                    const monto = parseFloat(inputMontoGlobal.value);
-                    if (isNaN(monto) || monto <= 0) {
-                        toast.mostrar("Ingresá un monto válido mayor a 0.");
-                        btn.disabled = false;
-                        btn.textContent = "Guardar Gasto";
-                        return;
-                    }
-                    
-                    const nuevoGasto = {
-                        fecha: AppUtils.getFechaLocal(),
-                        monto: monto,
+
+                const validacion = FormService.validarFormulario({
+                    monto: inputMontoGlobal.value,
+                    categoria: catElegida,
+                    categoriaValor: selectCategoria?.value || '',
+                    metodoPago,
+                    esCuotas,
+                    cantidadCuotas
+                });
+
+                if (!validacion.valido) {
+                    toast.mostrar(validacion.errores[0]);
+                    return;
+                }
+
+                const tipo = FormService.determinarTipo(ambitoActual);
+                const responsable = (ambitoActual === 'hogar')
+                    ? selectResponsable.value
+                    : currentUserIdGlobal;
+                const contexto = FormService.construirContexto(ambitoActual, hogarId);
+                const fecha = AppUtils.getFechaLocal();
+                const usaCuotas = FormService.esPagoEnCuotas({
+                    metodoPago,
+                    esCuotas,
+                    cantidadCuotas
+                });
+
+                if (!usaCuotas) {
+                    const nuevoGasto = FormService.construirGasto({
+                        fecha,
+                        monto: validacion.monto,
                         categoria: catElegida,
-                        detalle_inventario: arrayInventario,
-                        responsable: (ambitoActual === 'hogar') ? selectResponsable.value : currentUserIdGlobal,
-                        metodo_pago: metodoPago,
-                        tipo: (ambitoActual === 'hogar') ? 'general' : 'individual',
-                        referencia: AppUtils.escapeHTML(textoReferencia)
-                    };
-                    
-                    const contexto = (ambitoActual === 'hogar') ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
+                        inventario: arrayInventario,
+                        responsable,
+                        metodoPago,
+                        tipo,
+                        referencia: textoReferencia
+                    });
+
                     await api.guardarGasto(nuevoGasto, contexto);
                 } else {
-                    // LÓGICA DE PAGO EN CUOTAS
-                    const montoTotal = parseFloat(inputMontoGlobal.value);
-                    if (isNaN(montoTotal) || montoTotal <= 0) {
-                        toast.mostrar("Ingresá un monto válido mayor a 0.");
-                        btn.disabled = false;
-                        btn.textContent = "Guardar Gasto";
-                        return;
-                    }
-                    const montoCuota = montoTotal / cantidadCuotas;
-                    const compraId = 'cuotas_' + Date.now();
-                    
-                    // Obtener fecha base usando AppUtils
-                    const [y, m, d] = AppUtils.getFechaLocal().split('-').map(Number);
-                    let fechaBase = new Date(y, m - 1, d);  
-                    
-                    // Si está marcado "post-cierre", sumar 1 mes
-                    const postCierre = document.getElementById('check-post-cierre')?.checked || false;
-                    if (postCierre) {
-                        fechaBase.setMonth(fechaBase.getMonth() + 1);
-                    }
-                    
-                    // Arrays para Promises
-                    const promesasGasto = [];
-                    
-                    for (let i = 1; i <= cantidadCuotas; i++) {
-                        // Clonar fecha base y sumar (i-1) meses
-                        let fechaCuota = new Date(fechaBase);
-                        fechaCuota.setMonth(fechaBase.getMonth() + (i - 1));
-                        
-                        // Formatear fecha a YYYY-MM-DD
-                        const yearCuota = fechaCuota.getFullYear();
-                        const monthCuota = String(fechaCuota.getMonth() + 1).padStart(2, '0');
-                        const dayCuota = String(fechaCuota.getDate()).padStart(2, '0');
-                        const fechaCuotaStr = `${yearCuota}-${monthCuota}-${dayCuota}`;
-                        
-                        const gastoCuota = {
-                            fecha: fechaCuotaStr,
-                            monto: montoCuota,
-                            categoria: catElegida,
-                            detalle_inventario: [],
-                            responsable: (ambitoActual === 'hogar') ? selectResponsable.value : currentUserIdGlobal,
-                            metodo_pago: metodoPago,
-                            tipo: (ambitoActual === 'hogar') ? 'general' : 'individual',
-                            referencia: `${AppUtils.escapeHTML(textoReferencia)} (Cuota ${i} de ${cantidadCuotas}) - Total: $${montoTotal.toLocaleString('es-AR')}`,
-                            es_cuota: true,
-                            compra_id: compraId
-                        };
-                        
-                        const contexto = (ambitoActual === 'hogar') ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
-                        promesasGasto.push(api.guardarGasto(gastoCuota, contexto));
-                    }
-                    
-                    await Promise.all(promesasGasto);
+                    const gastosCuota = FormService.construirGastosEnCuotas({
+                        fecha,
+                        montoTotal: validacion.monto,
+                        categoria: catElegida,
+                        responsable,
+                        metodoPago,
+                        tipo,
+                        referencia: textoReferencia,
+                        cantidadCuotas,
+                        postCierre,
+                        compraId: 'cuotas_' + Date.now()
+                    });
+
+                    await Promise.all(
+                        gastosCuota.map(gasto => api.guardarGasto(gasto, contexto))
+                    );
                 }
-                
+
                 toast.mostrar("✅ ¡Gasto guardado!");
                 DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
                 DraftService.limpiarBorradorLegacy();
                 arrayInventario = [];
                 formGasto.reset();
-                
-                // Resetear controles de cuotas
+
                 const checkEsCuotas = document.getElementById('check-es-cuotas');
                 const divCuotasConfig = document.getElementById('div-cuotas-config');
                 if (checkEsCuotas) checkEsCuotas.checked = false;
                 if (divCuotasConfig) divCuotasConfig.style.display = 'none';
-                
+
                 if (inputReferencia) inputReferencia.value = '';
                 if (grupoReferencia) grupoReferencia.style.display = 'none';
-                
+
                 actualizarListaInventarioUI();
-                
+
             } catch (err) {
                 console.error(err);
                 toast.mostrar("❌ Error al guardar");
