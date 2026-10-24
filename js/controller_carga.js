@@ -12,6 +12,7 @@ import { FormService } from "./services/FormService.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
+const API_IA_PING_URL = new URL('/', API_IA_URL).href;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
@@ -170,12 +171,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. INICIALIZACIÓN DE DATOS
     const inicializarPagina = async (userId) => {
         currentUserIdGlobal = userId;
-        
+
+        // Despierta el backend gratuito sin bloquear ni esperar respuesta.
+        fetch(API_IA_PING_URL, {
+            method: 'GET',
+            mode: 'no-cors',
+            cache: 'no-store'
+        }).catch(() => {});
+
         // Ocultar/Mostrar Responsable según el ámbito
         if (ambitoActual === 'personal') {
             if (grupoResponsable) grupoResponsable.style.display = 'none';
         }
-        
+
         try {
             const userSnap = await getDoc(doc(db, "usuarios", userId));
             const userData = userSnap.exists() ? userSnap.data() : {};
