@@ -403,6 +403,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     btnConfirmarLimpiar?.addEventListener('click', () => {
+        cancelarProcesamientoIA();
+
+        if (reconocimiento) {
+            try {
+                reconocimiento.abort();
+            } catch (error) {
+                console.warn('No se pudo abortar el reconocimiento:', error);
+            }
+        }
+
+        if (temporizadorReinicio) {
+            clearTimeout(temporizadorReinicio);
+            temporizadorReinicio = null;
+        }
+
+        isRecording = false;
+        isProcessing = false;
+        stopSolicitado = false;
+        yaConsolidado = false;
+        reiniciosSilencio = 0;
+        transcripcionInterina = '';
+        fragmentosConfirmados = [];
+        actualizarTranscripcionUI();
+        pintarBotonDictar('idle');
+
         arrayInventario = [];
         DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
         DraftService.limpiarBorradorLegacy();
@@ -448,8 +473,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let reconocimiento = null;
     let temporizadorReinicio = null;
+    let abortControllerIA = null;
+    let idProcesamientoIA = 0;
     let transcripcionInterina = ''; // lo que el motor está interpretando ahora
     let fragmentosConfirmados = []; // fragmentos finales únicos por sesión
+
+    const cancelarProcesamientoIA = () => {
+        idProcesamientoIA += 1;
+        if (abortControllerIA) {
+            abortControllerIA.abort();
+            abortControllerIA = null;
+        }
+    };
 
     // Normaliza texto para comparar (minúsculas y sin acentos)
     const normalizar = (texto) => CategoryService.normalizarTexto(texto);
@@ -654,6 +689,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Envía el texto transcrito al backend de IA y completa el formulario
     const procesarConIA = async (texto) => {
+        const idProcesamiento = ++idProcesamientoIA;
+
+        if (abortControllerIA) {
+            abortControllerIA.abort();
+            abortControllerIA = null;
+        }
+
         // Diagnóstico: permite distinguir error acústico (texto mal transcripto)
         // de una mala extracción del backend.
         console.log('[IA] Texto consolidado enviado:', JSON.stringify(texto));
@@ -676,6 +718,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.time('Tiempo Fetch');
 
         const controller = new AbortController();
+        abortControllerIA = controller;
         const timeoutId = setTimeout(() => controller.abort(), 20000);
 
         try {
@@ -705,10 +748,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const datos = await respuesta.json();
             terminarTiempoFetch();
+
+            if (idProcesamiento !== idProcesamientoIA) return;
+
             aplicarDatosIA(datos);
 
         } catch (error) {
             terminarTiempoFetch();
+
+            if (idProcesamiento !== idProcesamientoIA) return;
+
             console.error('Error al procesar el gasto con IA:', error);
 
             let mensaje;
@@ -723,7 +772,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             toast.mostrar(`❌ ${mensaje}`, 'error', 6000);
         } finally {
             clearTimeout(timeoutId);
-            resetEstado();
+
+            if (abortControllerIA === controller) {
+                abortControllerIA = null;
+            }
+
+            if (idProcesamiento === idProcesamientoIA) {
+                resetEstado();
+            }
         }
     };
 
@@ -857,6 +913,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (isRecording || isProcessing) return;
+
+        cancelarProcesamientoIA();
+        isProcessing = false;
+
+        if (temporizadorReinicio) {
+            clearTimeout(temporizadorReinicio);
+            temporizadorReinicio = null;
+        }
 
         fragmentosConfirmados = [];
         transcripcionInterina = '';
