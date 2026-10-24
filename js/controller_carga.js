@@ -5,6 +5,8 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/f
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 import { AppUtils } from "./utils/AppUtils.js";
+import { DraftService } from "./services/DraftService.js";
+import { DraftService } from "./services/DraftService.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
@@ -22,8 +24,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let arrayInventario = [];
     let listaCategorias = [];
     let currentUserIdGlobal = null;
-
-    const getBorradorKey = () => `borrador_v2_${currentUserIdGlobal}_${ambitoActual}_${hogarId || 'personal'}`;
 
     // Lista estándar de rubros. El value se normaliza en llenarSelectCategorias()
     // (minúsculas y sin tildes): "Carnicería" -> "carniceria".
@@ -55,16 +55,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. GESTIÓN DE BORRADOR Y NAVEGACIÓN
     const guardarBorradorStock = () => {
-        try {
-            const estado = {
+        const guardado = DraftService.guardarBorrador(
+            currentUserIdGlobal,
+            ambitoActual,
+            hogarId,
+            {
                 items: arrayInventario,
-                monto: inputMontoGlobal.value,
+                monto: inputMontoGlobal?.value || '',
                 categoria: selectCategoria?.value || '',
                 metodoPago: document.getElementById('metodo-pago')?.value || 'efectivo'
-            };
-            localStorage.setItem(getBorradorKey(), JSON.stringify(estado));
-        } catch (error) {
-            console.warn('No se pudo guardar el borrador:', error);
+            }
+        );
+        if (!guardado) {
             toast.mostrar('No se pudo guardar el borrador automático.', 'error');
         }
     };
@@ -261,31 +263,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 llenarSelectCategorias(); // Llenamos con las del hogar
             }
             
-            localStorage.removeItem('borrador_stock');
-            const guardado = localStorage.getItem(getBorradorKey());
+            DraftService.limpiarBorradorLegacy();
+            const guardado = DraftService.cargarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
             if (guardado) {
-                try {
-                    const estado = JSON.parse(guardado);
-                    arrayInventario = estado.items || [];
-                    if (estado.categoria && selectCategoria) {
-                        selectCategoria.value = estado.categoria;
-                        selectCategoria.dispatchEvent(new Event('change'));
+                arrayInventario = guardado.items || [];
+                if (guardado.categoria && selectCategoria) {
+                    selectCategoria.value = guardado.categoria;
+                    selectCategoria.dispatchEvent(new Event('change'));
+                }
+                if (guardado.metodoPago) {
+                    const selectMetodoPago = document.getElementById('metodo-pago');
+                    if (selectMetodoPago) {
+                        selectMetodoPago.value = guardado.metodoPago;
+                        selectMetodoPago.dispatchEvent(new Event('change'));
                     }
-                    if (estado.metodoPago) {
-                        const selectMetodoPago = document.getElementById('metodo-pago');
-                        if (selectMetodoPago) {
-                            selectMetodoPago.value = estado.metodoPago;
-                            selectMetodoPago.dispatchEvent(new Event('change'));
-                        }
-                    }
-                    if (estado.monto && inputMontoGlobal) inputMontoGlobal.value = estado.monto;
-                    actualizarListaInventarioUI();
-                    const seccionStock = document.getElementById('seccion-inventario');
-                    if (seccionStock && arrayInventario.length > 0) {
-                        seccionStock.style.display = 'block';
-                    }
-                } catch (e) {
-                    console.error("Error leyendo borrador:", e);
+                }
+                if (guardado.monto && inputMontoGlobal) inputMontoGlobal.value = guardado.monto;
+                actualizarListaInventarioUI();
+                const seccionStock = document.getElementById('seccion-inventario');
+                if (seccionStock && arrayInventario.length > 0) {
+                    seccionStock.style.display = 'block';
                 }
             }
 
@@ -446,8 +443,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     btnConfirmarLimpiar?.addEventListener('click', () => {
         arrayInventario = [];
-        localStorage.removeItem(getBorradorKey());
-        localStorage.removeItem('borrador_stock');
+        DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
+        DraftService.limpiarBorradorLegacy();
         if (formGasto) formGasto.reset();
         if (inputMontoGlobal) {
             inputMontoGlobal.value = '';
@@ -1175,7 +1172,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 toast.mostrar("✅ ¡Gasto guardado!");
-                localStorage.removeItem(getBorradorKey());
+                DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
+                DraftService.limpiarBorradorLegacy();
                 arrayInventario = [];
                 formGasto.reset();
                 
