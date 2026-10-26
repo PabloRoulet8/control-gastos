@@ -1,3 +1,4 @@
+import { db } from "../firebase-config.js";
 import {
     doc,
     getDoc,
@@ -6,7 +7,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class PerfilPublicoService {
-    static async sincronizar(db, uid, nombre, avatarUrl) {
+    static async sincronizar(uid, nombre, avatarUrl) {
         if (!uid) throw new Error('El usuario es obligatorio.');
 
         const nombreLimpio = String(nombre || '').trim();
@@ -27,7 +28,7 @@ export class PerfilPublicoService {
         }, { merge: true });
     }
 
-    static async obtener(db, uid) {
+    static async obtener(uid) {
         if (!uid) return null;
 
         const snapshot = await getDoc(doc(db, 'perfiles_publicos', uid));

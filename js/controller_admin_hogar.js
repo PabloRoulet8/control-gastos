@@ -1,6 +1,5 @@
-﻿import { auth, db } from "./firebase-config.js";
+﻿import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { GastoRepository } from "./api/GastoRepository.js";
 import { HogarService } from "./services/HogarService.js";
 import { ToastManager } from "./ui/ToastManager.js";
@@ -87,10 +86,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (hogarCreado || modalInvitacionVisible) return;
 
         if (user && !esModoCreacion) {
-            const snap = await getDoc(doc(db, "hogares", hogarId));
-            if (snap.exists()) {
-                const data = snap.data();
-                
+            const data = await api.obtenerHogar(hogarId);
+            if (data) {
                 const esAdmin = data.administradores && data.administradores.includes(user.uid);
                 if (!esAdmin) {
                     toast.mostrar("⚠️ Acceso denegado.");
@@ -237,15 +234,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     urlActual.searchParams.set("id", nuevoId);
                     window.history.replaceState(null, "", urlActual.toString());
                     
-                    await setDoc(doc(db, "hogares", nuevoId), {
+                    await api.actualizarHogar(nuevoId, {
                         categorias_compartidas: categoriasBorrador,
                         presupuestos_compartidos: presupuestosBorrador,
-                        metodos_pago: metodosPagoBorrador,
-                        miembros: [auth.currentUser.uid],
-                        administradores: [auth.currentUser.uid]
-                    }, { merge: true });
+                        metodos_pago: metodosPagoBorrador
+                    });
                     
-                    const invitacion = await HogarService.generarInvitacion(db, nuevoId, auth.currentUser.uid);
+                    const invitacion = await HogarService.generarInvitacion(nuevoId, auth.currentUser.uid);
                     const urlInvitacion = new URL("index.html", window.location.href);
                     urlInvitacion.searchParams.set("hogarId", nuevoId);
                     urlInvitacion.searchParams.set("join", invitacion.codigo);
@@ -277,7 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     btnAccionFinal.textContent = "Guardando...";
                     
-                    await updateDoc(doc(db, "hogares", hogarId), {
+                    await api.actualizarHogar(hogarId, {
                         categorias_compartidas: categoriasBorrador,
                         presupuestos_compartidos: presupuestosBorrador,
                         metodos_pago: metodosPagoBorrador

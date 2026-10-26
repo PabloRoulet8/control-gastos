@@ -1,9 +1,23 @@
 import { db, auth } from "../firebase-config.js"; 
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class GastoRepository {
     constructor() {
         this.coleccionHogares = collection(db, "hogares");
+    }
+
+    async obtenerUsuario(uid) {
+        if (!uid) return null;
+
+        const snapshot = await getDoc(doc(db, "usuarios", uid));
+        return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+    }
+
+    async actualizarUsuario(uid, datos) {
+        if (!uid) throw new Error("El usuario es obligatorio.");
+
+        await setDoc(doc(db, "usuarios", uid), datos, { merge: true });
+        return { id: uid, ...datos };
     }
 
     async guardarGasto(nuevoGasto, contexto) {
@@ -170,12 +184,47 @@ export class GastoRepository {
         await setDoc(doc(db, "config", `hogar_config_${hogarId}`), dataConfig, { merge: true });
     }
 
-    async obtenerMisHogares() {
-        const usuarioActual = auth.currentUser;
-        if (!usuarioActual) return [];
-        const q = query(this.coleccionHogares, where("miembros", "array-contains", usuarioActual.uid));
+    async obtenerMisHogares(uid = auth.currentUser?.uid) {
+        if (!uid) return [];
+        const q = query(this.coleccionHogares, where("miembros", "array-contains", uid));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    async obtenerHogar(hogarId) {
+        if (!hogarId) return null;
+
+        const snapshot = await getDoc(doc(db, "hogares", hogarId));
+        return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+    }
+
+    async actualizarHogar(hogarId, datos) {
+        if (!hogarId) throw new Error("El hogar es obligatorio.");
+
+        await updateDoc(doc(db, "hogares", hogarId), datos);
+    }
+
+    async eliminarHogar(hogarId) {
+        if (!hogarId) throw new Error("El hogar es obligatorio.");
+
+        await deleteDoc(doc(db, "hogares", hogarId));
+    }
+
+    async actualizarAdministrador(hogarId, uid, esAdmin) {
+        if (!hogarId || !uid) throw new Error("El hogar y el usuario son obligatorios.");
+
+        await updateDoc(doc(db, "hogares", hogarId), {
+            administradores: esAdmin ? arrayUnion(uid) : arrayRemove(uid)
+        });
+    }
+
+    async expulsarMiembro(hogarId, uid) {
+        if (!hogarId || !uid) throw new Error("El hogar y el usuario son obligatorios.");
+
+        await updateDoc(doc(db, "hogares", hogarId), {
+            miembros: arrayRemove(uid),
+            administradores: arrayRemove(uid)
+        });
     }
 
     async crearHogar(nombreHogar) {

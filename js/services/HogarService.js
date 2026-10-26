@@ -1,3 +1,4 @@
+import { db } from "../firebase-config.js";
 import {
     arrayUnion,
     doc,
@@ -23,7 +24,7 @@ export class HogarService {
         return Array.from(bytes, byte => alfabeto[byte % alfabeto.length]).join('');
     }
 
-    static async generarInvitacion(db, hogarId, adminUid) {
+    static async generarInvitacion(hogarId, adminUid) {
         if (!hogarId) throw new Error('El hogar es obligatorio.');
         if (!adminUid) throw new Error('El administrador es obligatorio.');
 
@@ -44,7 +45,7 @@ export class HogarService {
         return { codigo, hogarId, expiraEn };
     }
 
-    static async consumirInvitacion(db, hogarId, codigo, usuarioUid) {
+    static async consumirInvitacion(hogarId, codigo, usuarioUid) {
         if (!hogarId) throw new Error('El hogar es obligatorio.');
         if (!usuarioUid) throw new Error('El usuario es obligatorio.');
 

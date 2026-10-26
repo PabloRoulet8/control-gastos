@@ -1,12 +1,14 @@
-import { auth, db } from "./firebase-config.js";
+import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, updateDoc, arrayRemove, arrayUnion, deleteDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { GastoRepository } from "./api/GastoRepository.js";
 import { HogarService } from "./services/HogarService.js";
+import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { ConfirmManager } from "./ui/ConfirmManager.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 
 document.addEventListener('DOMContentLoaded', () => {
+    const api = new GastoRepository();
     const toast = new ToastManager();
     const confirmacion = new ConfirmManager(); 
     const urlParams = new URLSearchParams(window.location.search);
@@ -25,9 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const snapHogar = await getDoc(doc(db, "hogares", hogarId));
-        if (snapHogar.exists()) {
-            hogarData = snapHogar.data();
+        const hogar = await api.obtenerHogar(hogarId);
+        if (hogar) {
+            hogarData = hogar;
             
             const esAdmin = hogarData.administradores && hogarData.administradores.includes(user.uid);
             
@@ -67,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const nuevoNombre = document.getElementById('edit-nombre-hogar').value.trim();
         if(!nuevoNombre) return toast.mostrar("El nombre no puede estar vacío");
         
-        await updateDoc(doc(db, "hogares", hogarId), { nombre: nuevoNombre });
+        await api.actualizarHogar(hogarId, { nombre: nuevoNombre });
         displayNombre.textContent = nuevoNombre;
         boxEditName.style.display = 'none'; // Ocultamos el form tras guardar
         toast.mostrar("¡Nombre actualizado!");
@@ -83,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCompartirInvitacion.disabled = true;
 
         try {
-            const { codigo } = await HogarService.generarInvitacion(db, hogarId, auth.currentUser.uid);
+            const { codigo } = await HogarService.generarInvitacion(hogarId, auth.currentUser.uid);
             const url = new URL('index.html', window.location.href);
             url.searchParams.set('hogarId', hogarId);
             url.searchParams.set('join', codigo);
@@ -127,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnConfirmar.disabled = true;
 
         try {
-            await deleteDoc(doc(db, "hogares", hogarId));
+            await api.eliminarHogar(hogarId);
             modalDelete.style.display = 'none';
             toast.mostrar("Hogar eliminado correctamente. 🗑️");
             setTimeout(() => window.location.href = 'index.html', 1500);
@@ -144,8 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lista.replaceChildren();
 
         for (const uid of uids) {
-            const snapUser = await getDoc(doc(db, "perfiles_publicos", uid));
-            const perfil = snapUser.exists() ? snapUser.data() : {};
+            const perfil = await PerfilPublicoService.obtener(uid) || {};
             const nombreMostrar = perfil.nombre || "Usuario";
             
             const esEsteUserAdmin = admins.includes(uid);
@@ -236,13 +237,12 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', async (e) => {
                 const targetUid = e.target.dataset.uid;
                 const isCurrentlyAdmin = e.target.dataset.isadmin === "true";
-                const docRef = doc(db, "hogares", hogarId);
                 
+                await api.actualizarAdministrador(hogarId, targetUid, !isCurrentlyAdmin);
+
                 if (isCurrentlyAdmin) {
-                    await updateDoc(docRef, { administradores: arrayRemove(targetUid) });
                     toast.mostrar("Permisos de admin removidos.");
                 } else {
-                    await updateDoc(docRef, { administradores: arrayUnion(targetUid) });
                     toast.mostrar("¡Nuevo administrador asignado! ⭐");
                 }
                 
@@ -256,12 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if(estaSeguro) {
                     const targetUid = e.currentTarget.dataset.uid;
-                    const docRef = doc(db, "hogares", hogarId);
                     
-                    await updateDoc(docRef, { 
-                        miembros: arrayRemove(targetUid),
-                        administradores: arrayRemove(targetUid)
-                    });
+                    await api.expulsarMiembro(hogarId, targetUid);
                     
                     toast.mostrar("Miembro expulsado del hogar 🥾");
                     setTimeout(() => window.location.reload(), 1000);

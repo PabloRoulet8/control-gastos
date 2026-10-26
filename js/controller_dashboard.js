@@ -1,6 +1,6 @@
-import { auth, db } from "./firebase-config.js";
+import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, collection, query, where, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { GastoRepository } from "./api/GastoRepository.js";
 import { HogarService } from "./services/HogarService.js";
 import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
 import { ToastManager } from "./ui/ToastManager.js";
@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saludoUsuario = document.getElementById('saludo-usuario');
     const displayAvatar = document.getElementById('display-avatar-header');
     
+    const api = new GastoRepository();
     const toast = new ToastManager();
 
     // 1. GESTIÓN DE NAVEGACIÓN (Protección contra sobreescritura de URL)
@@ -86,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.removeItem('pendingJoinHogarId');
 
                 try {
-                    await HogarService.consumirInvitacion(db, pendingHogarId, pendingCode, user.uid);
+                    await HogarService.consumirInvitacion(pendingHogarId, pendingCode, user.uid);
                     toast.mostrar("¡Te uniste al hogar! 🎉", 4000);
                 } catch (error) {
                     toast.mostrar(error.message || "No se pudo unir al hogar.");
@@ -109,18 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
         contenedorHogares.replaceChildren();
         
         try {
-            const userRef = doc(db, "usuarios", uid);
-            const userSnap = await getDoc(userRef);
-            let userData = {};
-            let necesitaNombre = false;
-            
-            // Verificamos si el usuario existe y si tiene un nombre guardado
-            if (userSnap.exists()) {
-                userData = userSnap.data();
-                if (!userData.nombre || userData.nombre.trim() === "") necesitaNombre = true;
-            } else {
-                necesitaNombre = true; // Si no existe el documento, necesita nombre
-            }
+            const userData = await api.obtenerUsuario(uid) || {};
+            const necesitaNombre = !userData.nombre || userData.nombre.trim() === "";
 
             // === LÓGICA DEL CARTEL OBLIGATORIO ===
             if (necesitaNombre) {
@@ -139,10 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnGuardarOnboarding.textContent = "Guardando...";
 
                     try {
-                        // setDoc con merge: true crea el doc si no existe, o lo actualiza si existe
-                        await setDoc(userRef, { 
-                            nombre: nuevoNombre.charAt(0).toUpperCase() + nuevoNombre.slice(1) 
-                        }, { merge: true });
+                        await api.actualizarUsuario(uid, {
+                            nombre: nuevoNombre.charAt(0).toUpperCase() + nuevoNombre.slice(1)
+                        });
                         
                         modalOnboarding.style.display = 'none';
                         toast.mostrar("¡Excelente! Ya podés usar la app.");
@@ -162,7 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // ===================================
 
             PerfilPublicoService.sincronizar(
-                db,
                 uid,
                 userData.nombre,
                 userData.avatar_url || ''
@@ -203,16 +192,13 @@ document.addEventListener('DOMContentLoaded', () => {
              );
 
              // === TARJETAS HOGAR ===
-             const hogaresRef = collection(db, "hogares");
-             const q = query(hogaresRef, where("miembros", "array-contains", uid));
-             const querySnapshot = await getDocs(q);
+             const hogares = await api.obtenerMisHogares(uid);
 
-             querySnapshot.forEach((docHogar) => {
-                 const hogar = docHogar.data();
+             hogares.forEach((hogar) => {
                  const urlHogar = new URL('carga.html', window.location.href);
                  urlHogar.searchParams.set('v', '9.5');
                  urlHogar.searchParams.set('ambito', 'hogar');
-                 urlHogar.searchParams.set('id', docHogar.id);
+                 urlHogar.searchParams.set('id', hogar.id);
                  urlHogar.searchParams.set('nombre', hogar.nombre || '');
 
                  contenedorHogares.appendChild(
