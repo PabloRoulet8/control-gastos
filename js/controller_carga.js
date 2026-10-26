@@ -1072,9 +1072,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         compraId: 'cuotas_' + Date.now()
                     });
 
-                    await Promise.all(
-                        gastosCuota.map(gasto => api.guardarGasto(gasto, contexto))
-                    );
+                    await api.guardarGastosEnLote(gastosCuota, contexto);
                 }
 
                 toast.mostrar("✅ ¡Gasto guardado!");

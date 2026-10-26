@@ -1,5 +1,5 @@
 import { db, auth } from "../firebase-config.js"; 
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class GastoRepository {
     constructor() {
@@ -11,6 +11,14 @@ export class GastoRepository {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) throw new Error("Acceso denegado.");
 
+        if (!contexto || !['personal', 'hogar'].includes(contexto.tipo)) {
+            throw new Error("Contexto de guardado inválido.");
+        }
+
+        if (contexto.tipo === 'hogar' && !contexto.id) {
+            throw new Error("El contexto de hogar requiere un ID.");
+        }
+
         let gastoFirmado = {
             ...nuevoGasto,
             usuario_id: usuarioActual.uid,       
@@ -20,40 +28,110 @@ export class GastoRepository {
 
         if (contexto.tipo === 'personal') {
             gastoFirmado.ambito = 'personal'; 
-        } else if (contexto.tipo === 'hogar') {
+        } else {
             gastoFirmado.ambito = 'hogar';
             gastoFirmado.hogar_id = contexto.id;
         }
 
-        return await addDoc(this.coleccionGastos, gastoFirmado);
+        const rutaColeccion = contexto.tipo === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', contexto.id, 'gastos');
+
+        return await addDoc(rutaColeccion, gastoFirmado);
+    }
+
+    async guardarGastosEnLote(arrayGastos, contexto) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        if (!Array.isArray(arrayGastos) || arrayGastos.length === 0) {
+            return [];
+        }
+
+        if (arrayGastos.length > 500) {
+            throw new Error("El lote supera el límite de 500 operaciones de Firestore.");
+        }
+
+        if (!contexto || !['personal', 'hogar'].includes(contexto.tipo)) {
+            throw new Error("Contexto de guardado inválido.");
+        }
+
+        if (contexto.tipo === 'hogar' && !contexto.id) {
+            throw new Error("El contexto de hogar requiere un ID.");
+        }
+
+        const rutaColeccion = contexto.tipo === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', contexto.id, 'gastos');
+
+        const batch = writeBatch(db);
+        const referencias = [];
+
+        for (const gasto of arrayGastos) {
+            const gastoFirmado = {
+                ...gasto,
+                usuario_id: usuarioActual.uid,
+                creador_email: usuarioActual.email,
+                timestamp: serverTimestamp()
+            };
+
+            if (contexto.tipo === 'personal') {
+                gastoFirmado.ambito = 'personal';
+            } else {
+                gastoFirmado.ambito = 'hogar';
+                gastoFirmado.hogar_id = contexto.id;
+            }
+
+            const referencia = doc(rutaColeccion);
+            batch.set(referencia, gastoFirmado);
+            referencias.push(referencia);
+        }
+
+        await batch.commit();
+        return referencias;
     }
 
     async obtenerGastos(contexto) {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) return [];
 
-        let q = this.coleccionGastos;
-        
         const tipoConsulta = typeof contexto === 'object' ? contexto.tipo : (contexto === 'personal' ? 'personal' : 'hogar');
         const idConsulta = typeof contexto === 'object' ? contexto.id : contexto;
 
-        if (tipoConsulta === 'personal') {
-            q = query(q, where("ambito", "==", "personal"), where("usuario_id", "==", usuarioActual.uid));
-        } else {
-            q = query(q, where("ambito", "==", "hogar"), where("hogar_id", "==", idConsulta));
-        }
-        
-        const snapshot = await getDocs(q);
+        const rutaColeccion = tipoConsulta === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', idConsulta, 'gastos');
+
+        const snapshot = await getDocs(rutaColeccion);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
     async eliminarGasto(idGasto, contexto = null) {
-        return await deleteDoc(doc(db, "gastos", idGasto));
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        if (!contexto || !['personal', 'hogar'].includes(contexto.tipo)) {
+            throw new Error("Contexto inválido para eliminar el gasto.");
+        }
+
+        if (contexto.tipo === 'hogar' && !contexto.id) {
+            throw new Error("El contexto de hogar requiere un ID.");
+        }
+
+        const rutaColeccion = contexto.tipo === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', contexto.id, 'gastos');
+
+        return await deleteDoc(doc(rutaColeccion, idGasto));
     }
 
     async registrarPagoDeuda(contexto, pagadorId, acreedorId, monto) {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        if (!contexto || !contexto.id) {
+            throw new Error("El contexto de hogar requiere un ID.");
+        }
 
         const pagoFirmado = {
             tipo: 'pagoDeuda', // Etiqueta clave para diferenciarlo de un gasto de súper
@@ -67,7 +145,9 @@ export class GastoRepository {
             hogar_id: contexto.id
         };
 
-        return await addDoc(this.coleccionGastos, pagoFirmado);
+        const rutaColeccion = collection(db, 'hogares', contexto.id, 'gastos');
+
+        return await addDoc(rutaColeccion, pagoFirmado);
     }
 
     // 🔥 FIX CRÍTICO: Ahora busca en las colecciones correctas de la nueva arquitectura
