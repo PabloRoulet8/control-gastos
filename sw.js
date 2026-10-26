@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v23.0';
+const CACHE_NAME = 'gastos-v24.0';
 
 const urlsToCache = [
     './',
@@ -22,6 +22,7 @@ const urlsToCache = [
     './js/services/IAService.js',
     './js/services/FormService.js',
     './js/services/CategoryService.js',
+    './js/services/CargaContextService.js',
     './js/services/InventarioService.js',
     './js/services/DraftService.js',
     './js/services/ResumenService.js',

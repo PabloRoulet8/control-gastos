@@ -1,3 +1,5 @@
+import { FormService } from "../services/FormService.js";
+
 const TEXTOS_MICROFONO = {
     idle: 'Mantén presionado para dictar',
     recording: 'Escuchando... (Suelta para procesar)',
@@ -57,6 +59,79 @@ export class FormUI {
     static actualizarVisibilidadElemento(elemento, visible) {
         if (!elemento) return;
         elemento.style.display = visible ? 'block' : 'none';
+    }
+
+    static aplicarContextoCarga({
+        tituloHeader,
+        subtituloHeader,
+        grupoResponsable
+    } = {}, contexto = {}) {
+        if (contexto.titulo && tituloHeader) {
+            tituloHeader.textContent = contexto.titulo;
+        }
+
+        if (contexto.subtitulo && subtituloHeader) {
+            subtituloHeader.textContent = contexto.subtitulo;
+        }
+
+        if (typeof contexto.mostrarResponsable === 'boolean') {
+            FormUI.actualizarVisibilidadElemento(
+                grupoResponsable,
+                contexto.mostrarResponsable
+            );
+        }
+    }
+
+    static renderizarResponsables(selectResponsable, responsables = []) {
+        if (!selectResponsable) return;
+
+        const lista = Array.isArray(responsables) ? responsables : [];
+        selectResponsable.innerHTML = '';
+
+        lista.forEach(responsable => {
+            const option = document.createElement('option');
+            option.value = responsable.uid;
+            option.textContent = responsable.nombre;
+            option.selected = Boolean(responsable.seleccionado);
+            selectResponsable.appendChild(option);
+        });
+    }
+
+    static configurarEventosPago({
+        selectMetodoPago,
+        contenedorOpcionCuotas,
+        checkEsCuotas,
+        divCuotasConfig,
+        inputCantidadCuotas,
+        checkPostCierre
+    } = {}) {
+        const resetear = () => FormUI.resetearCuotas({
+            checkEsCuotas,
+            divCuotasConfig,
+            inputCantidadCuotas,
+            checkPostCierre
+        });
+
+        if (selectMetodoPago) {
+            selectMetodoPago.addEventListener('change', () => {
+                const esTarjeta = FormService.admiteCuotas(selectMetodoPago.value);
+
+                FormUI.actualizarVisibilidadElemento(contenedorOpcionCuotas, esTarjeta);
+
+                if (!esTarjeta) resetear();
+            });
+        }
+
+        if (checkEsCuotas && divCuotasConfig) {
+            checkEsCuotas.addEventListener('change', () => {
+                FormUI.actualizarVisibilidadElemento(
+                    divCuotasConfig,
+                    checkEsCuotas.checked
+                );
+
+                if (!checkEsCuotas.checked) resetear();
+            });
+        }
     }
 
     static resetearCuotas({

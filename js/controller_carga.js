@@ -1,6 +1,5 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ToastManager } from "./ui/ToastManager.js";
-import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
@@ -8,6 +7,7 @@ import { AppUtils } from "./utils/AppUtils.js";
 import { DraftService } from "./services/DraftService.js";
 import { InventarioService } from "./services/InventarioService.js";
 import { CategoryService } from "./services/CategoryService.js";
+import { CargaContextService } from "./services/CargaContextService.js";
 import { FormService } from "./services/FormService.js";
 import { IAService } from "./services/IAService.js";
 import { VoiceService } from "./services/VoiceService.js";
@@ -21,6 +21,7 @@ const API_IA_PING_URL = new URL('/', API_IA_URL).href;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
+    const contextService = new CargaContextService({ repository: api });
     const toast = new ToastManager();
 
     const store = CargaStore.getInstance();
@@ -112,54 +113,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             cache: 'no-store'
         }).catch(() => {});
 
-        // Ocultar/Mostrar Responsable según el ámbito
         if (ambitoActual === 'personal') {
-            if (grupoResponsable) grupoResponsable.style.display = 'none';
+            FormUI.actualizarVisibilidadElemento(grupoResponsable, false);
         }
 
         try {
-            const userData = await api.obtenerUsuario(userId) || {};
-            
-            // Forzamos a que SIEMPRE lea tus categorías de Firebase primero
-            let categoriasPropias = userData.categorias_personales || [];
-            
-            if (ambitoActual === 'personal') {
-                store.setCategorias(CategoryService.obtenerCategoriasParaAmbito('personal', {
-                    personales: categoriasPropias
-                }));
+            const contexto = await contextService.cargar({
+                userId,
+                ambitoActual,
+                hogarId,
+                hogarNombre
+            });
 
-                if (tituloHeader) tituloHeader.textContent = "Gastos Personales";
-                if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto vas a anotar?"; 
+            if (Array.isArray(contexto.categorias)) {
+                store.setCategorias(contexto.categorias);
             }
 
-            if (ambitoActual === 'hogar' && hogarId) {
-                const hogarData = await api.obtenerHogar(hogarId);
-                if (hogarData) {
-                    
-                    // Acá cargamos EXCLUSIVAMENTE las categorías compartidas del hogar
-                    store.setCategorias(CategoryService.obtenerCategoriasParaAmbito('hogar', {
-                        hogar: hogarData.categorias_compartidas || []
-                    }));
-                    
-                    const nombreHogar = hogarNombre || hogarData.nombre;
-                    if (tituloHeader) tituloHeader.textContent = nombreHogar;
-                    if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto de la casa vas a anotar?";
-                    if (grupoResponsable) grupoResponsable.style.display = 'block';
-                    
-                    if (selectResponsable) {
-                        selectResponsable.innerHTML = '';
-                        for (const uid of hogarData.miembros || []) {
-                            const perfil = await PerfilPublicoService.obtener(uid);
-                            const nombreMostrar = perfil?.nombre || "Usuario";
+            FormUI.aplicarContextoCarga({
+                tituloHeader,
+                subtituloHeader,
+                grupoResponsable
+            }, contexto);
 
-                            const opt = document.createElement('option');
-                            opt.value = uid; 
-                            opt.textContent = nombreMostrar;
-                            if (uid === userId) opt.selected = true;
-                            selectResponsable.appendChild(opt);
-                        }
-                    }
-                }
+            if (contexto.hogar) {
+                const responsables = await contextService.cargarResponsables(
+                    contexto.miembros,
+                    userId
+                );
+
+                FormUI.renderizarResponsables(selectResponsable, responsables);
             }
             
             DraftService.limpiarBorradorLegacy();
@@ -230,42 +212,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputCantidadCuotas = document.getElementById('input-cantidad-cuotas');
     const checkPostCierre = document.getElementById('check-post-cierre');
 
-    // Escuchar cuando cambian a Tarjeta de Crédito
-    if (selectMetodoPago) {
-        selectMetodoPago.addEventListener('change', () => {
-            const esTarjeta = FormService.admiteCuotas(selectMetodoPago.value);
-
-            FormUI.actualizarVisibilidadElemento(contenedorOpcionCuotas, esTarjeta);
-
-            if (!esTarjeta) {
-                FormUI.resetearCuotas({
-                    checkEsCuotas: document.getElementById('check-es-cuotas'),
-                    divCuotasConfig: document.getElementById('div-cuotas-config'),
-                    inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
-                    checkPostCierre: document.getElementById('check-post-cierre')
-                });
-            }
-        });
-    }
-
-    // Toggle para mostrar/ocultar los inputs de cuotas
-    if (checkEsCuotas && divCuotasConfig) {
-        checkEsCuotas.addEventListener('change', () => {
-            FormUI.actualizarVisibilidadElemento(
-                divCuotasConfig,
-                checkEsCuotas.checked
-            );
-
-            if (!checkEsCuotas.checked) {
-                FormUI.resetearCuotas({
-                    checkEsCuotas: document.getElementById('check-es-cuotas'),
-                    divCuotasConfig: document.getElementById('div-cuotas-config'),
-                    inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
-                    checkPostCierre: document.getElementById('check-post-cierre')
-                });
-            }
-        });
-    }
+    FormUI.configurarEventosPago({
+        selectMetodoPago,
+        contenedorOpcionCuotas,
+        checkEsCuotas,
+        divCuotasConfig,
+        inputCantidadCuotas,
+        checkPostCierre
+    });
 
     selectCategoria?.addEventListener('change', () => {
         const option = selectCategoria.options[selectCategoria.selectedIndex];

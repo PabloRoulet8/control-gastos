@@ -88,6 +88,7 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 | Módulo | Rol actual |
 |---|---|
 | `FormService` | Valida monto, categoría, método de pago y cuotas; calcula fechas; construye gastos y cuotas. |
+| `CargaContextService` | Resuelve el contexto personal/hogar, categorías, títulos y responsables a partir del repositorio y los perfiles públicos. |
 | `CategoryService` | Normaliza categorías, aplica categorías estándar y resuelve coincidencias. |
 | `InventarioService` | Normaliza y fusiona productos del inventario. |
 | `ResumenService` | Calcula totales personales, fondos, aportes, deudas y compensaciones del hogar. |
@@ -95,7 +96,7 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 | `VoiceService` | Encapsula Web Speech API, estados, reinicios y consolidación de transcripción. |
 | `IAService` | Envía texto autenticado al backend de IA y traduce errores HTTP. |
 | `CargaStore` | Único estado de la pantalla de carga y notificaciones a suscriptores. |
-| `FormUI`, `InventarioUI` | Renderizado y estados visuales del formulario y del inventario. |
+| `FormUI`, `InventarioUI` | Renderizado del formulario, contexto inicial, responsables, cuotas y del inventario. |
 | `ResumenRenderer`, `HistorialRenderer`, `PerfilRenderer`, `AdminHogarRenderer` | Renderizado de sus pantallas, con distinto grado de aislamiento. |
 | `ToastManager`, `ModalManager`, `ConfirmManager`, `ChartManager` | Interacciones y retroalimentación reutilizable. |
 | `NavigationBuilder` | Construye navegación contextual y normaliza el ámbito. |
@@ -251,7 +252,7 @@ Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de o
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v23.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v24.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
 - `fetch` es cache-first para todos los GET; si no hay caché, consulta la red y guarda respuestas 200.
 - `firebase.json` envía `Cache-Control: no-cache` para `sw.js`.
@@ -272,7 +273,7 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-03 | Alta | Unión por código incompatible con la regla `list` de hogares y sujeta a carrera. | El enlace de invitación no funciona con reglas estrictas; dos uniones simultáneas pueden pisar `miembros`. | Modelar invitaciones en subcolección/documento con token, expiración y límites; unir mediante transacción o backend. |
 | DT-05 | Alta | Reglas sin despliegue verificado ni pruebas automatizadas de seguridad. | Producción puede seguir con reglas permisivas o romperse al aplicarlas. | Añadir tests con Firebase Emulator Suite, validar en staging y documentar el despliegue. |
 | DT-06 | Resuelta | Firestore estaba accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Completado en dos fases: `GastoRepository`, `HogarService` y `PerfilPublicoService` encapsulan Firestore; los controladores ya no importan `firebase/firestore`. |
-| DT-07 | Media | `controller_carga.js` sigue teniendo 1.117 líneas. | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Extraer orquestadores de guardado, carga de contexto, dictado/IA y selectores de responsables. |
+| DT-07 | Media | `controller_carga.js` aún concentra guardado, dictado/IA y cuotas (1.066 líneas). | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Fase 1 completada: contexto, responsables y configuración de pago extraídos. Continuar con guardado, dictado/IA e inventario. |
 | DT-08 | Media | Uso inconsistente de `innerHTML` y ausencia de CSP. | Superficie XSS y defensa en profundidad insuficiente. | Unificar renderizado seguro, añadir CSP y headers de seguridad en Hosting. |
 | DT-09 | Media | Lecturas completas de gastos y filtrado en cliente. | Costo y latencia crecen con el historial; límites de Firestore a futuro. | Consultas por rango de fechas, paginación, índices y agregaciones cuando corresponda. |
 | DT-10 | Media | Reglas validan pertenencia pero no esquema, tipos ni estado de verificación. | Datos inválidos, writes amplios en configuración y cuentas no verificadas a nivel servidor. | Validar campos/rangos, exigir email verificado y restringir cambios compartidos según rol. |
