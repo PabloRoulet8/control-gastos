@@ -67,6 +67,71 @@ service cloud.firestore {
          isHogarMember(configContexto(docId)));
     }
 
+    function perfilPublicoValido(data) {
+      return data.keys().hasOnly(['nombre', 'avatar_url', 'actualizado_en']) &&
+        data.nombre is string &&
+        data.nombre.size() > 0 &&
+        data.nombre.size() <= 80 &&
+        data.avatar_url is string &&
+        data.avatar_url.size() <= 500 &&
+        data.actualizado_en == request.time;
+    }
+
+    function invitacionData(hogarId, codigo) {
+      return get(/databases/$(database)/documents/hogares/$(hogarId)/invitaciones/$(codigo)).data;
+    }
+
+    function invitacionConsumiblePorMi(hogarId, codigo) {
+      return isSignedIn() &&
+        codigo is string &&
+        codigo.matches('^[A-Z0-9]{8,64}$') &&
+        exists(/databases/$(database)/documents/hogares/$(hogarId)/invitaciones/$(codigo)) &&
+        invitacionData(hogarId, codigo).get('hogar_id', '') == hogarId &&
+        (invitacionData(hogarId, codigo).get('estado', '') == 'pendiente' ||
+         (invitacionData(hogarId, codigo).get('estado', '') == 'usada' &&
+          invitacionData(hogarId, codigo).get('usada_por', '') == request.auth.uid)) &&
+        invitacionData(hogarId, codigo).get('expira_en', request.time) > request.time &&
+        (invitacionData(hogarId, codigo).get('invitado_uid', null) == null ||
+         invitacionData(hogarId, codigo).get('invitado_uid', '') == request.auth.uid);
+    }
+
+    function puedeUnirseConInvitacion(hogarId) {
+      return isSignedIn() &&
+        !(request.auth.uid in resource.data.get('miembros', [])) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'miembros',
+          'codigos_usados',
+          'ultima_invitacion'
+        ]) &&
+        request.resource.data.get('ultima_invitacion', {}).keys().hasOnly(['codigo', 'uid']) &&
+        request.resource.data.get('ultima_invitacion', {}).get('uid', '') == request.auth.uid &&
+        request.resource.data.get('ultima_invitacion', {}).get('codigo', '') is string &&
+        request.resource.data.get('ultima_invitacion', {}).get('codigo', '').matches('^[A-Z0-9]{8,64}$') &&
+        request.resource.data.get('miembros', []).hasAll(resource.data.get('miembros', [])) &&
+        request.resource.data.get('miembros', []).size() == resource.data.get('miembros', []).size() + 1 &&
+        request.auth.uid in request.resource.data.get('miembros', []) &&
+        request.resource.data.get('codigos_usados', []).hasAll(resource.data.get('codigos_usados', [])) &&
+        request.resource.data.get('codigos_usados', []).size() == resource.data.get('codigos_usados', []).size() + 1 &&
+        request.resource.data.get('codigos_usados', []).hasAll([
+          request.resource.data.get('ultima_invitacion', {}).get('codigo', '')
+        ]) &&
+        !resource.data.get('codigos_usados', []).hasAny([
+          request.resource.data.get('ultima_invitacion', {}).get('codigo', '')
+        ]) &&
+        invitacionConsumiblePorMi(
+          hogarId,
+          request.resource.data.get('ultima_invitacion', {}).get('codigo', '')
+        );
+    }
+
+    match /perfiles_publicos/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create, update: if isSelf(userId) &&
+        perfilPublicoValido(request.resource.data);
+      allow delete: if isSelf(userId);
+    }
+
     match /usuarios/{userId} {
       allow get: if isSelf(userId);
       allow list: if false;
@@ -95,7 +160,8 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         request.resource.data.get('creador_id', '') == request.auth.uid &&
         request.auth.uid in request.resource.data.get('miembros', []);
-      allow update: if isHogarAdmin(hogarId) ||
+      allow update: if puedeUnirseConInvitacion(hogarId) ||
+        isHogarAdmin(hogarId) ||
         (isHogarMember(hogarId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'nombre',
@@ -113,6 +179,53 @@ service cloud.firestore {
           resource.data.get('usuario_id', '') == request.auth.uid &&
           request.resource.data.get('usuario_id', '') == request.auth.uid;
         allow delete: if isHogarMember(hogarId);
+      }
+
+      match /invitaciones/{codigo} {
+        allow get: if isSignedIn();
+        allow list: if isHogarAdmin(hogarId);
+        allow create: if isHogarAdmin(hogarId) &&
+          codigo is string &&
+          codigo.matches('^[A-Z0-9]{8,64}$') &&
+          request.resource.data.keys().hasOnly([
+            'codigo',
+            'hogar_id',
+            'creada_por',
+            'creada_en',
+            'expira_en',
+            'invitado_uid',
+            'estado'
+          ]) &&
+          request.resource.data.codigo == codigo &&
+          request.resource.data.hogar_id == hogarId &&
+          request.resource.data.creada_por == request.auth.uid &&
+          request.resource.data.estado == 'pendiente' &&
+          request.resource.data.creada_en == request.time &&
+          request.resource.data.expira_en > request.time &&
+          request.resource.data.expira_en <= request.time + duration.value(7, 'd') &&
+          (request.resource.data.get('invitado_uid', null) == null ||
+           request.resource.data.get('invitado_uid', '') is string);
+        allow update: if (
+          isSignedIn() &&
+          resource.data.hogar_id == hogarId &&
+          resource.data.estado == 'pendiente' &&
+          resource.data.expira_en > request.time &&
+          (resource.data.get('invitado_uid', null) == null ||
+           resource.data.get('invitado_uid', '') == request.auth.uid) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'estado',
+            'usada_por',
+            'usada_en'
+          ]) &&
+          request.resource.data.estado == 'usada' &&
+          request.resource.data.usada_por == request.auth.uid &&
+          request.resource.data.usada_en == request.time
+        ) || (
+          isHogarAdmin(hogarId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
+          request.resource.data.estado == 'revocada'
+        );
+        allow delete: if isHogarAdmin(hogarId);
       }
     }
 
