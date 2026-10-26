@@ -8,13 +8,13 @@
 
 Control de Gastos es una PWA multipágina para registrar y analizar gastos personales y compartidos por hogar. Está construida con JavaScript ES Modules, HTML y CSS sin framework ni bundler. Firebase Authentication resuelve la identidad, Cloud Firestore la persistencia y Firebase Hosting la distribución. La aplicación incorpora caché persistente de Firestore, Service Worker, reconocimiento de voz, un backend externo de IA y gráficos.
 
-La arquitectura evolucionó desde un controlador monolítico hacia una separación por capas. La pantalla de carga es hoy el mejor ejemplo: `controller_carga.js` orquesta, `CargaStore` centraliza estado, `FormService` y otros servicios concentran reglas de negocio, `FormUI`/`InventarioUI` encapsulan DOM y `GastoRepository` persiste. También se migraron los gastos a rutas anidadas y las compras en cuotas se guardan con `WriteBatch`.
+La arquitectura evolucionó desde un controlador monolítico hacia una separación por capas. La pantalla de carga es hoy el mejor ejemplo: `controller_carga.js` orquesta, `CargaStore` centraliza estado, `FormService`, `GastoSaveService` y otros servicios concentran reglas de negocio, `FormUI`/`InventarioUI` encapsulan DOM y `GastoRepository` persiste. También se migraron los gastos a rutas anidadas y las compras en cuotas se guardan con `WriteBatch`.
 
 La aplicación escribe y lee gastos exclusivamente bajo `/usuarios/{uid}/gastos` y `/hogares/{hogarId}/gastos`; la colección raíz de gastos y el código de migración legacy fueron eliminados. Además, las reglas no están desplegadas de forma verificable desde el repositorio y su contrato actual no coincide con varios flujos de lectura entre miembros del hogar.
 
 | Dimensión | Estado | Observación |
 |---|---|---|
-| Separación de capas | Buena | Los controladores delegan Firestore en `js/api/` y `js/services/`; la lógica de presentación sigue concentrada en algunos controladores grandes. |
+| Separación de capas | Buena | Los controladores delegan Firestore en `js/api/` y `js/services/`; la pantalla de carga también delega guardado, IA, voz y DOM en servicios y UI. |
 | Persistencia | Buena | Rutas anidadas y lotes atómicos para cuotas. |
 | Seguridad de datos | En revisión | Reglas versionadas y compiladas en dry-run, con brechas de contrato y XSS residual. |
 | Resiliencia offline | Buena base | Caché persistente + Service Worker; falta estrategia de actualización y errores de sincronización. |
@@ -58,7 +58,7 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 | `*.html` | Shell de cada pantalla y carga de módulos. |
 | `js/controller_*.js` | Entrada de página, autenticación, eventos, coordinación y parte del renderizado. |
 | `js/api/GastoRepository.js` | Acceso a gastos, hogares y configuración. |
-| `js/services/` | Reglas de negocio y adaptadores: formulario, categorías, inventario, resumen, borradores, voz e IA. |
+| `js/services/` | Reglas de negocio y adaptadores: formulario, guardado, categorías, inventario, resumen, borradores, voz e IA. |
 | `js/store/CargaStore.js` | Store singleton con estado privado, clonado superficial y suscripciones. |
 | `js/ui/` | Componentes y renderizadores: formulario, inventario, resumen, historial, perfil, administración, gráficos, modales y toasts. |
 | `js/utils/` | Utilidades generales y construcción de navegación contextual. |
@@ -88,15 +88,16 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 | Módulo | Rol actual |
 |---|---|
 | `FormService` | Valida monto, categoría, método de pago y cuotas; calcula fechas; construye gastos y cuotas. |
+| `GastoSaveService` | Valida el formulario, arma gastos simples o en cuotas y persiste mediante `GastoRepository`. |
 | `CargaContextService` | Resuelve el contexto personal/hogar, categorías, títulos y responsables a partir del repositorio y los perfiles públicos. |
 | `CategoryService` | Normaliza categorías, aplica categorías estándar y resuelve coincidencias. |
 | `InventarioService` | Normaliza y fusiona productos del inventario. |
 | `ResumenService` | Calcula totales personales, fondos, aportes, deudas y compensaciones del hogar. |
 | `DraftService` | Guarda, carga y limpia borradores en `localStorage` por usuario, ámbito y hogar. |
 | `VoiceService` | Encapsula Web Speech API, estados, reinicios y consolidación de transcripción. |
-| `IAService` | Envía texto autenticado al backend de IA y traduce errores HTTP. |
+| `IAService` | Envía texto autenticado al backend de IA, aplica timeout de 45 segundos y traduce errores HTTP. |
 | `CargaStore` | Único estado de la pantalla de carga y notificaciones a suscriptores. |
-| `FormUI`, `InventarioUI` | Renderizado del formulario, contexto inicial, responsables, cuotas y del inventario. |
+| `FormUI`, `InventarioUI` | Renderizado y lectura del formulario, contexto inicial, responsables, cuotas, dictado, datos de IA, modales y alta rápida del inventario. |
 | `ResumenRenderer`, `HistorialRenderer`, `PerfilRenderer`, `AdminHogarRenderer` | Renderizado de sus pantallas, con distinto grado de aislamiento. |
 | `ToastManager`, `ModalManager`, `ConfirmManager`, `ChartManager` | Interacciones y retroalimentación reutilizable. |
 | `NavigationBuilder` | Construye navegación contextual y normaliza el ámbito. |
@@ -164,11 +165,11 @@ La separación física por ámbito es correcta: los gastos personales viven bajo
 1. `auth_guard.js` verifica la sesión y, en cliente, exige email verificado.
 2. `controller_carga.js` obtiene `ambito` y `hogarId` desde la URL, normaliza el ámbito y construye navegación contextual.
 3. `CargaStore` recibe usuario, ámbito, hogar e inventario inicial.
-4. El controlador lee el perfil propio y, en ámbito hogar, el documento del hogar para obtener categorías compartidas y miembros.
+4. `CargaContextService` lee el perfil propio y, en ámbito hogar, el documento del hogar para obtener categorías compartidas y miembros.
 5. Se llena el selector de responsable con los nombres de los miembros y se carga el borrador correspondiente desde `localStorage`.
 6. El usuario carga el gasto manualmente o mantiene presionado el micrófono. `VoiceService` produce transcripción interina/confirmada y `IAService` la envía al backend con el ID token de Firebase.
 7. La respuesta de IA se vuelca al formulario: monto, categoría, método de pago, cuotas, referencia e inventario.
-8. Al enviar, `FormService.validarFormulario()` valida los datos y `FormService.construirGasto()` o `construirGastosEnCuotas()` genera el payload.
+8. Al enviar, `GastoSaveService` valida con `FormService` y genera el payload individual o de cuotas.
 9. `GastoRepository.guardarGasto()` persiste un gasto individual; `guardarGastosEnLote()` usa un `WriteBatch` para las cuotas.
 10. Se muestra confirmación, se limpian formulario, borrador e inventario y se actualiza la UI.
 
@@ -176,7 +177,7 @@ La separación física por ámbito es correcta: los gastos personales viven bajo
 
 La carga manual y la dictada comparten el mismo formulario y las mismas validaciones. La voz no guarda directamente: primero transcribe, luego el backend interpreta el texto y finalmente el usuario puede revisar y corregir los campos. La llamada de IA tiene `AbortController`, timeout de 45 segundos y distintos mensajes para timeout, error de red o error del servidor.
 
-El inventario se mantiene en `CargaStore` y `InventarioService` normaliza unidades y fusiona productos equivalentes. `InventarioUI` solo dibuja el estado y notifica la eliminación mediante callback.
+El inventario se mantiene en `CargaStore` y `InventarioService` normaliza unidades y fusiona productos equivalentes. `InventarioUI` dibuja el estado, gestiona el alta rápida y notifica la eliminación mediante callback.
 
 ### 3.3 Compra en cuotas
 
@@ -252,7 +253,7 @@ Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de o
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v24.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v25.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
 - `fetch` es cache-first para todos los GET; si no hay caché, consulta la red y guarda respuestas 200.
 - `firebase.json` envía `Cache-Control: no-cache` para `sw.js`.
@@ -260,7 +261,7 @@ Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de o
 - La instalación del Service Worker es todo-o-nada: si falta un recurso de `urlsToCache`, falla el `install`.
 - El `fetch` también intercepta GET de terceros y puede cachear SDKs, fuentes o CDN con respuestas válidas.
 - El guardado offline no tiene confirmación del servidor ni canal de error de sincronización.
-- `IAService` depende de un backend externo; el controlador mitiga lentitud con timeout de 45 segundos, pero no hay reintento automático ni fallback local de interpretación.
+- `IAService` depende de un backend externo; aplica timeout de 45 segundos, pero no hay reintento automático ni fallback local de interpretación.
 
 ## 5. Deuda Técnica
 
@@ -273,7 +274,7 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-03 | Alta | Unión por código incompatible con la regla `list` de hogares y sujeta a carrera. | El enlace de invitación no funciona con reglas estrictas; dos uniones simultáneas pueden pisar `miembros`. | Modelar invitaciones en subcolección/documento con token, expiración y límites; unir mediante transacción o backend. |
 | DT-05 | Alta | Reglas sin despliegue verificado ni pruebas automatizadas de seguridad. | Producción puede seguir con reglas permisivas o romperse al aplicarlas. | Añadir tests con Firebase Emulator Suite, validar en staging y documentar el despliegue. |
 | DT-06 | Resuelta | Firestore estaba accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Completado en dos fases: `GastoRepository`, `HogarService` y `PerfilPublicoService` encapsulan Firestore; los controladores ya no importan `firebase/firestore`. |
-| DT-07 | Media | `controller_carga.js` aún concentra guardado, dictado/IA y cuotas (1.066 líneas). | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Fase 1 completada: contexto, responsables y configuración de pago extraídos. Continuar con guardado, dictado/IA e inventario. |
+| DT-07 | Resuelta | `controller_carga.js` concentraba guardado, dictado/IA y cuotas. | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Completado en dos fases: contexto/responsables/pagos y luego guardado, IA, dictado, modales e inventario. `controller_carga.js` quedó en 551 líneas como coordinador. |
 | DT-08 | Media | Uso inconsistente de `innerHTML` y ausencia de CSP. | Superficie XSS y defensa en profundidad insuficiente. | Unificar renderizado seguro, añadir CSP y headers de seguridad en Hosting. |
 | DT-09 | Media | Lecturas completas de gastos y filtrado en cliente. | Costo y latencia crecen con el historial; límites de Firestore a futuro. | Consultas por rango de fechas, paginación, índices y agregaciones cuando corresponda. |
 | DT-10 | Media | Reglas validan pertenencia pero no esquema, tipos ni estado de verificación. | Datos inválidos, writes amplios en configuración y cuentas no verificadas a nivel servidor. | Validar campos/rangos, exigir email verificado y restringir cambios compartidos según rol. |

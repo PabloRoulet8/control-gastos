@@ -3,25 +3,24 @@ import { ToastManager } from "./ui/ToastManager.js";
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
-import { AppUtils } from "./utils/AppUtils.js";
 import { DraftService } from "./services/DraftService.js";
 import { InventarioService } from "./services/InventarioService.js";
 import { CategoryService } from "./services/CategoryService.js";
 import { CargaContextService } from "./services/CargaContextService.js";
-import { FormService } from "./services/FormService.js";
+import { GastoSaveService } from "./services/GastoSaveService.js";
 import { IAService } from "./services/IAService.js";
 import { VoiceService } from "./services/VoiceService.js";
 import { CargaStore } from "./store/CargaStore.js";
 import { InventarioUI } from "./ui/InventarioUI.js";
 import { FormUI } from "./ui/FormUI.js";
 
-// Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
 const API_IA_PING_URL = new URL('/', API_IA_URL).href;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
     const contextService = new CargaContextService({ repository: api });
+    const saveService = new GastoSaveService({ repository: api });
     const toast = new ToastManager();
 
     const store = CargaStore.getInstance();
@@ -35,22 +34,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const selectCategoria = document.getElementById('categoria');
     const selectResponsable = document.getElementById('responsable');
+    const selectMetodoPago = document.getElementById('metodo-pago');
     const tituloHeader = document.getElementById('titulo-header');
     const subtituloHeader = document.querySelector('.container h2');
     const grupoResponsable = document.getElementById('responsable-group');
+    const grupoReferencia = document.getElementById('referencia-group');
     const inputMontoGlobal = document.getElementById('monto');
+    const inputReferencia = document.getElementById('referencia');
     const listaUI = document.getElementById('lista-inventario');
     const seccionStockUI = document.getElementById('seccion-inventario');
     const formGasto = document.getElementById('expense-form');
-    
-    const grupoReferencia = document.getElementById('referencia-group');
-    const inputReferencia = document.getElementById('referencia');
+    const contenedorOpcionCuotas = document.getElementById('contenedor-opcion-cuotas');
+    const checkEsCuotas = document.getElementById('check-es-cuotas');
+    const divCuotasConfig = document.getElementById('div-cuotas-config');
+    const inputCantidadCuotas = document.getElementById('input-cantidad-cuotas');
+    const checkPostCierre = document.getElementById('check-post-cierre');
+    const btnDictar = document.getElementById('btn-dictar-gasto');
+    const btnDictarTexto = btnDictar?.querySelector('.btn-dictar-texto');
+    const dictadoTranscripcion = document.getElementById('dictado-transcripcion');
+    const dictarHint = document.querySelector('.dictar-hint');
+    const inputInvProducto = document.getElementById('inv-prod');
+    const inputInvCantidad = document.getElementById('inv-cant');
+    const inputInvPrecio = document.getElementById('inv-precio');
+    const inputInvUnidad = document.getElementById('inv-unid');
 
     const contextoInicial = store.getState();
     NavigationBuilder.buildConfigButton(contextoInicial.ambitoActual, contextoInicial.hogarId);
     NavigationBuilder.buildNav(contextoInicial.ambitoActual, contextoInicial.hogarId, 'carga');
 
-    // 1. GESTIÓN DE BORRADOR Y NAVEGACIÓN
     const guardarBorradorStock = () => {
         const { currentUserIdGlobal, ambitoActual, hogarId, arrayInventario } = store.getState();
         const guardado = DraftService.guardarBorrador(
@@ -61,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 items: arrayInventario,
                 monto: inputMontoGlobal?.value || '',
                 categoria: selectCategoria?.value || '',
-                metodoPago: document.getElementById('metodo-pago')?.value || 'efectivo'
+                metodoPago: selectMetodoPago?.value || 'efectivo'
             }
         );
         if (!guardado) {
@@ -69,7 +80,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Lógica única para agregar un producto al inventario (manual o por IA)
     const agregarProductoInventario = ({ producto, cantidad, unidad, precio = 0 }) => {
         const { arrayInventario: inventarioActual } = store.getState();
         const inventarioAntes = Array.isArray(inventarioActual) ? inventarioActual.length : 0;
@@ -86,7 +96,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return inventarioDespues >= inventarioAntes && inventarioNuevo.length > 0;
     };
 
-    // Solicita permiso de micrófono al ingresar para evitar el prompt en el primer toque
     const solicitarPermisoMicrofonoInicial = async () => {
         if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
             return;
@@ -94,19 +103,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // Liberamos el micrófono inmediatamente para no mantenerlo activo
             stream.getTracks().forEach(track => track.stop());
         } catch (error) {
             console.warn('Permiso de micrófono denegado o ignorado:', error?.name || error);
         }
     };
 
-    // 2. INICIALIZACIÓN DE DATOS
     const inicializarPagina = async (userId) => {
         store.setContexto({ currentUserIdGlobal: userId });
         const { ambitoActual, hogarId, hogarNombre } = store.getState();
 
-        // Despierta el backend gratuito sin bloquear ni esperar respuesta.
         fetch(API_IA_PING_URL, {
             method: 'GET',
             mode: 'no-cors',
@@ -143,23 +149,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 FormUI.renderizarResponsables(selectResponsable, responsables);
             }
-            
+
             DraftService.limpiarBorradorLegacy();
-            const { currentUserIdGlobal } = store.getState();
-            const guardado = DraftService.cargarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
+            const guardado = DraftService.cargarBorrador(
+                store.getState().currentUserIdGlobal,
+                ambitoActual,
+                hogarId
+            );
+
             if (guardado) {
-                if (guardado.categoria && selectCategoria) {
-                    selectCategoria.value = guardado.categoria;
-                    selectCategoria.dispatchEvent(new Event('change'));
-                }
-                if (guardado.metodoPago) {
-                    const selectMetodoPago = document.getElementById('metodo-pago');
-                    if (selectMetodoPago) {
-                        selectMetodoPago.value = guardado.metodoPago;
-                        selectMetodoPago.dispatchEvent(new Event('change'));
-                    }
-                }
-                if (guardado.monto && inputMontoGlobal) inputMontoGlobal.value = guardado.monto;
+                FormUI.aplicarBorrador(guardado, {
+                    selectCategoria,
+                    selectMetodoPago,
+                    inputMonto: inputMontoGlobal
+                });
+
                 const itemsGuardados = guardado.items || [];
                 store.setInventario(itemsGuardados);
                 InventarioUI.actualizarVisibilidadSeccion(
@@ -203,162 +207,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 3. EVENTOS DE INTERACCIÓN
-    
-    const selectMetodoPago = document.getElementById('metodo-pago');
-    const contenedorOpcionCuotas = document.getElementById('contenedor-opcion-cuotas');
-    const checkEsCuotas = document.getElementById('check-es-cuotas');
-    const divCuotasConfig = document.getElementById('div-cuotas-config');
-    const inputCantidadCuotas = document.getElementById('input-cantidad-cuotas');
-    const checkPostCierre = document.getElementById('check-post-cierre');
-
-    FormUI.configurarEventosPago({
-        selectMetodoPago,
-        contenedorOpcionCuotas,
-        checkEsCuotas,
-        divCuotasConfig,
-        inputCantidadCuotas,
-        checkPostCierre
-    });
-
-    selectCategoria?.addEventListener('change', () => {
-        const option = selectCategoria.options[selectCategoria.selectedIndex];
-        if (!option) return;
-
-        const llevaStock = option.dataset.llevaStock === "true";
-        const esFijo = option.dataset.esFijo === "true";
-
-        InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, llevaStock);
-
-        FormUI.actualizarVisibilidadElemento(
-            grupoReferencia,
-            FormService.esCategoriaVariable({ esFijo, llevaStock })
-        );
-    });
-
-    document.getElementById('btn-add-inv')?.addEventListener('click', () => {
-        const prod = document.getElementById('inv-prod').value;
-        const cant = parseFloat(document.getElementById('inv-cant').value);
-        const precio = parseFloat(document.getElementById('inv-precio').value);
-        const unid = document.getElementById('inv-unid').value;
-
-        if (!prod || isNaN(cant) || isNaN(precio)) {
-            return toast.mostrar("Faltan datos del producto.");
-        }
-
-        agregarProductoInventario({ producto: prod, cantidad: cant, unidad: unid, precio });
-
-        document.getElementById('inv-prod').value = '';
-        document.getElementById('inv-cant').value = '';
-        document.getElementById('inv-precio').value = '';
-
-        guardarBorradorStock();
-    });
-
-    const modalLimpiar = document.getElementById('modal-limpiar');
-    const btnLimpiarTodo = document.getElementById('btn-limpiar-todo');
-    const btnCancelarLimpiar = document.getElementById('btn-cancelar-limpiar');
-    const btnConfirmarLimpiar = document.getElementById('btn-confirmar-limpiar');
-    let focoPrevioLimpiar = null;
-
-    const cerrarModalLimpiar = () => {
-        if (!modalLimpiar) return;
-        modalLimpiar.style.display = 'none';
-        if (focoPrevioLimpiar && typeof focoPrevioLimpiar.focus === 'function') {
-            focoPrevioLimpiar.focus();
-        }
-        focoPrevioLimpiar = null;
-    };
-
-    const abrirModalLimpiar = () => {
-        if (!modalLimpiar) return;
-        focoPrevioLimpiar = document.activeElement;
-        modalLimpiar.style.display = 'flex';
-        btnCancelarLimpiar?.focus();
-    };
-
-    btnLimpiarTodo?.addEventListener('click', abrirModalLimpiar);
-    btnCancelarLimpiar?.addEventListener('click', cerrarModalLimpiar);
-
-    modalLimpiar?.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            cerrarModalLimpiar();
-            return;
-        }
-        if (e.key !== 'Tab') return;
-
-        const focusables = modalLimpiar.querySelectorAll(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusables.length === 0) return;
-
-        const primero = focusables[0];
-        const ultimo = focusables[focusables.length - 1];
-
-        if (e.shiftKey && document.activeElement === primero) {
-            e.preventDefault();
-            ultimo.focus();
-        } else if (!e.shiftKey && document.activeElement === ultimo) {
-            e.preventDefault();
-            primero.focus();
-        }
-    });
-
-    modalLimpiar?.addEventListener('click', (e) => {
-        if (e.target === modalLimpiar) cerrarModalLimpiar();
-    });
-
-    btnConfirmarLimpiar?.addEventListener('click', () => {
-        cancelarProcesamientoIA();
-        isProcessing = false;
-        voiceService.abortar();
-        transcripcionInterina = '';
-        fragmentosConfirmados = [];
-        actualizarTranscripcionUI();
-        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
-
-        const { currentUserIdGlobal, ambitoActual, hogarId } = store.getState();
-        DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
-        DraftService.limpiarBorradorLegacy();
-        if (formGasto) formGasto.reset();
-        if (inputMontoGlobal) {
-            inputMontoGlobal.value = '';
-            inputMontoGlobal.readOnly = false;
-        }
-        if (inputReferencia) inputReferencia.value = '';
-        FormUI.actualizarVisibilidadElemento(grupoReferencia, false);
-        InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, false);
-        FormUI.resetearCuotas({
-            checkEsCuotas: document.getElementById('check-es-cuotas'),
-            divCuotasConfig: document.getElementById('div-cuotas-config'),
-            inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
-            checkPostCierre: document.getElementById('check-post-cierre')
-        });
-        store.setInventario([]);
-        cerrarModalLimpiar();
-        toast.mostrar('Inventario y formulario limpiados.', 'info');
-    });
-
-    // ==========================================
-    // 4. DICTADO POR VOZ + PROCESAMIENTO CON IA
-    // ==========================================
-
-    const btnDictar = document.getElementById('btn-dictar-gasto');
-    const btnDictarTexto = btnDictar?.querySelector('.btn-dictar-texto');
-    const dictadoTranscripcion = document.getElementById('dictado-transcripcion');
-    const dictarHint = document.querySelector('.dictar-hint');
-
-    // API nativa del navegador (Chrome / Edge)
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    const MAX_REINICIOS_SILENCIO = 5;
-    const REINICIO_DEMORA_MS = 300;
-
-    // Banderas de estado: evitan clics dobles y envíos simultáneos
-    let isProcessing = false;       // hay a una petición de IA en curso (or finalizando)
+    let isProcessing = false;
     let abortControllerIA = null;
     let idProcesamientoIA = 0;
+
     const cancelarProcesamientoIA = () => {
         idProcesamientoIA += 1;
         if (abortControllerIA) {
@@ -367,8 +219,137 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    let transcripcionInterina = '';
-    let fragmentosConfirmados = [];
+    const actualizarTranscripcionUI = (snapshot = null) => {
+        const estado = snapshot || voiceService.getSnapshot();
+        FormUI.actualizarTranscripcion(dictadoTranscripcion, estado);
+    };
+
+    const resetEstado = () => {
+        isProcessing = false;
+        voiceService.reset();
+        actualizarTranscripcionUI();
+        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
+    };
+
+    const aplicarDatosIA = (datos) => {
+        const { listaCategorias, arrayInventario } = store.getState();
+        const resultado = FormUI.aplicarDatosIA({
+            datos,
+            selectCategoria,
+            categoriasDisponibles: CategoryService.prepararCategorias(listaCategorias),
+            selectMetodoPago,
+            inputMonto: inputMontoGlobal,
+            inputReferencia,
+            checkEsCuotas,
+            inputCantidadCuotas,
+            totalInventario: InventarioService.calcularTotal(arrayInventario),
+            agregarProducto: item => agregarProductoInventario(item)
+        });
+
+        resultado.avisos.forEach(aviso => {
+            toast.mostrar(aviso.mensaje, aviso.tipo || 'info', aviso.duracion || 4000);
+        });
+
+        if (resultado.agregoInventario) {
+            InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, true);
+            guardarBorradorStock();
+        }
+
+        if (resultado.completados.length > 0) {
+            toast.mostrar(`✅ Listo: ${resultado.completados.join(', ')}. Revisá y guardá.`, 'success');
+        }
+    };
+
+    const procesarConIA = async (texto) => {
+        const idProcesamiento = ++idProcesamientoIA;
+
+        if (abortControllerIA) {
+            abortControllerIA.abort();
+            abortControllerIA = null;
+        }
+
+        console.log('[IA] Texto consolidado enviado:', JSON.stringify(texto));
+        toast.mostrar(`🎤 Enviado: "${texto}" — procesando...`, 'info', 4000);
+
+        const categoriasDisponibles = CategoryService
+            .prepararCategorias(store.getState().listaCategorias)
+            .map(cat => cat.valor);
+
+        const controller = new AbortController();
+        abortControllerIA = controller;
+        const inicioFetch = performance.now();
+
+        try {
+            const datos = await IAService.procesarTexto({
+                texto,
+                categoriasDisponibles,
+                signal: controller.signal,
+                auth,
+                apiUrl: API_IA_URL,
+                timeoutMs: 45000
+            });
+
+            if (idProcesamiento !== idProcesamientoIA) return;
+
+            aplicarDatosIA(datos);
+        } catch (error) {
+            if (idProcesamiento !== idProcesamientoIA) return;
+
+            console.error('Error al procesar el gasto con IA:', error);
+            toast.mostrar(`❌ ${IAService.obtenerMensajeError(error)}`, 'error', 6000);
+        } finally {
+            console.log(`[IA] Fetch completado en ${Math.round(performance.now() - inicioFetch)} ms`);
+
+            if (abortControllerIA === controller) {
+                abortControllerIA = null;
+            }
+
+            if (idProcesamiento === idProcesamientoIA) {
+                resetEstado();
+            }
+        }
+    };
+
+    const consolidarYProcesar = () => {
+        if (voiceService.yaConsolidado) return;
+
+        voiceService.marcarConsolidado();
+        const texto = voiceService.obtenerTextoConsolidado();
+        actualizarTranscripcionUI();
+
+        if (!texto) {
+            toast.mostrar('No escuché nada. Probá de nuevo.', 'error');
+            resetEstado();
+            return;
+        }
+
+        isProcessing = true;
+        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'processing', dictarHint);
+        procesarConIA(texto);
+    };
+
+    const iniciarDictado = () => {
+        if (!voiceService.isSupported()) {
+            toast.mostrar('Tu navegador no soporta reconocimiento de voz. Probá con Chrome o Edge.', 'error', 6000);
+            return;
+        }
+
+        if (voiceService.isRecording || isProcessing) return;
+
+        cancelarProcesamientoIA();
+        isProcessing = false;
+
+        if (!voiceService.iniciar()) {
+            toast.mostrar('No se pudo iniciar el reconocimiento de voz en este dispositivo.', 'error', 5000);
+        }
+    };
+
+    const finalizarDictado = () => {
+        if (!voiceService.isRecording || isProcessing) return;
+
+        isProcessing = true;
+        voiceService.detener();
+    };
 
     const voiceService = new VoiceService({
         lang: 'es-AR',
@@ -385,14 +366,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             );
         },
         onInterim: (snapshot) => {
-            fragmentosConfirmados = [...snapshot.fragmentosConfirmados];
-            transcripcionInterina = snapshot.transcripcionInterina;
-            actualizarTranscripcionUI();
+            actualizarTranscripcionUI(snapshot);
         },
         onFinal: (snapshot) => {
-            fragmentosConfirmados = [...snapshot.fragmentosConfirmados];
-            transcripcionInterina = snapshot.transcripcionInterina;
-            actualizarTranscripcionUI();
+            actualizarTranscripcionUI(snapshot);
         },
         onReadyToConsolidate: () => {
             consolidarYProcesar();
@@ -402,546 +379,92 @@ document.addEventListener('DOMContentLoaded', async () => {
         },
         onFatalError: (codigo) => {
             const mensajes = {
-                'not-allowed': 'Permiso de micrófono denegado. Habilitalo en the navegador.',
-                'service-not-allowed': 'El navegador bloqueó the servicio de voz.',
-                'audio-capture': 'No se encontró a micrófono disponible.',
-                'start-failed': 'No se pudo iniciar the dictado por voz.'
+                'not-allowed': 'Permiso de micrófono denegado. Habilitalo en el navegador.',
+                'service-not-allowed': 'El navegador bloqueó el servicio de voz.',
+                'audio-capture': 'No se encontró un micrófono disponible.',
+                'start-failed': 'No se pudo iniciar el dictado por voz.'
             };
-            toast.mostrar(mensajes[codigo] || 'Error con the reconocimiento de voz.', 'error', 5000);
+            toast.mostrar(mensajes[codigo] || 'Error con el reconocimiento de voz.', 'error', 5000);
             cancelarProcesamientoIA();
-            isProcessing = false;
-            voiceService.reset();
-            actualizarTranscripcionUI();
-            FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
+            resetEstado();
         }
     });
 
-    // Normaliza texto para comparar (minúsculas y sin acentos)
-    const normalizar = (texto) => CategoryService.normalizarTexto(texto);
-
-    // Busca la categoría que mejor corresponde a lo que devolvió la IA
-    const buscarCategoriaIA = (nombreIA) => {
-        if (!nombreIA) return null;
-        const { listaCategorias } = store.getState();
-        return CategoryService.buscarCategoria(nombreIA, listaCategorias);
-    };
-
-    // Traduce el método de pago de la IA a las opciones reales del select
-    const aplicarMetodoPagoIA = (metodoIA) => {
-        if (!selectMetodoPago || !metodoIA) return false;
-
-        const objetivo = normalizar(metodoIA);
-        const opciones = Array.from(selectMetodoPago.options);
-
-        // 1) Coincidencia exacta
-        let opcion = opciones.find(o => normalizar(o.value) === objetivo);
-
-        // 2) Débito: la app no tiene tarjeta de débito y no genera deuda, se trata como efectivo
-        if (!opcion && objetivo.includes('debito')) {
-            opcion = opciones.find(o => normalizar(o.value).includes('efectivo')) || opciones[0];
-        }
-
-        // 3) Tarjeta de crédito
-        if (!opcion && (objetivo.includes('tarjeta') || objetivo.includes('credito'))) {
-            opcion = opciones.find(o => normalizar(o.value).includes('tarjeta'));
-        }
-
-        // 4) Coincidencia parcial
-        if (!opcion) {
-            opcion = opciones.find(o => {
-                const valor = normalizar(o.value);
-                return objetivo.includes(valor) || valor.includes(objetivo);
-            });
-        }
-
-        if (!opcion) return false;
-
-        selectMetodoPago.value = opcion.value;
-        // Disparamos el change para que se muestre/oculte el bloque de cuotas
-        selectMetodoPago.dispatchEvent(new Event('change'));
-        return true;
-    };
-
-    // Volca la respuesta de la IA en los campos del formulario
-    const aplicarDatosIA = (datos) => {
-        if (!datos || typeof datos !== 'object') {
-            toast.mostrar('❌ La IA no devolvió datos utilizables.', 'error');
-            return;
-        }
-
-        const completados = [];
-
-        // Monto
-        const monto = typeof datos.monto === 'number' ? datos.monto : parseFloat(datos.monto);
-        if (!isNaN(monto) && monto > 0) {
-            // Solo hay un total propio si los ítems ya cargados tienen precio.
-            // Si todos valen 0 (típico de la IA), se respeta el monto dictado.
-            const { arrayInventario } = store.getState();
-            const totalPrecios = arrayInventario.reduce(
-                (acc, item) => acc + (Number(item.precio) || 0),
-                0
-            );
-
-            if (totalPrecios > 0) {
-                toast.mostrar('Hay productos con precio: el monto se calcula solo.', 'info');
-            } else {
-                const montoAnterior = parseFloat(inputMontoGlobal.value) || 0;
-                inputMontoGlobal.value = (montoAnterior + monto).toFixed(2);
-                inputMontoGlobal.readOnly = false;
-                completados.push('monto');
-            }
-        }
-
-        // Categoría
-        const categoriaIA = buscarCategoriaIA(datos.categoria);
-        if (categoriaIA && selectCategoria) {
-            selectCategoria.value = categoriaIA.valor;
-            // Disparamos el change para que se actualicen stock / referencia
-            selectCategoria.dispatchEvent(new Event('change'));
-            completados.push('categoría');
-        } else if (datos.categoria) {
-            toast.mostrar(`No encontré la categoría "${datos.categoria}". Elegila a mano.`, 'error', 5000);
-        }
-
-        // Método de pago
-        if (aplicarMetodoPagoIA(datos.metodo_pago)) {
-            completados.push('método de pago');
-        }
-
-        // Referencia / detalle corto
-        if (datos.referencia && inputReferencia) {
-            inputReferencia.value = String(datos.referencia).trim();
-            completados.push('referencia');
-        }
-
-        // Cuotas: solo si la IA detectó tarjeta de crédito y más de una cuota
-        const cuotas = parseInt(datos.cuotas, 10);
-        const esTarjetaCredito = selectMetodoPago?.value === 'tarjeta-credito';
-        if (esTarjetaCredito && Number.isInteger(cuotas) && cuotas > 1 && inputCantidadCuotas) {
-            const cuotasValidas = Math.min(cuotas, 36); // respeta el max del input
-            if (checkEsCuotas) {
-                checkEsCuotas.checked = true;
-                checkEsCuotas.dispatchEvent(new Event('change')); // despliega el panel de cuotas
-            }
-            inputCantidadCuotas.value = cuotasValidas;
-            completados.push(`${cuotasValidas} cuotas`);
-        }
-
-        // Detalle de inventario dictado: dibujamos cada producto en la lista
-        if (Array.isArray(datos.detalle_inventario) && datos.detalle_inventario.length > 0) {
-            let agregados = 0;
-
-            datos.detalle_inventario.forEach(item => {
-                if (!item) return;
-
-                const ok = agregarProductoInventario({
-                    producto: item.producto,
-                    cantidad: item.cantidad,
-                    unidad: item.unidad,
-                    precio: item.precio
-                });
-
-                if (ok) agregados++;
-            });
-
-            if (agregados > 0) {
-                InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, true);
-                guardarBorradorStock();
-
-                completados.push(`${agregados} producto(s)`);
-            }
-        }
-
-        if (completados.length > 0) {
-            toast.mostrar(`✅ Listo: ${completados.join(', ')}. Revisá y guardá.`, 'success');
-        }
-    };
-
-    // Filtro SOLO visual: colapsa repeticiones contiguas exactas (eco de Android).
-    // No se usa sobre el texto que se envía a la IA.
-    const limpiarEcoVisual = (texto) => {
-        if (!texto) return '';
-        // Filtro visual seguro: elimina una duplicación exacta de bloques de 1 a 3 palabras
-        // Evita el catastrophic backtracking y preserva repeticiones intencionales complejas
-        return texto.replace(/\b([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,2})\s+\1\b/gi, '$1').trim();
-    };
-
-    // Muestra la transcripción en vivo (consolidado + lo que se está interpretando)
-    const actualizarTranscripcionUI = () => {
-        if (!dictadoTranscripcion) return;
-
-        const base = fragmentosConfirmados.join(' ');
-        const textoCrudo = base ? (transcripcionInterina ? `${base} ${transcripcionInterina}` : base) : (transcripcionInterina || '');
-        const texto = limpiarEcoVisual(textoCrudo.trim());
-        dictadoTranscripcion.textContent = texto;
-        dictadoTranscripcion.hidden = (texto === '');
-    };
-
-    // Vuelve todo a reposo y limpia la transcripción
-    const resetEstado = () => {
-        isProcessing = false;
-        voiceService.reset();
-        fragmentosConfirmados = [];
-        transcripcionInterina = '';
-        actualizarTranscripcionUI();
-        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
-    };
-
-    // Envía el texto transcrito al backend de IA y completa el formulario
-    const procesarConIA = async (texto) => {
-        const idProcesamiento = ++idProcesamientoIA;
-
-        if (abortControllerIA) {
-            abortControllerIA.abort();
-            abortControllerIA = null;
-        }
-
-        // Diagnóstico: permite distinguir error acústico (texto mal transcripto)
-        // de una mala extracción del backend.
-        console.log('[IA] Texto consolidado enviado:', JSON.stringify(texto));
-        toast.mostrar(`🎤 Enviado: "${texto}" — procesando...`, 'info', 4000);
-
-        // Mandamos las categorías reales para que la IA elija una y no invente nombres
-        const { listaCategorias } = store.getState();
-        const categoriasDisponibles = CategoryService
-            .prepararCategorias(listaCategorias)
-            .map(cat => cat.valor);
-
-        // Medimos desde que sale el request hasta que el JSON está resuelto.
-        // (No incluye el pintado del formulario posterior.)
-        let fetchMedido = false;
-        const terminarTiempoFetch = () => {
-            if (fetchMedido) return;
-            fetchMedido = true;
-            console.timeEnd('Tiempo Fetch');
-        };
-
-        console.time('Tiempo Fetch');
-
-        const controller = new AbortController();
-        abortControllerIA = controller;
-        const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-        try {
-            const datos = await IAService.procesarTexto({
-                texto,
-                categoriasDisponibles,
-                signal: controller.signal,
-                auth,
-                apiUrl: API_IA_URL
-            });
-
-            terminarTiempoFetch();
-
-            if (idProcesamiento !== idProcesamientoIA) return;
-
-            aplicarDatosIA(datos);
-
-        } catch (error) {
-            terminarTiempoFetch();
-
-            if (idProcesamiento !== idProcesamientoIA) return;
-
-            console.error('Error al procesar el gasto con IA:', error);
-
-            let mensaje;
-            if (error?.name === 'AbortError') {
-                mensaje = 'La IA tardó demasiado en responder. Intentá de nuevo.';
-            } else if (error instanceof TypeError) {
-                mensaje = 'Sin conexión. Revisá tu internet e intentá de nuevo.';
-            } else {
-                mensaje = error?.message || 'No se pudo procesar el gasto con IA.';
-            }
-
-            toast.mostrar(`❌ ${mensaje}`, 'error', 6000);
-        } finally {
-            clearTimeout(timeoutId);
-
-            if (abortControllerIA === controller) {
-                abortControllerIA = null;
-            }
-
-            if (idProcesamiento === idProcesamientoIA) {
-                resetEstado();
-            }
-        }
-    };
-
-    const configurarReconocimiento = () => {
-        try {
-            reconocimiento = new SpeechRecognition();
-        } catch (error) {
-            console.error('No se pudo crear el reconocedor de voz:', error);
-            return false;
-        }
-
-        reconocimiento.lang = 'es-AR';
-        reconocimiento.continuous = false;       // modo burst para evitar eco nativo en Android
-        reconocimiento.interimResults = true;   // transcripción parcial en tiempo real
-        reconocimiento.maxAlternatives = 1;
-
-        reconocimiento.onstart = () => {
-            // Si el usuario ya pidió finalizar (doble clic muy rápido), no reabrimos el micrófono
-            if (stopSolicitado) return;
-
-            isRecording = true;
-            FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'recording', dictarHint);
-            actualizarTranscripcionUI();
-        };
-
-        reconocimiento.onresult = (evento) => {
-            reiniciosSilencio = 0;
-            transcripcionInterina = '';
-
-            for (let i = evento.resultIndex; i < evento.results.length; i++) {
-                const resultado = evento.results[i];
-                const texto = (resultado[0]?.transcript || '').trim();
-                if (!texto) continue;
-
-                if (resultado.isFinal) {
-                    const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
-                    if (ultimo && ultimo === texto) {
-                        // evita duplicados inmediatos por eco
-                        continue;
-                    }
-                    fragmentosConfirmados.push(texto);
-                } else {
-                    transcripcionInterina = texto;
-                }
-            }
-
-            actualizarTranscripcionUI();
-
-            if (stopSolicitado && !transcripcionInterina) {
-                consolidarYProcesar();
-            }
-        };
-
-        reconocimiento.onerror = (evento) => {
-            const codigo = evento.error;
-            console.warn('Error de reconocimiento de voz:', codigo);
-
-            // Si el usuario pidió finalizar, onresult (bypass) u onend consolidan lo transcripto
-            if (stopSolicitado) return;
-
-            const fatales = ['not-allowed', 'service-not-allowed', 'audio-capture'];
-            if (fatales.includes(codigo)) {
-                const mensajes = {
-                    'not-allowed': 'Permiso de micrófono denegado. Habilitalo en el navegador.',
-                    'service-not-allowed': 'El navegador bloqueó el servicio de voz.',
-                    'audio-capture': 'No se encontró un micrófono disponible.'
-                };
-                toast.mostrar(mensajes[codigo], 'error', 5000);
-                resetEstado();
-            }
-            // 'no-speech', 'network' y 'aborted' son recuperables:
-            // onend reintenta para no cortar el dictado durante las pausas.
-        };
-
-        reconocimiento.onend = () => {
-            // Si el texto ya se envió desde onresult, onend NO vuelve a enviar
-            if (yaConsolidado) {
-                isRecording = false;
-                reiniciosSilencio = 0;
-                btnDictar?.classList.remove('is-listening');
-
-                if (temporizadorReinicio) {
-                    clearTimeout(temporizadorReinicio);
-                    temporizadorReinicio = null;
-                }
-                return;
-            }
-
-            // Fallback: el usuario soltó y el motor terminó sin entregar un bloque final
-            if (stopSolicitado) {
-                // Pasa lo que quede interino a fragmentos confirmados evitando duplicado
-                if (transcripcionInterina) {
-                    const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
-                    if (!(ultimo && ultimo === transcripcionInterina)) {
-                        fragmentosConfirmados.push(transcripcionInterina);
-                    }
-                    transcripcionInterina = '';
-                    actualizarTranscripcionUI();
-                }
-                consolidarYProcesar();
-                return;
-            }
-
-            if (!isRecording) return;
-
-            // Modo burst: el motor corta solo tras cada ráfaga; lo reeniciamos
-            // manualmente mientras el usuario siga manteniendo presionado.
-            if (transcripcionInterina) {
-                const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
-                if (!(ultimo && ultimo === transcripcionInterina)) {
-                    fragmentosConfirmados.push(transcripcionInterina);
-                }
-                transcripcionInterina = '';
-                actualizarTranscripcionUI();
-            }
-
-            temporizadorReinicio = setTimeout(() => {
-                if (!isRecording || stopSolicitado) return;
-                try { reconocimiento.start(); } catch (e) {}
-            }, REINICIO_DEMORA_MS);
-        };
-
-        return true;
-    };
-
-    // Primer clic: arranca el micrófono
-    const iniciarDictado = () => {
-        if (!SpeechRecognition) {
-            toast.mostrar('Tu navegador no soporta reconocimiento de voz. Probá con Chrome o Edge.', 'error', 6000);
-            return;
-        }
-
-        if (isRecording || isProcessing) return;
+    const limpiarTodo = () => {
+        const { currentUserIdGlobal, ambitoActual, hogarId } = store.getState();
 
         cancelarProcesamientoIA();
         isProcessing = false;
-
-        if (temporizadorReinicio) {
-            clearTimeout(temporizadorReinicio);
-            temporizadorReinicio = null;
-        }
-
-        fragmentosConfirmados = [];
-        transcripcionInterina = '';
-        reiniciosSilencio = 0;
-        yaConsolidado = false;
-        stopSolicitado = false;
+        voiceService.abortar();
         actualizarTranscripcionUI();
+        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
 
-        if (!reconocimiento && !configurarReconocimiento()) {
-            toast.mostrar('No se pudo iniciar el reconocimiento de voz en este dispositivo.', 'error', 5000);
-            return;
-        }
+        DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
+        DraftService.limpiarBorradorLegacy();
+        FormUI.limpiarFormularioGasto({
+            formGasto,
+            inputMonto: inputMontoGlobal,
+            inputReferencia,
+            grupoReferencia,
+            seccionStockUI,
+            checkEsCuotas,
+            divCuotasConfig,
+            inputCantidadCuotas,
+            checkPostCierre
+        });
 
-        try {
-            isRecording = true;
-            FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'recording', dictarHint);
-            reconocimiento.start();
-        } catch (error) {
-            if (error.name === 'InvalidStateError') {
-                console.warn('El reconocimiento ya estaba activo.');
-            } else {
-                console.error('Error al iniciar el dictado por voz:', error);
-                toast.mostrar('No se pudo iniciar el dictado por voz.', 'error');
-                resetEstado();
-            }
-        }
+        store.setInventario([]);
+        toast.mostrar('Inventario y formulario limpiados.', 'info');
     };
 
-    // Al soltar: corta el micrófono y consolida el texto
-    const finalizarDictado = () => {
-        if (!isRecording || isProcessing) return;
-
-        isRecording = false;
-        isProcessing = true; // bloquea el botón aunque falle el stop()
-        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'processing', dictarHint);
-
-        stopSolicitado = true; // justo antes de stop(): onresult puede disparar el bypass
-        try {
-            reconocimiento.stop();
-        } catch (error) {
-            // Nunca llegó a arrancar: consolidamos igual lo que haya
-            consolidarYProcesar();
+    const modalLimpiarUI = FormUI.configurarModalLimpiar({
+        modal: document.getElementById('modal-limpiar'),
+        btnAbrir: document.getElementById('btn-limpiar-todo'),
+        btnCancelar: document.getElementById('btn-cancelar-limpiar'),
+        btnConfirmar: document.getElementById('btn-confirmar-limpiar'),
+        onConfirmar: () => {
+            limpiarTodo();
+            modalLimpiarUI.cerrar();
         }
-    };
-
-    // Une final + interino y recién ahí dispara el fetch a la IA
-    const consolidarYProcesar = () => {
-        if (yaConsolidado) return;
-        yaConsolidado = true;
-
-        if (temporizadorReinicio) {
-            clearTimeout(temporizadorReinicio);
-            temporizadorReinicio = null;
-        }
-
-        // Flushea interino si quedó
-        if (transcripcionInterina) {
-            const ultimo = fragmentosConfirmados[fragmentosConfirmados.length - 1];
-            if (!(ultimo && ultimo === transcripcionInterina)) {
-                fragmentosConfirmados.push(transcripcionInterina);
-            }
-            transcripcionInterina = '';
-        }
-
-        const texto = fragmentosConfirmados.join(' ').replace(/\s+/g, ' ').trim();
-
-        isRecording = false;
-        stopSolicitado = false;
-
-        if (!texto) {
-            toast.mostrar('No escuché nada. Probá de nuevo.', 'error');
-            resetEstado();
-            return;
-        }
-
-        isProcessing = true;
-        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'processing', dictarHint);
-        procesarConIA(texto);
-    };
-
-    // ==========================================
-    // PUSH-TO-TALK: mantener presionado graba, soltar procesa
-    // ==========================================
-    // Algunos móviles disparan eventos de mouse "sintéticos" después del touch.
-    // Si no los ignoramos, al soltar se reabriría el micrófono.
-    let ultimoTouch = 0;
-    const esMouseSintetico = () => Date.now() - ultimoTouch < 700;
-
-    const alPresionar = (e) => {
-        e.preventDefault(); // evita selección de texto, zoom y menú contextual
-
-        if (e.type === 'touchstart') {
-            ultimoTouch = Date.now();
-        } else if (e.type === 'mousedown' && esMouseSintetico()) {
-            return;
-        }
-
-        if (isProcessing) return; // evita envíos simultáneos
-        iniciarDictado();
-    };
-
-    const alSoltar = (e) => {
-        if (!isRecording) return;
-
-        if (e.type.startsWith('touch')) {
-            ultimoTouch = Date.now();
-            e.preventDefault?.();
-        } else if (e.type.startsWith('mouse') && esMouseSintetico()) {
-            return;
-        }
-
-        finalizarDictado();
-    };
-
-    btnDictar?.addEventListener('mousedown', alPresionar);
-    btnDictar?.addEventListener('touchstart', alPresionar, { passive: false });
-
-    document.addEventListener('mouseup', alSoltar);
-    document.addEventListener('touchend', alSoltar, { passive: false });
-    document.addEventListener('touchcancel', alSoltar, { passive: false });
-
-    // El long-press en móvil puede abrir el menú contextual aunque touchstart
-    // tenga preventDefault(); lo bloqueamos explícitamente.
-    btnDictar?.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    // Accesibilidad: misma semántica push-to-talk con el teclado
-    btnDictar?.addEventListener('keydown', (e) => {
-        if (e.key !== ' ' && e.key !== 'Enter') return;
-        e.preventDefault();
-        if (e.repeat) return;
-        alPresionar(e);
     });
 
-    btnDictar?.addEventListener('keyup', (e) => {
-        if (e.key !== ' ' && e.key !== 'Enter') return;
-        e.preventDefault();
-        alSoltar(e);
+    FormUI.configurarEventosCategoria({
+        selectCategoria,
+        seccionStockUI,
+        grupoReferencia
+    });
+
+    FormUI.configurarEventosPago({
+        selectMetodoPago,
+        contenedorOpcionCuotas,
+        checkEsCuotas,
+        divCuotasConfig,
+        inputCantidadCuotas,
+        checkPostCierre
+    });
+
+    InventarioUI.configurarAltaRapida({
+        btnAgregar: document.getElementById('btn-add-inv'),
+        inputProducto: inputInvProducto,
+        inputCantidad: inputInvCantidad,
+        inputPrecio: inputInvPrecio,
+        inputUnidad: inputInvUnidad,
+        onAgregar: item => {
+            agregarProductoInventario(item);
+            guardarBorradorStock();
+        },
+        onError: mensaje => toast.mostrar(mensaje)
+    });
+
+    FormUI.configurarPushToTalk(btnDictar, {
+        onPresionar: () => {
+            if (isProcessing) return;
+            iniciarDictado();
+        },
+        onSoltar: () => {
+            finalizarDictado();
+        },
+        estaGrabando: () => voiceService.isRecording
     });
 
     if (window.lucide) window.lucide.createIcons();
@@ -963,94 +486,56 @@ document.addEventListener('DOMContentLoaded', async () => {
             FormUI.toggleBotonSubmit(btn, true, textoOriginal);
 
             try {
-                const catElegida = selectCategoria?.value
-                    ? selectCategoria.options[selectCategoria.selectedIndex]?.text || ''
-                    : '';
-                const metodoPago = document.getElementById('metodo-pago').value;
-                const esCuotas = document.getElementById('check-es-cuotas')?.checked || false;
-                const cantidadCuotas = document.getElementById('input-cantidad-cuotas')?.value || '';
-                const postCierre = document.getElementById('check-post-cierre')?.checked || false;
-
-                let textoReferencia = "";
-                if (grupoReferencia && grupoReferencia.style.display === 'block' && inputReferencia) {
-                    textoReferencia = inputReferencia.value.trim();
-                }
-
-                const validacion = FormService.validarFormulario({
-                    monto: inputMontoGlobal.value,
-                    categoria: catElegida,
-                    categoriaValor: selectCategoria?.value || '',
-                    metodoPago,
-                    esCuotas,
-                    cantidadCuotas
+                const datosFormulario = FormUI.leerDatosGasto({
+                    selectCategoria,
+                    selectMetodoPago,
+                    inputMonto: inputMontoGlobal,
+                    inputReferencia,
+                    grupoReferencia,
+                    checkEsCuotas,
+                    inputCantidadCuotas,
+                    checkPostCierre
                 });
 
-                if (!validacion.valido) {
-                    toast.mostrar(validacion.errores[0]);
+                const {
+                    currentUserIdGlobal,
+                    ambitoActual,
+                    hogarId,
+                    arrayInventario
+                } = store.getState();
+
+                if (ambitoActual === 'hogar') {
+                    datosFormulario.responsable = selectResponsable?.value || '';
+                }
+
+                const resultado = await saveService.guardar({
+                    datosFormulario,
+                    contexto: { ambitoActual, hogarId },
+                    userId: currentUserIdGlobal,
+                    inventario: arrayInventario
+                });
+
+                if (!resultado.guardado) {
+                    toast.mostrar(resultado.errores[0]);
                     return;
-                }
-
-                const { currentUserIdGlobal, ambitoActual, hogarId, arrayInventario } = store.getState();
-                const tipo = FormService.determinarTipo(ambitoActual);
-                const responsable = (ambitoActual === 'hogar')
-                    ? selectResponsable.value
-                    : currentUserIdGlobal;
-                const contexto = FormService.construirContexto(ambitoActual, hogarId);
-                const fecha = AppUtils.getFechaLocal();
-                const usaCuotas = FormService.esPagoEnCuotas({
-                    metodoPago,
-                    esCuotas,
-                    cantidadCuotas
-                });
-
-                if (!usaCuotas) {
-                    const nuevoGasto = FormService.construirGasto({
-                        fecha,
-                        monto: validacion.monto,
-                        categoria: catElegida,
-                        inventario: arrayInventario,
-                        responsable,
-                        metodoPago,
-                        tipo,
-                        referencia: textoReferencia
-                    });
-
-                    await api.guardarGasto(nuevoGasto, contexto);
-                } else {
-                    const gastosCuota = FormService.construirGastosEnCuotas({
-                        fecha,
-                        montoTotal: validacion.monto,
-                        categoria: catElegida,
-                        responsable,
-                        metodoPago,
-                        tipo,
-                        referencia: textoReferencia,
-                        cantidadCuotas,
-                        postCierre,
-                        compraId: 'cuotas_' + Date.now()
-                    });
-
-                    await api.guardarGastosEnLote(gastosCuota, contexto);
                 }
 
                 toast.mostrar("✅ ¡Gasto guardado!");
                 DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
                 DraftService.limpiarBorradorLegacy();
-                formGasto.reset();
-
-                FormUI.resetearCuotas({
-                    checkEsCuotas: document.getElementById('check-es-cuotas'),
-                    divCuotasConfig: document.getElementById('div-cuotas-config'),
-                    inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
-                    checkPostCierre: document.getElementById('check-post-cierre')
+                FormUI.limpiarFormularioGasto({
+                    formGasto,
+                    inputMonto: inputMontoGlobal,
+                    inputReferencia,
+                    grupoReferencia,
+                    seccionStockUI,
+                    checkEsCuotas,
+                    divCuotasConfig,
+                    inputCantidadCuotas,
+                    checkPostCierre
                 });
 
-                if (inputReferencia) inputReferencia.value = '';
-                FormUI.actualizarVisibilidadElemento(grupoReferencia, false);
-
                 store.setInventario([]);
-                InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, false);
-
             } catch (err) {
                 console.error(err);
                 toast.mostrar("❌ Error al guardar");

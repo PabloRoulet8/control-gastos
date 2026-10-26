@@ -85,4 +85,38 @@ export class InventarioUI {
         if (!seccionStock) return;
         seccionStock.style.display = visible ? 'block' : 'none';
     }
+
+    static configurarAltaRapida({
+        btnAgregar,
+        inputProducto,
+        inputCantidad,
+        inputPrecio,
+        inputUnidad,
+        onAgregar = null,
+        onError = null
+    } = {}) {
+        if (!btnAgregar) return;
+
+        btnAgregar.addEventListener('click', () => {
+            const producto = inputProducto?.value || '';
+            const cantidad = parseFloat(inputCantidad?.value);
+            const precio = parseFloat(inputPrecio?.value);
+            const unidad = inputUnidad?.value || '';
+
+            if (!producto || isNaN(cantidad) || isNaN(precio)) {
+                if (typeof onError === 'function') {
+                    onError('Faltan datos del producto.');
+                }
+                return;
+            }
+
+            if (typeof onAgregar !== 'function') return;
+
+            onAgregar({ producto, cantidad, unidad, precio });
+
+            if (inputProducto) inputProducto.value = '';
+            if (inputCantidad) inputCantidad.value = '';
+            if (inputPrecio) inputPrecio.value = '';
+        });
+    }
 }

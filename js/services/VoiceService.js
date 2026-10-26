@@ -113,7 +113,6 @@ export class VoiceService {
             if (this.yaConsolidado) {
                 this.isRecording = false;
                 this.limpiarTemporizador();
-                this.onStateChange('idle');
                 return;
             }
 
