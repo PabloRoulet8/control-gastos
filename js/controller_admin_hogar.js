@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
     
     let hogarId = urlParams.get("id");
     const esModoCreacion = hogarId === "nuevo";
-    console.log('[DEBUG] 0. Controlador admin_hogar cargado', { esModoCreacion, online: navigator.onLine });
     
     let categoriasBorrador = [];
     let presupuestosBorrador = [];
@@ -85,17 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let modalInvitacionVisible = false;
     
     onAuthStateChanged(auth, async (user) => {
-        console.log('[DEBUG] 0.1 onAuthStateChanged', {
-            autenticado: Boolean(user),
-            esModoCreacion,
-            hogarCreado,
-            modalInvitacionVisible
-        });
-
-        if (hogarCreado || modalInvitacionVisible) {
-            console.log('[DEBUG] 0.2 Listener ignorado: creación finalizada o modal visible');
-            return;
-        }
+        if (hogarCreado || modalInvitacionVisible) return;
 
         if (user && !esModoCreacion) {
             const snap = await getDoc(doc(db, "hogares", hogarId));
@@ -206,15 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     if (btnAccionFinal) {
         btnAccionFinal.addEventListener("click", async () => {
-            console.log('[DEBUG] 1. Botón presionado', {
-                online: navigator.onLine,
-                autenticado: Boolean(auth.currentUser)
-            });
-
-            if (btnAccionFinal.disabled || modalInvitacionVisible) {
-                console.log('[DEBUG] 1b. Click ignorado: guardado en curso o modal visible');
-                return;
-            }
+            if (btnAccionFinal.disabled || modalInvitacionVisible) return;
 
             btnAccionFinal.disabled = true;
             const textoOriginal = btnAccionFinal.textContent;
@@ -240,7 +221,6 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 if (esModoCreacion) {
                     const nombreHogar = AppUtils.capitalizar(inputNombreHogar.value.trim());
-                    console.log('[DEBUG] 2. Nombre validado');
 
                     if (!nombreHogar) {
                         toast.mostrar("⚠️ Ingresá el nombre del hogar");
@@ -249,18 +229,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                     
                     btnAccionFinal.textContent = "Guardando...";
-                    console.log('[DEBUG] 3. Llamando a GastoRepository.crearHogar()...');
                     const nuevoHogar = await api.crearHogar(nombreHogar);
                     const nuevoId = nuevoHogar.id;
                     hogarCreado = true;
-                    console.log('[DEBUG] 4. Respuesta recibida de crearHogar. ID:', nuevoId);
 
                     const urlActual = new URL(window.location.href);
                     urlActual.searchParams.set("id", nuevoId);
                     window.history.replaceState(null, "", urlActual.toString());
-                    console.log('[DEBUG] 5. URL actualizada:', urlActual.toString());
                     
-                    console.log('[DEBUG] 6. Guardando configuración inicial del hogar...');
                     await setDoc(doc(db, "hogares", nuevoId), {
                         categorias_compartidas: categoriasBorrador,
                         presupuestos_compartidos: presupuestosBorrador,
@@ -268,11 +244,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         miembros: [auth.currentUser.uid],
                         administradores: [auth.currentUser.uid]
                     }, { merge: true });
-                    console.log('[DEBUG] 7. Configuración inicial guardada');
                     
-                    console.log('[DEBUG] 8. Generando invitación...');
                     const invitacion = await HogarService.generarInvitacion(db, nuevoId, auth.currentUser.uid);
-                    console.log('[DEBUG] 9. Invitación generada');
                     const urlInvitacion = new URL("index.html", window.location.href);
                     urlInvitacion.searchParams.set("hogarId", nuevoId);
                     urlInvitacion.searchParams.set("join", invitacion.codigo);
@@ -281,13 +254,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     const modalLink = document.getElementById("modal-link-invitacion");
                     const inputLink = document.getElementById("input-link-generado");
                     if (modalLink && inputLink) {
-                        console.log('[DEBUG] 10. Apagando UI de carga');
                         modalInvitacionVisible = true;
                         forzarDesbloqueoUI();
-                        console.log('[DEBUG] 11. Abriendo modal de invitación');
                         modalLink.style.display = "flex";
                         inputLink.value = linkFinal;
-                        console.log('[DEBUG] 12. Modal visible con link de invitación');
                         
                         const btnCopiar = document.getElementById("btn-copiar-link-modal");
                         const btnCerrar = document.getElementById("btn-cerrar-modal-link");
@@ -301,34 +271,30 @@ document.addEventListener("DOMContentLoaded", () => {
                             window.location.href = "index.html"; 
                         };
                     } else {
-                        console.error('[DEBUG] ERROR CRÍTICO: No se encontraron los elementos del modal de invitación');
+                        console.error("No se encontraron los elementos del modal de invitación");
                     }
                     
                 } else {
                     btnAccionFinal.textContent = "Guardando...";
-                    console.log('[DEBUG] 3. Actualizando configuración del hogar...');
                     
                     await updateDoc(doc(db, "hogares", hogarId), {
                         categorias_compartidas: categoriasBorrador,
                         presupuestos_compartidos: presupuestosBorrador,
                         metodos_pago: metodosPagoBorrador
                     });
-                    console.log('[DEBUG] 4. Configuración actualizada');
                     
                     toast.mostrar("¡Configuración actualizada! ✅");
                     setTimeout(() => window.location.href = `config_hogar.html?id=${hogarId}`, 1000);
                 }
                 
             } catch (error) {
-                console.error('[DEBUG] ERROR CRÍTICO:', error);
+                console.error("Error al guardar la configuración del hogar:", error);
                 toast.mostrar("Error al guardar");
             } finally {
-                console.log('[DEBUG] 13. Ejecutando finally: forzando desbloqueo de UI');
                 try {
                     forzarDesbloqueoUI();
-                    console.log('[DEBUG] 14. UI desbloqueada');
                 } catch (error) {
-                    console.error('[DEBUG] ERROR CRÍTICO al desbloquear UI:', error);
+                    console.error("No se pudo restaurar la UI:", error);
                 }
             }
         });

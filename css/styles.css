@@ -806,7 +806,7 @@ html[data-theme=light] select option {
   max-height: calc(100vh - 140px);
   padding: 20px;
   overflow-y: auto;
-  animation: slideDown 0.3s ease;
+  animation: slideDown 0.3s ease forwards;
   transform: translateY(-100%);
   opacity: 0;
 }
