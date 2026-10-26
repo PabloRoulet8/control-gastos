@@ -194,12 +194,16 @@ export class GastoRepository {
             codigo_invitacion: codigoGenerado
         };
 
+        console.log('[DEBUG] 3.1 Creando documento en /hogares...');
         const docRef = await addDoc(this.coleccionHogares, nuevoHogar);
+        console.log('[DEBUG] 3.2 Documento /hogares creado. ID:', docRef.id);
 
         try {
+            console.log('[DEBUG] 3.3 Guardando configuración inicial en /config...');
             await this.guardarConfiguracionHogar(docRef.id, { fondo_comun: 0 });
+            console.log('[DEBUG] 3.4 Configuración inicial guardada');
         } catch (error) {
-            console.warn("No se pudo guardar la configuración inicial del hogar:", error);
+            console.warn("[DEBUG] No se pudo guardar la configuración inicial del hogar:", error);
         }
         
         return { id: docRef.id, nombre: nombreHogar };

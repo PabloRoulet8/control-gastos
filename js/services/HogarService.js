@@ -27,10 +27,12 @@ export class HogarService {
         if (!hogarId) throw new Error('El hogar es obligatorio.');
         if (!adminUid) throw new Error('El administrador es obligatorio.');
 
+        console.log('[DEBUG] 8.1 Generando código de invitación...');
         const codigo = this.generarCodigoInvitacion();
         const expiraEn = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
         const invitacionRef = doc(db, 'hogares', hogarId, 'invitaciones', codigo);
 
+        console.log('[DEBUG] 8.2 Guardando invitación en Firestore...');
         await setDoc(invitacionRef, {
             codigo,
             hogar_id: hogarId,
@@ -40,6 +42,7 @@ export class HogarService {
             invitado_uid: null,
             estado: 'pendiente'
         });
+        console.log('[DEBUG] 8.3 Invitación guardada');
 
         return { codigo, hogarId, expiraEn };
     }
