@@ -188,15 +188,19 @@ export class GastoRepository {
         const nuevoHogar = {
             nombre: nombreHogar,
             creador_id: usuarioActual.uid,
-            miembros: [usuarioActual.uid], 
+            miembros: [usuarioActual.uid],
+            administradores: [usuarioActual.uid],
             fecha_creacion: serverTimestamp(),
             codigo_invitacion: codigoGenerado
         };
 
         const docRef = await addDoc(this.coleccionHogares, nuevoHogar);
 
-        // Guardamos configuración inicial
-        await this.guardarConfiguracionHogar(docRef.id, { fondo_comun: 0 });
+        try {
+            await this.guardarConfiguracionHogar(docRef.id, { fondo_comun: 0 });
+        } catch (error) {
+            console.warn("No se pudo guardar la configuración inicial del hogar:", error);
+        }
         
         return { id: docRef.id, nombre: nombreHogar };
     }

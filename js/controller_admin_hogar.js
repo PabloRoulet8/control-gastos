@@ -211,7 +211,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         categorias_compartidas: categoriasBorrador,
                         presupuestos_compartidos: presupuestosBorrador,
                         metodos_pago: metodosPagoBorrador,
-                        administradores: [auth.currentUser.uid] 
+                        miembros: [auth.currentUser.uid],
+                        administradores: [auth.currentUser.uid]
                     }, { merge: true });
                     
                     const invitacion = await HogarService.generarInvitacion(db, nuevoId, auth.currentUser.uid);
