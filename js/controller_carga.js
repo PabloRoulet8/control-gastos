@@ -13,6 +13,7 @@ import { IAService } from "./services/IAService.js";
 import { VoiceService } from "./services/VoiceService.js";
 import { CargaStore } from "./store/CargaStore.js";
 import { InventarioUI } from "./ui/InventarioUI.js";
+import { FormUI } from "./ui/FormUI.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
@@ -196,22 +197,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    const llenarSelectCategorias = () => {
-        if (!selectCategoria) return;
-        const { listaCategorias } = store.getState();
-
-        selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
-
-        CategoryService.prepararCategorias(listaCategorias).forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.valor;
-            option.textContent = cat.nombre;
-            option.dataset.llevaStock = cat.lleva_stock;
-            option.dataset.esFijo = cat.es_fijo;
-            selectCategoria.appendChild(option);
-        });
-    };
-
     store.subscribe(({ changed }) => {
         if (changed.includes('arrayInventario')) {
             const { arrayInventario } = store.getState();
@@ -231,7 +216,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             );
         }
 
-        if (changed.includes('listaCategorias')) llenarSelectCategorias();
+        if (changed.includes('listaCategorias')) {
+            const { listaCategorias } = store.getState();
+
+            FormUI.renderizarCategorias(
+                selectCategoria,
+                CategoryService.prepararCategorias(listaCategorias)
+            );
+        }
     });
 
     // 3. EVENTOS DE INTERACCIÓN
@@ -248,15 +240,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectMetodoPago.addEventListener('change', () => {
             const esTarjeta = FormService.admiteCuotas(selectMetodoPago.value);
 
-            if (contenedorOpcionCuotas) {
-                contenedorOpcionCuotas.style.display = esTarjeta ? 'block' : 'none';
-            }
+            FormUI.actualizarVisibilidadElemento(contenedorOpcionCuotas, esTarjeta);
 
             if (!esTarjeta) {
-                if (checkEsCuotas) checkEsCuotas.checked = false;
-                if (divCuotasConfig) divCuotasConfig.style.display = 'none';
-                if (inputCantidadCuotas) inputCantidadCuotas.value = '';
-                if (checkPostCierre) checkPostCierre.checked = false;
+                FormUI.resetearCuotas({
+                    checkEsCuotas: document.getElementById('check-es-cuotas'),
+                    divCuotasConfig: document.getElementById('div-cuotas-config'),
+                    inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
+                    checkPostCierre: document.getElementById('check-post-cierre')
+                });
             }
         });
     }
@@ -264,11 +256,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Toggle para mostrar/ocultar los inputs de cuotas
     if (checkEsCuotas && divCuotasConfig) {
         checkEsCuotas.addEventListener('change', () => {
-            divCuotasConfig.style.display = checkEsCuotas.checked ? 'block' : 'none';
-            // Si apagan el switch, vaciamos los campos
+            FormUI.actualizarVisibilidadElemento(
+                divCuotasConfig,
+                checkEsCuotas.checked
+            );
+
             if (!checkEsCuotas.checked) {
-                if (inputCantidadCuotas) inputCantidadCuotas.value = '';
-                if (checkPostCierre) checkPostCierre.checked = false;
+                FormUI.resetearCuotas({
+                    checkEsCuotas: document.getElementById('check-es-cuotas'),
+                    divCuotasConfig: document.getElementById('div-cuotas-config'),
+                    inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
+                    checkPostCierre: document.getElementById('check-post-cierre')
+                });
             }
         });
     }
@@ -282,11 +281,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, llevaStock);
 
-        if (grupoReferencia) {
-            grupoReferencia.style.display = FormService.esCategoriaVariable({ esFijo, llevaStock })
-                ? 'block'
-                : 'none';
-        }
+        FormUI.actualizarVisibilidadElemento(
+            grupoReferencia,
+            FormService.esCategoriaVariable({ esFijo, llevaStock })
+        );
     });
 
     document.getElementById('btn-add-inv')?.addEventListener('click', () => {
@@ -369,7 +367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         transcripcionInterina = '';
         fragmentosConfirmados = [];
         actualizarTranscripcionUI();
-        pintarBotonDictar('idle');
+        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
 
         const { currentUserIdGlobal, ambitoActual, hogarId } = store.getState();
         DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
@@ -380,12 +378,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             inputMontoGlobal.readOnly = false;
         }
         if (inputReferencia) inputReferencia.value = '';
-        if (grupoReferencia) grupoReferencia.style.display = 'none';
+        FormUI.actualizarVisibilidadElemento(grupoReferencia, false);
         InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, false);
-        const checkCuotas = document.getElementById('check-es-cuotas');
-        const divCuotasConfig = document.getElementById('div-cuotas-config');
-        if (checkCuotas) checkCuotas.checked = false;
-        if (divCuotasConfig) divCuotasConfig.style.display = 'none';
+        FormUI.resetearCuotas({
+            checkEsCuotas: document.getElementById('check-es-cuotas'),
+            divCuotasConfig: document.getElementById('div-cuotas-config'),
+            inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
+            checkPostCierre: document.getElementById('check-post-cierre')
+        });
         store.setInventario([]);
         cerrarModalLimpiar();
         toast.mostrar('Inventario y formulario limpiados.', 'info');
@@ -428,13 +428,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         maxAlternatives: 1,
         reinicioDemoraMs: 300,
         onStateChange: (estado) => {
-            if (estado === 'recording') {
-                pintarBotonDictar('recording');
-            } else if (estado === 'processing') {
-                pintarBotonDictar('processing');
-            } else if (estado === 'idle') {
-                pintarBotonDictar('idle');
-            }
+            FormUI.actualizarEstadoMicrofono(
+                btnDictar,
+                btnDictarTexto,
+                estado,
+                dictarHint
+            );
         },
         onInterim: (snapshot) => {
             fragmentosConfirmados = [...snapshot.fragmentosConfirmados];
@@ -464,7 +463,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             isProcessing = false;
             voiceService.reset();
             actualizarTranscripcionUI();
-            pintarBotonDictar('idle');
+            FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
         }
     });
 
@@ -629,23 +628,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         dictadoTranscripcion.hidden = (texto === '');
     };
 
-    // Feedback visual del botón según el estado: 'idle' | 'recording' | 'processing'
-    const pintarBotonDictar = (estado) => {
-        if (!btnDictar) return;
-
-        btnDictar.classList.toggle('is-listening', estado === 'recording');
-        btnDictar.disabled = (estado === 'processing');
-
-        if (btnDictarTexto) {
-            if (estado === 'recording') btnDictarTexto.textContent = 'Escuchando... (Suelta para procesar)';
-            else if (estado === 'processing') btnDictarTexto.textContent = 'Procesando...';
-            else btnDictarTexto.textContent = 'Mantén presionado para dictar';
-        }
-
-        // Mientras dicta o procesa, el ejemplo deja de ser útil
-        if (dictarHint) dictarHint.hidden = (estado !== 'idle');
-    };
-
     // Vuelve todo a reposo y limpia la transcripción
     const resetEstado = () => {
         isProcessing = false;
@@ -653,7 +635,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fragmentosConfirmados = [];
         transcripcionInterina = '';
         actualizarTranscripcionUI();
-        pintarBotonDictar('idle');
+        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'idle', dictarHint);
     };
 
     // Envía el texto transcrito al backend de IA y completa el formulario
@@ -754,7 +736,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (stopSolicitado) return;
 
             isRecording = true;
-            pintarBotonDictar('recording');
+            FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'recording', dictarHint);
             actualizarTranscripcionUI();
         };
 
@@ -889,7 +871,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             isRecording = true;
-            pintarBotonDictar('recording');
+            FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'recording', dictarHint);
             reconocimiento.start();
         } catch (error) {
             if (error.name === 'InvalidStateError') {
@@ -908,7 +890,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         isRecording = false;
         isProcessing = true; // bloquea el botón aunque falle el stop()
-        pintarBotonDictar('processing');
+        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'processing', dictarHint);
 
         stopSolicitado = true; // justo antes de stop(): onresult puede disparar el bypass
         try {
@@ -950,7 +932,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         isProcessing = true;
-        pintarBotonDictar('processing');
+        FormUI.actualizarEstadoMicrofono(btnDictar, btnDictarTexto, 'processing', dictarHint);
         procesarConIA(texto);
     };
 
@@ -1019,8 +1001,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         formGasto.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('.btn-primary');
-            btn.disabled = true;
-            btn.textContent = "Guardando...";
+            const textoOriginal = btn?.textContent || 'Guardar Gasto';
+            FormUI.toggleBotonSubmit(btn, true, textoOriginal);
 
             try {
                 const catElegida = selectCategoria?.value
@@ -1100,13 +1082,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 DraftService.limpiarBorradorLegacy();
                 formGasto.reset();
 
-                const checkEsCuotas = document.getElementById('check-es-cuotas');
-                const divCuotasConfig = document.getElementById('div-cuotas-config');
-                if (checkEsCuotas) checkEsCuotas.checked = false;
-                if (divCuotasConfig) divCuotasConfig.style.display = 'none';
+                FormUI.resetearCuotas({
+                    checkEsCuotas: document.getElementById('check-es-cuotas'),
+                    divCuotasConfig: document.getElementById('div-cuotas-config'),
+                    inputCantidadCuotas: document.getElementById('input-cantidad-cuotas'),
+                    checkPostCierre: document.getElementById('check-post-cierre')
+                });
 
                 if (inputReferencia) inputReferencia.value = '';
-                if (grupoReferencia) grupoReferencia.style.display = 'none';
+                FormUI.actualizarVisibilidadElemento(grupoReferencia, false);
 
                 store.setInventario([]);
                 InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, false);
@@ -1115,8 +1099,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error(err);
                 toast.mostrar("❌ Error al guardar");
             } finally {
-                btn.disabled = false;
-                btn.textContent = "Guardar Gasto";
+                FormUI.toggleBotonSubmit(btn, false, textoOriginal);
             }
         });
     }
