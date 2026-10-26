@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarDashboard(uid) {
         if (!contenedorHogares) return;
-        contenedorHogares.innerHTML = '';
+        contenedorHogares.replaceChildren();
         
         try {
             const userRef = doc(db, "usuarios", uid);
@@ -174,50 +174,65 @@ document.addEventListener('DOMContentLoaded', () => {
             if (saludoUsuario) saludoUsuario.textContent = `Hola, ${userData.nombre}`;
             if (displayAvatar) displayAvatar.textContent = userData.nombre ? userData.nombre.charAt(0).toUpperCase() : 'U';
 
-             // === TARJETA PERSONAL (LIMPIA) ===
-             const cardPersonal = document.createElement('div');
-             cardPersonal.className = 'dashboard-card-wrapper';
-             cardPersonal.innerHTML = `
-                 <a href="carga.html?v=9.5&ambito=personal" class="dashboard-card-link">
-                     <span class="icon"><i data-lucide="user"></i></span>
-                     <span class="title">Mis Gastos</span>
-                 </a>
-             `;
-             contenedorHogares.appendChild(cardPersonal);
+             const crearTarjeta = (href, icono, titulo, claseExtra = '') => {
+                 const card = document.createElement('div');
+                 card.className = 'dashboard-card-wrapper';
 
-             // === TARJETAS HOGAR (CORREGIDAS) ===
+                 const enlace = document.createElement('a');
+                 enlace.href = href;
+                 enlace.className = `dashboard-card-link${claseExtra ? ` ${claseExtra}` : ''}`;
+
+                 const spanIcono = document.createElement('span');
+                 spanIcono.className = 'icon';
+                 const iconoElemento = document.createElement('i');
+                 iconoElemento.setAttribute('data-lucide', icono);
+                 spanIcono.appendChild(iconoElemento);
+
+                 const spanTitulo = document.createElement('span');
+                 spanTitulo.className = 'title';
+                 spanTitulo.textContent = titulo;
+
+                 enlace.append(spanIcono, spanTitulo);
+                 card.appendChild(enlace);
+                 return card;
+             };
+
+             // === TARJETA PERSONAL ===
+             contenedorHogares.appendChild(
+                 crearTarjeta('carga.html?v=9.5&ambito=personal', 'user', 'Mis Gastos')
+             );
+
+             // === TARJETAS HOGAR ===
              const hogaresRef = collection(db, "hogares");
              const q = query(hogaresRef, where("miembros", "array-contains", uid));
              const querySnapshot = await getDocs(q);
 
-             // === TARJETAS HOGAR (LIMPIAS) ===
              querySnapshot.forEach((docHogar) => {
                  const hogar = docHogar.data();
-                 const cardHogar = document.createElement('div');
-                 cardHogar.className = 'dashboard-card-wrapper';
-                 
-                 cardHogar.innerHTML = `
-                     <a href="carga.html?v=9.5&ambito=hogar&id=${docHogar.id}&nombre=${encodeURIComponent(hogar.nombre)}" class="dashboard-card-link">
-                         <span class="icon"><i data-lucide="home"></i></span>
-                         <span class="title">${hogar.nombre}</span>
-                     </a>
-                 `;
-                 contenedorHogares.appendChild(cardHogar);
+                 const urlHogar = new URL('carga.html', window.location.href);
+                 urlHogar.searchParams.set('v', '9.5');
+                 urlHogar.searchParams.set('ambito', 'hogar');
+                 urlHogar.searchParams.set('id', docHogar.id);
+                 urlHogar.searchParams.set('nombre', hogar.nombre || '');
+
+                 contenedorHogares.appendChild(
+                     crearTarjeta(urlHogar.toString(), 'home', hogar.nombre || 'Hogar')
+                 );
              });
 
-             const cardNuevo = document.createElement('div');
-             cardNuevo.className = 'dashboard-card-wrapper';
-             cardNuevo.innerHTML = `
-                 <a href="admin_hogar.html?v=9.5&id=nuevo" class="dashboard-card-link card-add">
-                     <span class="icon"><i data-lucide="plus"></i></span>
-                     <span class="title">Nuevo Hogar</span>
-                 </a>
-             `;
-             contenedorHogares.appendChild(cardNuevo);
+             contenedorHogares.appendChild(
+                 crearTarjeta('admin_hogar.html?v=9.5&id=nuevo', 'plus', 'Nuevo Hogar', 'card-add')
+             );
 
         } catch (error) {
             console.error("Error al cargar el dashboard:", error);
-            contenedorHogares.innerHTML = '<p class="text-center" style="color:#ef4444; padding: 20px;">Error al cargar tus datos. Revisá tu conexión.</p>';
+            contenedorHogares.replaceChildren();
+            const mensajeError = document.createElement('p');
+            mensajeError.className = 'text-center';
+            mensajeError.style.color = '#ef4444';
+            mensajeError.style.padding = '20px';
+            mensajeError.textContent = 'Error al cargar tus datos. Revisá tu conexión.';
+            contenedorHogares.appendChild(mensajeError);
         }
     }
 });

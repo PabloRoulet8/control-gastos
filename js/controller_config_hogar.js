@@ -5,7 +5,6 @@ import { HogarService } from "./services/HogarService.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { ConfirmManager } from "./ui/ConfirmManager.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
-import { AppUtils } from "./utils/AppUtils.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const toast = new ToastManager();
@@ -82,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hogarData || !auth.currentUser) return;
 
         btnCompartirInvitacion.disabled = true;
-        const contenidoOriginal = btnCompartirInvitacion.innerHTML;
 
         try {
             const { codigo } = await HogarService.generarInvitacion(db, hogarId, auth.currentUser.uid);
@@ -107,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.mostrar(error.message || "No se pudo generar la invitación.");
         } finally {
             btnCompartirInvitacion.disabled = false;
-            btnCompartirInvitacion.innerHTML = contenidoOriginal;
         }
     };
 
@@ -144,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. RENDERIZAR MIEMBROS (Con avatar circular)
     async function renderizarMiembros(uids, admins, miUid) {
         const lista = document.getElementById('lista-gestion-miembros');
-        lista.innerHTML = '';
+        lista.replaceChildren();
 
         for (const uid of uids) {
             const snapUser = await getDoc(doc(db, "perfiles_publicos", uid));
@@ -161,25 +158,71 @@ document.addEventListener('DOMContentLoaded', () => {
             li.style.background = "var(--bg-card)";
             li.style.padding = "10px 15px";
 
-            li.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="avatar-circle">${AppUtils.escapeHTML(inicial)}</div>
-                    <div style="display: flex; flex-direction: column;">
-                        <strong style="color: var(--text-main); font-size: 1.05rem;">
-                            ${AppUtils.escapeHTML(nombreMostrar)} ${esEsteUserAdmin ? '⭐' : ''}
-                        </strong>
-                        <small style="color: var(--text-muted);">${uid === miUid ? '(Vos)' : ''}</small>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    ${uid !== miUid ? `
-                        <button class="btn-toggle-admin btn-secondary" data-uid="${uid}" data-isadmin="${esEsteUserAdmin}" style="padding: 6px 10px; font-size: 0.8rem; margin: 0;">
-                            ${esEsteUserAdmin ? 'Quitar Admin' : 'Hacer Admin'}
-                        </button>
-                        <button class="btn-icon-danger btn-delete-member" data-uid="${uid}" title="Expulsar"><i data-lucide="trash-2"></i></button>
-                    ` : ''}
-                </div>
-            `;
+            const contenedorInfo = document.createElement('div');
+            Object.assign(contenedorInfo.style, {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+            });
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar-circle';
+            avatar.textContent = inicial;
+
+            const contenedorTexto = document.createElement('div');
+            Object.assign(contenedorTexto.style, {
+                display: 'flex',
+                flexDirection: 'column'
+            });
+
+            const nombreElemento = document.createElement('strong');
+            Object.assign(nombreElemento.style, {
+                color: 'var(--text-main)',
+                fontSize: '1.05rem'
+            });
+            nombreElemento.textContent = esEsteUserAdmin ? `${nombreMostrar} ⭐` : nombreMostrar;
+
+            const etiquetaVos = document.createElement('small');
+            Object.assign(etiquetaVos.style, {
+                color: 'var(--text-muted)'
+            });
+            etiquetaVos.textContent = uid === miUid ? '(Vos)' : '';
+
+            contenedorTexto.append(nombreElemento, etiquetaVos);
+            contenedorInfo.append(avatar, contenedorTexto);
+
+            const contenedorAcciones = document.createElement('div');
+            Object.assign(contenedorAcciones.style, {
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'center'
+            });
+
+            if (uid !== miUid) {
+                const btnToggleAdmin = document.createElement('button');
+                btnToggleAdmin.className = 'btn-toggle-admin btn-secondary';
+                btnToggleAdmin.dataset.uid = uid;
+                btnToggleAdmin.dataset.isadmin = String(esEsteUserAdmin);
+                Object.assign(btnToggleAdmin.style, {
+                    padding: '6px 10px',
+                    fontSize: '0.8rem',
+                    margin: '0'
+                });
+                btnToggleAdmin.textContent = esEsteUserAdmin ? 'Quitar Admin' : 'Hacer Admin';
+
+                const btnEliminar = document.createElement('button');
+                btnEliminar.className = 'btn-icon-danger btn-delete-member';
+                btnEliminar.dataset.uid = uid;
+                btnEliminar.title = 'Expulsar';
+
+                const iconoEliminar = document.createElement('i');
+                iconoEliminar.setAttribute('data-lucide', 'trash-2');
+                btnEliminar.appendChild(iconoEliminar);
+
+                contenedorAcciones.append(btnToggleAdmin, btnEliminar);
+            }
+
+            li.append(contenedorInfo, contenedorAcciones);
             lista.appendChild(li);
         }
         
