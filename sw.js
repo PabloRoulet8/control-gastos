@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v12.0';
+const CACHE_NAME = 'gastos-v13.0';
 
 const urlsToCache = [
     './',
@@ -17,7 +17,16 @@ const urlsToCache = [
     './js/auth_guard.js',
     './js/firebase-config.js',
     './js/api/GastoRepository.js',
+    './js/store/CargaStore.js',
+    './js/services/VoiceService.js',
+    './js/services/IAService.js',
+    './js/services/FormService.js',
+    './js/services/CategoryService.js',
+    './js/services/InventarioService.js',
+    './js/services/DraftService.js',
     './js/services/ResumenService.js',
+    './js/ui/InventarioUI.js',
+    './js/ui/FormUI.js',
     './js/ui/ResumenRenderer.js',
     './js/ui/HistorialRenderer.js',
     './js/ui/AdminHogarRenderer.js',
