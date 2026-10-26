@@ -12,6 +12,7 @@ import { FormService } from "./services/FormService.js";
 import { IAService } from "./services/IAService.js";
 import { VoiceService } from "./services/VoiceService.js";
 import { CargaStore } from "./store/CargaStore.js";
+import { InventarioUI } from "./ui/InventarioUI.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grupoResponsable = document.getElementById('responsable-group');
     const inputMontoGlobal = document.getElementById('monto');
     const listaUI = document.getElementById('lista-inventario');
+    const seccionStockUI = document.getElementById('seccion-inventario');
     const formGasto = document.getElementById('expense-form');
     
     const grupoReferencia = document.getElementById('referencia-group');
@@ -62,83 +64,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
         if (!guardado) {
             toast.mostrar('No se pudo guardar el borrador automático.', 'error');
-        }
-    };
-
-    const actualizarListaInventarioUI = () => {
-        if(!listaUI) return;
-        const { arrayInventario } = store.getState();
-        listaUI.innerHTML = '';
-        let totalAcumulado = 0;
-        arrayInventario.forEach((item, index) => {
-            const precio = Number(item.precio) || 0;
-            totalAcumulado += precio;
-
-            const li = document.createElement('li');
-            li.className = 'flex-between p-10 border-bottom-gray';
-
-            const descripcion = document.createElement('span');
-            const nombre = document.createElement('strong');
-            nombre.textContent = String(item.producto ?? '');
-            descripcion.appendChild(nombre);
-            descripcion.appendChild(document.createTextNode(
-                ` (${Number(item.cantidad) || 0} ${String(item.unidad ?? '')})`
-            ));
-
-            const acciones = document.createElement('div');
-            acciones.className = 'flex-center inv-item-acciones';
-
-            if (precio > 0) {
-                const precioEl = document.createElement('strong');
-                precioEl.textContent = `$${precio.toLocaleString('es-AR')}`;
-                acciones.appendChild(precioEl);
-            }
-
-            const boton = document.createElement('button');
-            boton.type = 'button';
-            boton.className = 'btn-icon-danger btn-delete-item';
-            boton.dataset.index = String(index);
-            boton.title = 'Eliminar producto';
-            boton.setAttribute('aria-label', 'Eliminar producto del inventario');
-            boton.innerHTML = '<i data-lucide="trash-2"></i>'; // markup estático y seguro
-
-            acciones.appendChild(boton);
-            li.appendChild(descripcion);
-            li.appendChild(acciones);
-            listaUI.appendChild(li);
-        });
-
-        listaUI.querySelectorAll('.btn-delete-item').forEach(btn => {
-            btn.onclick = (e) => {
-                const idx = Number(e.currentTarget.dataset.index);
-                const { arrayInventario: inventarioActual } = store.getState();
-                store.setInventario(InventarioService.eliminarItem(inventarioActual, idx));
-                guardarBorradorStock();
-            };
-        });
-
-        // Al reescribir el innerHTML se pierden los SVG de lucide: hay que
-        // volver a renderizarlos para que el botón de eliminar sea visible.
-        window.lucide?.createIcons();
-
-        // Solo el total de precios reales manda. Los ítems que inyecta la IA
-        // con precio 0 no deben pisar el monto dictado con $0.
-        const totalInventario = InventarioService.calcularTotal(arrayInventario);
-        if (totalInventario > 0) {
-            inputMontoGlobal.value = totalInventario.toFixed(2);
-            inputMontoGlobal.readOnly = true;
-        } else {
-            inputMontoGlobal.readOnly = false;
-        }
-
-        // Avisamos que el estado del inventario/monto cambió para que la app
-        // pueda reaccionar (recalcular totales, etc.).
-        if (inputMontoGlobal) {
-            inputMontoGlobal.dispatchEvent(new Event('input', { bubbles: true }));
-            inputMontoGlobal.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        if (listaUI) {
-            listaUI.dispatchEvent(new Event('change', { bubbles: true }));
         }
     };
 
@@ -257,12 +182,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
                 if (guardado.monto && inputMontoGlobal) inputMontoGlobal.value = guardado.monto;
-                store.setInventario(guardado.items || []);
-                const { arrayInventario } = store.getState();
-                const seccionStock = document.getElementById('seccion-inventario');
-                if (seccionStock && arrayInventario.length > 0) {
-                    seccionStock.style.display = 'block';
-                }
+                const itemsGuardados = guardado.items || [];
+                store.setInventario(itemsGuardados);
+                InventarioUI.actualizarVisibilidadSeccion(
+                    seccionStockUI,
+                    itemsGuardados.length > 0
+                );
             }
 
             await solicitarPermisoMicrofonoInicial();
@@ -288,7 +213,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     store.subscribe(({ changed }) => {
-        if (changed.includes('arrayInventario')) actualizarListaInventarioUI();
+        if (changed.includes('arrayInventario')) {
+            const { arrayInventario } = store.getState();
+
+            InventarioUI.renderizarLista(
+                arrayInventario,
+                listaUI,
+                inputMontoGlobal,
+                seccionStockUI,
+                (index) => {
+                    const { arrayInventario: inventarioActual } = store.getState();
+                    store.setInventario(
+                        InventarioService.eliminarItem(inventarioActual, index)
+                    );
+                    guardarBorradorStock();
+                }
+            );
+        }
+
         if (changed.includes('listaCategorias')) llenarSelectCategorias();
     });
 
@@ -338,8 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const llevaStock = option.dataset.llevaStock === "true";
         const esFijo = option.dataset.esFijo === "true";
 
-        const seccionStock = document.getElementById('seccion-inventario');
-        if (seccionStock) seccionStock.style.display = llevaStock ? 'block' : 'none';
+        InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, llevaStock);
 
         if (grupoReferencia) {
             grupoReferencia.style.display = FormService.esCategoriaVariable({ esFijo, llevaStock })
@@ -440,8 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (inputReferencia) inputReferencia.value = '';
         if (grupoReferencia) grupoReferencia.style.display = 'none';
-        const seccionStock = document.getElementById('seccion-inventario');
-        if (seccionStock) seccionStock.style.display = 'none';
+        InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, false);
         const checkCuotas = document.getElementById('check-es-cuotas');
         const divCuotasConfig = document.getElementById('div-cuotas-config');
         if (checkCuotas) checkCuotas.checked = false;
@@ -657,11 +597,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (agregados > 0) {
-                // La sección suele estar oculta si la categoría no lleva stock:
-                // la mostramos para que los artículos inyectados se vean.
-                const seccionStock = document.getElementById('seccion-inventario');
-                if (seccionStock) seccionStock.style.display = 'block';
-
+                InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, true);
                 guardarBorradorStock();
 
                 completados.push(`${agregados} producto(s)`);
@@ -1173,6 +1109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (grupoReferencia) grupoReferencia.style.display = 'none';
 
                 store.setInventario([]);
+                InventarioUI.actualizarVisibilidadSeccion(seccionStockUI, false);
 
             } catch (err) {
                 console.error(err);
