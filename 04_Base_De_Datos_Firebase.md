@@ -34,7 +34,6 @@ import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
 
 export class GastoRepository {
     constructor() {
-        this.coleccionGastos = collection(db, "gastos");
         this.coleccionHogares = collection(db, "hogares");
     }
 
@@ -56,30 +55,41 @@ export class GastoRepository {
             gastoFirmado.hogar_id = contexto.id;
         }
 
-        return await addDoc(this.coleccionGastos, gastoFirmado);
+        const rutaColeccion = contexto.tipo === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', contexto.id, 'gastos');
+
+        return await addDoc(rutaColeccion, gastoFirmado);
     }
 
     async obtenerGastos(contexto) {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) return [];
 
-        let q = this.coleccionGastos;
-        
         const tipoConsulta = typeof contexto === 'object' ? contexto.tipo : (contexto === 'personal' ? 'personal' : 'hogar');
         const idConsulta = typeof contexto === 'object' ? contexto.id : contexto;
 
-        if (tipoConsulta === 'personal') {
-            q = query(q, where("ambito", "==", "personal"), where("usuario_id", "==", usuarioActual.uid));
-        } else {
-            q = query(q, where("ambito", "==", "hogar"), where("hogar_id", "==", idConsulta));
-        }
+        const rutaColeccion = tipoConsulta === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', idConsulta, 'gastos');
         
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(rutaColeccion);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
     async eliminarGasto(idGasto, contexto = null) {
-        return await deleteDoc(doc(db, "gastos", idGasto));
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) throw new Error("Acceso denegado.");
+
+        if (!contexto || !['personal', 'hogar'].includes(contexto.tipo)) {
+            throw new Error("Contexto inválido para eliminar el gasto.");
+        }
+
+        const rutaColeccion = contexto.tipo === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', contexto.id, 'gastos');
+
+        return await deleteDoc(doc(rutaColeccion, idGasto));
     }
 
     async registrarPagoDeuda(contexto, pagadorId, acreedorId, monto) {
@@ -98,7 +108,9 @@ export class GastoRepository {
             hogar_id: contexto.id
         };
 
-        return await addDoc(this.coleccionGastos, pagoFirmado);
+        const rutaColeccion = collection(db, 'hogares', contexto.id, 'gastos');
+
+        return await addDoc(rutaColeccion, pagoFirmado);
     }
 
     // 🔥 FIX CRÍTICO: Ahora busca en las colecciones correctas de la nueva arquitectura
@@ -185,33 +197,5 @@ export class GastoRepository {
 
     async guardarEstadoDeuda(contextoId, mes, estaSaldado) {
         await setDoc(doc(db, "config", `estado_deudas_${contextoId}`), { [mes]: estaSaldado }, { merge: true });
-    }
-
-    // ==========================================
-    // HERRAMIENTA DE RESCATE DE DATOS VIEJOS
-    // ==========================================
-    async migrarDatosViejos(hogarIdDestino) {
-        const usuarioActual = auth.currentUser;
-        if (!usuarioActual) throw new Error("Acceso denegado.");
-
-        const snapshot = await getDocs(this.coleccionGastos);
-        let promesas = [];
-        let contador = 0;
-
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            if (!data.ambito) {
-                const ref = doc(db, "gastos", docSnap.id);
-                promesas.push(updateDoc(ref, {
-                    ambito: 'hogar',
-                    hogar_id: hogarIdDestino,
-                    usuario_id: usuarioActual.uid
-                }));
-                contador++;
-            }
-        });
-
-        await Promise.all(promesas);
-        return contador;
     }
 }

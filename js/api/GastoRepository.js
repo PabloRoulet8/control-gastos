@@ -3,7 +3,6 @@ import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
 
 export class GastoRepository {
     constructor() {
-        this.coleccionGastos = collection(db, "gastos");
         this.coleccionHogares = collection(db, "hogares");
     }
 
@@ -238,33 +237,5 @@ export class GastoRepository {
 
     async guardarEstadoDeuda(contextoId, mes, estaSaldado) {
         await setDoc(doc(db, "config", `estado_deudas_${contextoId}`), { [mes]: estaSaldado }, { merge: true });
-    }
-
-    // ==========================================
-    // HERRAMIENTA DE RESCATE DE DATOS VIEJOS
-    // ==========================================
-    async migrarDatosViejos(hogarIdDestino) {
-        const usuarioActual = auth.currentUser;
-        if (!usuarioActual) throw new Error("Acceso denegado.");
-
-        const snapshot = await getDocs(this.coleccionGastos);
-        let promesas = [];
-        let contador = 0;
-
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            if (!data.ambito) {
-                const ref = doc(db, "gastos", docSnap.id);
-                promesas.push(updateDoc(ref, {
-                    ambito: 'hogar',
-                    hogar_id: hogarIdDestino,
-                    usuario_id: usuarioActual.uid
-                }));
-                contador++;
-            }
-        });
-
-        await Promise.all(promesas);
-        return contador;
     }
 }

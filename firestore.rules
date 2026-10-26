@@ -32,30 +32,6 @@ service cloud.firestore {
          request.auth.uid in hogarData(hogarId).get('administradores', []));
     }
 
-    function gastoPersonalValido(data) {
-      return data.get('ambito', '') == 'personal' &&
-        data.get('usuario_id', '') == request.auth.uid &&
-        data.get('responsable', '') == request.auth.uid &&
-        !('hogar_id' in data);
-    }
-
-    function gastoHogarValido(data) {
-      return data.get('ambito', '') == 'hogar' &&
-        data.get('usuario_id', '') == request.auth.uid &&
-        isHogarMember(data.get('hogar_id', ''));
-    }
-
-    function gastoValido(data) {
-      return gastoPersonalValido(data) || gastoHogarValido(data);
-    }
-
-    function gastoLegible(data) {
-      return (data.get('ambito', '') == 'personal' &&
-        data.get('usuario_id', '') == request.auth.uid) ||
-        (data.get('ambito', '') == 'hogar' &&
-         isHogarMember(data.get('hogar_id', '')));
-    }
-
     function configContexto(docId) {
       return docId.split('_')[2];
     }
@@ -232,16 +208,6 @@ service cloud.firestore {
         );
         allow delete: if isHogarAdmin(hogarId);
       }
-    }
-
-    match /gastos/{gastoId} {
-      allow read: if isSignedIn() && gastoLegible(resource.data);
-      allow create: if isSignedIn() && gastoValido(request.resource.data);
-      allow update: if isSignedIn() &&
-        gastoLegible(resource.data) &&
-        resource.data.get('usuario_id', '') == request.auth.uid &&
-        gastoValido(request.resource.data);
-      allow delete: if isSignedIn() && gastoLegible(resource.data);
     }
 
     match /config/{docId} {

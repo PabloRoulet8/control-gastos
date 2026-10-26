@@ -10,7 +10,7 @@ Control de Gastos es una PWA multipágina para registrar y analizar gastos perso
 
 La arquitectura evolucionó desde un controlador monolítico hacia una separación por capas. La pantalla de carga es hoy el mejor ejemplo: `controller_carga.js` orquesta, `CargaStore` centraliza estado, `FormService` y otros servicios concentran reglas de negocio, `FormUI`/`InventarioUI` encapsulan DOM y `GastoRepository` persiste. También se migraron los gastos a rutas anidadas y las compras en cuotas se guardan con `WriteBatch`.
 
-El cambio más importante de estado es que la aplicación ya escribe y lee gastos bajo `/usuarios/{uid}/gastos` y `/hogares/{hogarId}/gastos`, pero las reglas locales todavía contemplan la colección raíz `/gastos` como compatibilidad. Además, las reglas no están desplegadas de forma verificable desde el repositorio y su contrato actual no coincide con varios flujos de lectura entre miembros del hogar.
+La aplicación escribe y lee gastos exclusivamente bajo `/usuarios/{uid}/gastos` y `/hogares/{hogarId}/gastos`; la colección raíz de gastos y el código de migración legacy fueron eliminados. Además, las reglas no están desplegadas de forma verificable desde el repositorio y su contrato actual no coincide con varios flujos de lectura entre miembros del hogar.
 
 | Dimensión | Estado | Observación |
 |---|---|---|
@@ -57,7 +57,7 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 |---|---|
 | `*.html` | Shell de cada pantalla y carga de módulos. |
 | `js/controller_*.js` | Entrada de página, autenticación, eventos, coordinación y parte del renderizado. |
-| `js/api/GastoRepository.js` | Acceso a gastos, hogares, configuración y migración legacy. |
+| `js/api/GastoRepository.js` | Acceso a gastos, hogares y configuración. |
 | `js/services/` | Reglas de negocio y adaptadores: formulario, categorías, inventario, resumen, borradores, voz e IA. |
 | `js/store/CargaStore.js` | Store singleton con estado privado, clonado superficial y suscripciones. |
 | `js/ui/` | Componentes y renderizadores: formulario, inventario, resumen, historial, perfil, administración, gráficos, modales y toasts. |
@@ -124,8 +124,6 @@ hogares/{hogarId}
 
 config/hogar_config_{hogarId}
 config/estado_deudas_{contextoId}
-
-gastos/{gastoId}                  # legacy, solo para migración
 ```
 
 Campos habituales de un gasto:
@@ -226,7 +224,6 @@ Antes de guardar, el controlador detecta `navigator.onLine === false` y muestra 
 | `/usuarios/{uid}/gastos/{id}` | Propio usuario | Propio usuario con `usuario_id` y `responsable` iguales al UID | Propietario original y nuevo `usuario_id`/`responsable` propios | Propietario |
 | `/hogares/{hogarId}` | Miembro (`get`); `list` filtrado por membresía | Usuario autenticado que se incluye como creador y miembro | Admin, o miembro limitado a nombre/categorías/presupuestos/métodos de pago | Admin |
 | `/hogares/{hogarId}/gastos/{id}` | Miembro | Miembro con `usuario_id` propio | Miembro propietario del gasto | Cualquier miembro |
-| `/gastos/{id}` (legacy) | Según `ambito` y membresía | Gasto personal u hogar válido | Propietario y gasto válido | Según legibilidad |
 | `/config/{docId}` | Propietario o miembro del contexto | Misma condición | Misma condición | Misma condición |
 
 Las reglas fueron validadas con `firebase deploy --only firestore:rules --dry-run --project control-gastos-cf09c`. El dry-run confirma sintaxis y compilación, no el despliegue ni el comportamiento con datos reales.
@@ -236,7 +233,6 @@ Las reglas fueron validadas con `firebase deploy --only firestore:rules --dry-ru
 1. **Lecturas de perfiles de otros miembros:** `controller_carga`, `controller_historial`, `controller_resumen` y `controller_config_hogar` hacen `getDoc(/usuarios/{otroUid})` para mostrar nombres. La regla actual solo permite `get` del propio usuario. Con las reglas desplegadas, esas lecturas pueden fallar con `permission-denied`.
 2. **Unión por código de invitación:** `unirseAHogar()` consulta `hogares` por `codigo_invitacion`, pero la regla `list` exige pertenencia. Un usuario nuevo no puede descubrir el hogar y el flujo queda bloqueado.
 3. **Lecturas de hogares:** el flujo normal por `array-contains` sí coincide con la regla de `list`; consultas por código no.
-4. **Datos legacy:** la colección raíz `/gastos` sigue permitida y `migrarDatosViejos()` todavía existe, aunque la lectura actual de la app usa rutas anidadas.
 
 ### 4.4 XSS y manejo de contenido
 
@@ -274,7 +270,6 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-01 | Alta | XSS almacenado por `innerHTML` con datos de usuario en dashboard y configuración de hogar. | Un nombre de hogar o de miembro puede ejecutar HTML/JS en otra sesión. | Reemplazar interpolaciones por `textContent`/nodos o escapar con un helper único; agregar tests de XSS. |
 | DT-02 | Alta | Contrato roto entre reglas y lecturas de perfiles de otros miembros. | Al desplegar reglas, pueden fallar responsables, historial, resumen y administración de miembros. | Crear una proyección pública de perfiles (`nombre`, avatar) legible por miembros, o resolver nombres mediante Cloud Function/custom claims. |
 | DT-03 | Alta | Unión por código incompatible con la regla `list` de hogares y sujeta a carrera. | El enlace de invitación no funciona con reglas estrictas; dos uniones simultáneas pueden pisar `miembros`. | Modelar invitaciones en subcolección/documento con token, expiración y límites; unir mediante transacción o backend. |
-| DT-04 | Alta | Persistencia legacy en `/gastos` y código de migración aún presentes. | Divergencia de datos, reglas más amplias de lo necesario y confusión sobre la fuente de verdad. | Ejecutar una migración única con backup, verificar conteos, eliminar reglas y código legacy. |
 | DT-05 | Alta | Reglas sin despliegue verificado ni pruebas automatizadas de seguridad. | Producción puede seguir con reglas permisivas o romperse al aplicarlas. | Añadir tests con Firebase Emulator Suite, validar en staging y documentar el despliegue. |
 | DT-06 | Media | Firestore accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Ampliar repositorios por agregado y prohibir imports de Firestore fuera de `js/api`. |
 | DT-07 | Media | `controller_carga.js` sigue teniendo 1.117 líneas. | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Extraer orquestadores de guardado, carga de contexto, dictado/IA y selectores de responsables. |
@@ -291,15 +286,14 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 
 1. **DT-02, DT-03 y DT-05:** definir el contrato real de acceso a perfiles e invitaciones, probarlo en emulador y recién después desplegar reglas.
 2. **DT-01 y DT-08:** cerrar XSS y añadir CSP antes de exponer la app a más usuarios.
-3. **DT-04:** completar la migración legacy y retirar la colección raíz.
-4. **DT-06, DT-07 y DT-09:** consolidar la capa de datos y dividir la carga para reducir el costo de los próximos cambios.
-5. **DT-10 a DT-15:** endurecer validaciones, precisión monetaria, PWA y tooling de forma incremental.
+3. **DT-06, DT-07 y DT-09:** consolidar la capa de datos y dividir la carga para reducir el costo de los próximos cambios.
+4. **DT-10 a DT-15:** endurecer validaciones, precisión monetaria, PWA y tooling de forma incremental.
 
 ### Criterios de cierre recomendados
 
 - Las reglas pasan tests automatizados en emulador y un despliegue en staging sin errores `permission-denied` en los flujos reales.
 - Un nombre de hogar/perfil con etiquetas HTML no ejecuta código en ninguna pantalla.
 - El enlace de invitación funciona con reglas estrictas, expira y no puede reutilizarse de forma indefinida.
-- No quedan lecturas ni escrituras de gastos en `/gastos`; el código legacy fue eliminado.
+- Todas las lecturas y escrituras de gastos usan exclusivamente las subcolecciones por usuario y hogar.
 - El flujo de carga sigue funcionando offline y existe visibilidad de errores de sincronización.
 - Cada cambio relevante puede verificarse con lint, tests y un pipeline reproducible.
