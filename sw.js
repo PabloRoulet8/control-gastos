@@ -1,4 +1,20 @@
-const CACHE_NAME = 'gastos-v27.0';
+const CACHE_NAME = 'gastos-v28.0';
+const ROOT_URL = new URL('./', self.location.href).href;
+const INDEX_URL = new URL('./index.html', self.location.href).href;
+const ESTATICOS_REGEX = /\.(?:js|css|png|jpe?g|gif|svg|webp|ico|json|woff2?|ttf)$/i;
+const DOMINIOS_API = [
+    'firestore.googleapis.com',
+    'identitytoolkit.googleapis.com',
+    'securetoken.googleapis.com',
+    'firebaseinstallations.googleapis.com',
+    'firebaseappcheck.googleapis.com',
+    'firebasestorage.googleapis.com',
+    'accounts.google.com',
+    'apis.google.com',
+    'www.googleapis.com',
+    'generativelanguage.googleapis.com',
+    'onrender.com'
+];
 
 const urlsToCache = [
     './',
@@ -53,39 +69,125 @@ const urlsToCache = [
     './assets/img/icon-512.png'
 ];
 
+async function precachearRecurso(cache, url) {
+    const request = new Request(new URL(url, self.location.href), { cache: 'reload' });
+    const response = await fetch(request);
+
+    if (!response.ok) {
+        throw new Error(`${url}: HTTP ${response.status}`);
+    }
+
+    await cache.put(request, response);
+}
+
+async function estrategiaRedPrimero(request) {
+    const cache = await caches.open(CACHE_NAME);
+
+    try {
+        const response = await fetch(request, { cache: 'no-cache' });
+
+        if (response.ok) {
+            try {
+                await cache.put(request, response.clone());
+            } catch (error) {
+                console.warn('Service Worker: no se pudo actualizar la caché de navegación.', error);
+            }
+        }
+
+        if (response.status >= 500) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        return response;
+    } catch (error) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+
+        if (request.mode === 'navigate') {
+            return (await cache.match(INDEX_URL)) || (await cache.match(ROOT_URL)) || Response.error();
+        }
+
+        return Response.error();
+    }
+}
+
+async function actualizarRecursoEstatico(request) {
+    const cache = await caches.open(CACHE_NAME);
+    const response = await fetch(request, { cache: 'no-cache' });
+
+    if (response.ok) {
+        try {
+            await cache.put(request, response.clone());
+        } catch (error) {
+            console.warn('Service Worker: no se pudo actualizar la caché estática.', error);
+        }
+    }
+
+    return response;
+}
+
+async function estrategiaStaleWhileRevalidate(request, actualizacion) {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
+
+    if (cached) return cached;
+
+    return (await actualizacion) || Response.error();
+}
+
 self.addEventListener('install', event => {
-    self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-    );
+    event.waitUntil((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const resultados = await Promise.allSettled(
+            urlsToCache.map(url => precachearRecurso(cache, url))
+        );
+
+        const fallidos = resultados.filter(resultado => resultado.status === 'rejected');
+        if (fallidos.length > 0) {
+            console.warn(
+                'Service Worker: algunos recursos no se precachearon.',
+                fallidos.map(resultado => resultado.reason?.message || resultado.reason)
+            );
+        }
+
+        await self.skipWaiting();
+    })());
 });
 
 self.addEventListener('activate', event => {
-    event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_NAME) return caches.delete(cacheName);
-                })
-            );
-        }).then(() => self.clients.claim())
-    );
+    event.waitUntil((async () => {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+            cacheNames
+                .filter(cacheName => cacheName !== CACHE_NAME)
+                .map(cacheName => caches.delete(cacheName))
+        );
+        await self.clients.claim();
+    })());
 });
 
 self.addEventListener('fetch', event => {
-    if (event.request.method !== 'GET') return;
+    const { request } = event;
 
-    event.respondWith(
-        caches.match(event.request).then(response => {
-            if (response) return response;
+    if (request.method !== 'GET') return;
 
-            return fetch(event.request).then(networkResponse => {
-                if (!networkResponse || networkResponse.status !== 200) return networkResponse;
+    const url = new URL(request.url);
+    const esApiDinamica = DOMINIOS_API.some(dominio => (
+        url.hostname === dominio || url.hostname.endsWith(`.${dominio}`)
+    ));
 
-                const responseCopy = networkResponse.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseCopy));
-                return networkResponse;
-            });
-        })
-    );
+    if (esApiDinamica || url.pathname.startsWith('/api/')) return;
+    if (url.origin !== self.location.origin) return;
+    if (url.pathname.endsWith('/sw.js')) return;
+
+    if (request.mode === 'navigate' || request.destination === 'document') {
+        event.respondWith(estrategiaRedPrimero(request));
+        return;
+    }
+
+    if (ESTATICOS_REGEX.test(url.pathname)) {
+        const actualizacion = actualizarRecursoEstatico(request).catch(() => null);
+        event.waitUntil(actualizacion);
+        event.respondWith(estrategiaStaleWhileRevalidate(request, actualizacion));
+    }
 });

@@ -78,6 +78,21 @@
 
     if (!('serviceWorker' in navigator)) return;
 
+    let primeraTomaDeControl = !navigator.serviceWorker.controller;
+    let recargando = false;
+
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (recargando) return;
+
+        if (primeraTomaDeControl) {
+            primeraTomaDeControl = false;
+            return;
+        }
+
+        recargando = true;
+        window.location.reload();
+    });
+
     window.addEventListener('load', function () {
         navigator.serviceWorker.register('./sw.js')
             .then(function (registration) {
