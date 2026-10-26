@@ -1,5 +1,5 @@
 import { db, auth } from "../firebase-config.js"; 
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp, writeBatch, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class GastoRepository {
     constructor() {
@@ -104,7 +104,7 @@ export class GastoRepository {
         return referencias;
     }
 
-    async obtenerGastos(contexto) {
+    async obtenerGastos(contexto, opciones = {}) {
         const usuarioActual = auth.currentUser;
         if (!usuarioActual) return [];
 
@@ -115,8 +115,79 @@ export class GastoRepository {
             ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
             : collection(db, 'hogares', idConsulta, 'gastos');
 
-        const snapshot = await getDocs(rutaColeccion);
+        const { fechaInicio = null, fechaFin = null, limite = null, orden = 'desc' } = opciones || {};
+        const sentidoOrden = orden === 'asc' ? 'asc' : 'desc';
+        const limiteNumerico = Number(limite);
+        const tieneLimite = Number.isFinite(limiteNumerico) && limiteNumerico > 0;
+        const restricciones = [];
+
+        if (fechaInicio) restricciones.push(where('fecha', '>=', fechaInicio));
+        if (fechaFin) restricciones.push(where('fecha', '<=', fechaFin));
+        if (fechaInicio || fechaFin || tieneLimite) restricciones.push(orderBy('fecha', sentidoOrden));
+        if (tieneLimite) restricciones.push(limit(limiteNumerico));
+
+        const consulta = restricciones.length > 0 ? query(rutaColeccion, ...restricciones) : rutaColeccion;
+
+        try {
+            const snapshot = await getDocs(consulta);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (error) {
+            if (!fechaInicio && !fechaFin) throw error;
+
+            console.warn("No se pudo aplicar la consulta por rango. Se reintenta con filtrado local.", error);
+            const snapshot = await getDocs(rutaColeccion);
+            let gastos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            gastos = this.filtrarGastosPorRango(gastos, fechaInicio, fechaFin);
+            gastos = this.ordenarGastosPorFecha(gastos, sentidoOrden);
+            return tieneLimite ? gastos.slice(0, limiteNumerico) : gastos;
+        }
+    }
+
+    async obtenerGastosPorRango(contexto, rango = {}) {
+        return this.obtenerGastos(contexto, rango);
+    }
+
+    async obtenerGastosPorCompra(compraId, contexto) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual || !compraId) return [];
+
+        const tipoConsulta = typeof contexto === 'object' ? contexto.tipo : (contexto === 'personal' ? 'personal' : 'hogar');
+        const idConsulta = typeof contexto === 'object' ? contexto.id : contexto;
+
+        const rutaColeccion = tipoConsulta === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', idConsulta, 'gastos');
+
+        const consulta = query(rutaColeccion, where('compra_id', '==', compraId));
+        const snapshot = await getDocs(consulta);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    normalizarFechaGasto(fecha) {
+        if (!fecha) return '';
+        if (typeof fecha === 'string') return fecha.slice(0, 10);
+        if (typeof fecha.toDate === 'function') return fecha.toDate().toISOString().slice(0, 10);
+        if (fecha instanceof Date && !Number.isNaN(fecha.getTime())) return fecha.toISOString().slice(0, 10);
+        return '';
+    }
+
+    filtrarGastosPorRango(gastos, fechaInicio = null, fechaFin = null) {
+        return gastos.filter(gasto => {
+            const fecha = this.normalizarFechaGasto(gasto.fecha);
+            if (!fecha) return false;
+            if (fechaInicio && fecha < fechaInicio) return false;
+            if (fechaFin && fecha > fechaFin) return false;
+            return true;
+        });
+    }
+
+    ordenarGastosPorFecha(gastos, orden = 'desc') {
+        const factor = orden === 'asc' ? 1 : -1;
+        return gastos.sort((a, b) => {
+            const fechaA = this.normalizarFechaGasto(a.fecha);
+            const fechaB = this.normalizarFechaGasto(b.fecha);
+            return fechaA.localeCompare(fechaB) * factor;
+        });
     }
 
     async eliminarGasto(idGasto, contexto = null) {

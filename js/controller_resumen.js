@@ -116,6 +116,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if(content) content.style.display = content.style.display === "block" ? "none" : "block";
     });
 
+    const obtenerRangoResumen = (hoy = new Date()) => {
+        const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - 35, 1);
+        return {
+            fechaInicio: AppUtils.getFechaLocal(inicio),
+            fechaFin: '9999-12-31',
+            orden: 'asc'
+        };
+    };
+
     const calcularKPIsAnuales = (gastos, year) => {
         const prefix = year.toString();
         const mesActualNum = new Date().getMonth() + 1; 
@@ -180,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const anioActual = hoy.getFullYear();
             const mesActual = `${anioActual}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
             const mesAnterior = new Date(anioActual, hoy.getMonth() - 1, 1).toISOString().substring(0, 7);
+            const rangoResumen = obtenerRangoResumen(hoy);
             
             const userData = await api.obtenerUsuario(userId) || {};
             
@@ -200,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (ambitoActual === 'personal') {
                 if (tituloHeader) tituloHeader.textContent = "Mis Gastos Personales";
-                const todos = await api.obtenerGastos({ tipo: 'personal' }) || [];                
+                const todos = await api.obtenerGastosPorRango({ tipo: 'personal' }, rangoResumen) || [];
                 
                 todosLosGastos = todos.filter(g => g.tipo !== 'ingreso');
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
@@ -224,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     mapaNombres[uid] = cacheUsuariosHogar[uid];
                 }
                 
-                todosLosGastos = (await api.obtenerGastos(hogarId) || []).filter(g => g.tipo === 'general' || !g.tipo || g.tipo === 'pagoDeuda');                
+                todosLosGastos = (await api.obtenerGastosPorRango(hogarId, rangoResumen) || []).filter(g => g.tipo === 'general' || !g.tipo || g.tipo === 'pagoDeuda');
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
@@ -236,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } else if (ambitoActual === 'unificado') {
                 if (tituloHeader) tituloHeader.textContent = "Resumen Unificado";
-                const todosP = await api.obtenerGastos('personal') || [];
+                const todosP = await api.obtenerGastosPorRango('personal', rangoResumen) || [];
                 
                 const gastosPersonalesReales = todosP.filter(g => g.tipo !== 'ingreso');
                 const ingresosPersonales = todosP.filter(g => g.tipo === 'ingreso');
@@ -256,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         nHogar[uid] = cacheUsuarios[uid];
                     }
-                    const gH = await api.obtenerGastos(hData.id) || [];
+                    const gH = await api.obtenerGastosPorRango(hData.id, rangoResumen) || [];
                     const gH_Generales = gH.filter(g => g.tipo === 'general' || !g.tipo);
                     
                     // LE PASAMOS LOS PRESUPUESTOS AL SERVICIO EN UNIFICADO TAMBIÉN

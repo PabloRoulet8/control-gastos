@@ -158,6 +158,8 @@ La separación física por ámbito es correcta: los gastos personales viven bajo
 - **Persistencia offline doble:** Firestore usa `persistentLocalCache` con `persistentMultipleTabManager`; el Service Worker cachea el app shell y los módulos.
 - **Servicios estáticos:** la mayoría usa clases con métodos estáticos, lo que simplifica el uso pero dificulta inyección y testing.
 
+- **Consultas por rango de fechas:** `GastoRepository.obtenerGastosPorRango()` aplica `where` y `orderBy` sobre `fecha` (`YYYY-MM-DD`). Resumen carga 36 meses hacia atrás más fechas futuras para deuda de tarjetas; Historial consulta el mes elegido o los últimos 36 meses con tope de 500. Ante un fallo de la consulta, el repositorio reintenta con filtrado local. `obtenerGastosPorCompra()` conserva el borrado completo de cuotas fuera del rango visible.
+
 ## 3. Flujo de carga de gastos
 
 ### 3.1 Secuencia principal
@@ -253,7 +255,7 @@ Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de o
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v25.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v26.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
 - `fetch` es cache-first para todos los GET; si no hay caché, consulta la red y guarda respuestas 200.
 - `firebase.json` envía `Cache-Control: no-cache` para `sw.js`.
@@ -276,7 +278,7 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-06 | Resuelta | Firestore estaba accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Completado en dos fases: `GastoRepository`, `HogarService` y `PerfilPublicoService` encapsulan Firestore; los controladores ya no importan `firebase/firestore`. |
 | DT-07 | Resuelta | `controller_carga.js` concentraba guardado, dictado/IA y cuotas. | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Completado en dos fases: contexto/responsables/pagos y luego guardado, IA, dictado, modales e inventario. `controller_carga.js` quedó en 551 líneas como coordinador. |
 | DT-08 | Media | Uso inconsistente de `innerHTML` y ausencia de CSP. | Superficie XSS y defensa en profundidad insuficiente. | Unificar renderizado seguro, añadir CSP y headers de seguridad en Hosting. |
-| DT-09 | Media | Lecturas completas de gastos y filtrado en cliente. | Costo y latencia crecen con el historial; límites de Firestore a futuro. | Consultas por rango de fechas, paginación, índices y agregaciones cuando corresponda. |
+| DT-09 | Resuelta | Lecturas completas de gastos y filtrado en cliente. | Costo y latencia crecen con el historial; límites de Firestore a futuro. | Completado con consultas por rango; queda pendiente paginación, índices y agregaciones cuando corresponda. |
 | DT-10 | Media | Reglas validan pertenencia pero no esquema, tipos ni estado de verificación. | Datos inválidos, writes amplios en configuración y cuentas no verificadas a nivel servidor. | Validar campos/rangos, exigir email verificado y restringir cambios compartidos según rol. |
 | DT-11 | Media | Montos en punto flotante y cuotas sin distribución de centavos. | Diferencias de redondeo y descuadres en compras financiadas. | Usar centavos enteros o una librería decimal y asignar el remanente a una cuota. |
 | DT-12 | Media | Service Worker cache-first sin estrategia de actualización; precache todo-o-nada. | Usuarios pueden quedar con shell/JS viejo o sin SW si falla un recurso. | Network-first para navegación, cache versionado, fallback por recurso y aviso de actualización. |

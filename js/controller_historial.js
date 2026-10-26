@@ -4,6 +4,7 @@ import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
+import { AppUtils } from "./utils/AppUtils.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const api = new GastoRepository();
@@ -25,6 +26,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const filtroResponsableGroup = document.getElementById('filtro-responsable-group');
 
     let todosLosGastos = [], mapaNombres = {}, categoriasGlobales = [];
+    let cargaActual = 0;
+
+    const obtenerOpcionesConsulta = () => {
+        const mes = filtroMes?.value;
+
+        if (mes && /^\d{4}-\d{2}$/.test(mes)) {
+            const [anio, numeroMes] = mes.split('-').map(Number);
+            const inicio = new Date(anio, numeroMes - 1, 1);
+            const fin = new Date(anio, numeroMes, 0);
+            return {
+                fechaInicio: AppUtils.getFechaLocal(inicio),
+                fechaFin: AppUtils.getFechaLocal(fin),
+                orden: 'desc'
+            };
+        }
+
+        const hoy = new Date();
+        const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - 35, 1);
+        return {
+            fechaInicio: AppUtils.getFechaLocal(inicio),
+            fechaFin: '9999-12-31',
+            limite: 500,
+            orden: 'desc'
+        };
+    };
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -109,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).then(async (result) => {
                     if (result.isConfirmed) {
                         // Borrar TODAS las cuotas que comparten el mismo ID de compra
-                        const cuotas = todosLosGastos.filter(g => g.compra_id === gastoABorrar.compra_id);
+                        const cuotas = await api.obtenerGastosPorCompra(gastoABorrar.compra_id, contexto);
                         Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                         await Promise.all(cuotas.map(c => api.eliminarGasto(c.id, contexto)));
                         Swal.close();
@@ -141,9 +167,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     async function cargarDatos() {
+        const idCarga = ++cargaActual;
         const contexto = ambitoActual === 'hogar' ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
-        todosLosGastos = await api.obtenerGastos(contexto) || [];
-        
+        const gastos = await api.obtenerGastosPorRango(contexto, obtenerOpcionesConsulta()) || [];
+
+        if (idCarga !== cargaActual) return;
+
+        todosLosGastos = gastos;
+
         if (todosLosGastos.length > 0) {
             todosLosGastos.sort((a, b) => {
                 const timeA = a.timestamp?.seconds ? a.timestamp.seconds : new Date(a.fecha).getTime() / 1000;
@@ -155,7 +186,8 @@ document.addEventListener('DOMContentLoaded', () => {
         procesarFiltrosYRenderizar();
     }
 
-    [filtroTipo, filtroResponsable, filtroCategoria, filtroMes].forEach(f => f?.addEventListener('change', procesarFiltrosYRenderizar));
+    [filtroTipo, filtroResponsable, filtroCategoria].forEach(f => f?.addEventListener('change', procesarFiltrosYRenderizar));
+    filtroMes?.addEventListener('change', () => cargarDatos());
     
     const btnAplicarFiltros = document.getElementById('btn-aplicar-filtros');
     if (btnAplicarFiltros) {
@@ -172,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (filtroCategoria) filtroCategoria.value = 'todas';
             if (filtroResponsable) filtroResponsable.value = 'todos';
             if (filtroTipo) filtroTipo.value = 'todos';
-            procesarFiltrosYRenderizar();
+            cargarDatos();
             renderer.cerrarModal();
         });
     }
