@@ -29,7 +29,7 @@ export class ToastManager {
         }
 
         this.toast.textContent = mensaje;
-        this.toast.classList.remove('toast-info', 'toast-success', 'toast-error');
+        this.toast.classList.remove('toast-info', 'toast-success', 'toast-error', 'toast-warning');
         if (tipo && tipo !== 'default') {
             this.toast.classList.add(`toast-${tipo}`);
         }

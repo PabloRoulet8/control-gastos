@@ -938,6 +938,10 @@ html[data-theme=light] select option {
   border-color: rgba(239, 68, 68, 0.55);
   color: #ef4444;
 }
+.toast-warning {
+  background-color: #f59e0b;
+  color: #ffffff;
+}
 
 @keyframes toast-in {
   from {

@@ -1000,6 +1000,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (formGasto) {
         formGasto.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            if (!navigator.onLine) {
+                toast.mostrar(
+                    'Sin conexión: el gasto se guardará localmente y se sincronizará automáticamente al recuperar internet.',
+                    'warning',
+                    5000
+                );
+            }
+
             const btn = e.target.querySelector('.btn-primary');
             const textoOriginal = btn?.textContent || 'Guardar Gasto';
             FormUI.toggleBotonSubmit(btn, true, textoOriginal);
