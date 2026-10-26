@@ -1,7 +1,8 @@
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, collection, query, where, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";// NUEVO: Importamos el repositorio y el Toast para gestionar la unión
-import { GastoRepository } from "./api/GastoRepository.js";
+import { doc, getDoc, collection, query, where, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { HogarService } from "./services/HogarService.js";
+import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
 import { ToastManager } from "./ui/ToastManager.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const saludoUsuario = document.getElementById('saludo-usuario');
     const displayAvatar = document.getElementById('display-avatar-header');
     
-    const api = new GastoRepository();
     const toast = new ToastManager();
 
     // 1. GESTIÓN DE NAVEGACIÓN (Protección contra sobreescritura de URL)
@@ -78,16 +78,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
             actualizarEnlacesNavegacion();
 
-            // NUEVO: Revisamos si hay un código de invitación pendiente en la mochila
             const pendingCode = localStorage.getItem('pendingJoinCode');
-            if (pendingCode) {
-                localStorage.removeItem('pendingJoinCode'); // Vaciamos la mochila
+            const pendingHogarId = localStorage.getItem('pendingJoinHogarId');
+
+            if (pendingCode && pendingHogarId) {
+                localStorage.removeItem('pendingJoinCode');
+                localStorage.removeItem('pendingJoinHogarId');
+
                 try {
-                    const nombreHogar = await api.unirseAHogar(pendingCode);
-                    toast.mostrar(`¡Bienvenido al hogar: ${nombreHogar}! 🎉`, 4000);
+                    await HogarService.consumirInvitacion(db, pendingHogarId, pendingCode, user.uid);
+                    toast.mostrar("¡Te uniste al hogar! 🎉", 4000);
                 } catch (error) {
                     toast.mostrar(error.message || "No se pudo unir al hogar.");
                 }
+            } else if (pendingCode || pendingHogarId) {
+                localStorage.removeItem('pendingJoinCode');
+                localStorage.removeItem('pendingJoinHogarId');
+                toast.mostrar("El enlace de invitación no es válido.");
             }
 
             // Cargamos el dashboard (ahora incluirá el nuevo hogar si se unió)
@@ -153,6 +160,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return; 
             }
             // ===================================
+
+            PerfilPublicoService.sincronizar(
+                db,
+                uid,
+                userData.nombre,
+                userData.avatar_url || ''
+            ).catch(error => {
+                console.warn("No se pudo sincronizar el perfil público:", error);
+            });
 
             // Si ya tiene nombre, seguimos dibujando el Dashboard normal
             if (saludoUsuario) saludoUsuario.textContent = `Hola, ${userData.nombre}`;

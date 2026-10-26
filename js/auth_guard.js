@@ -1,11 +1,12 @@
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
-// NUEVO: Atrapamos el código de invitación en la URL (si existe) y lo guardamos en la mochila
 const urlParams = new URLSearchParams(window.location.search);
 const joinCode = urlParams.get('join');
-if (joinCode) {
+const joinHogarId = urlParams.get('hogarId');
+if (joinCode && joinHogarId) {
     localStorage.setItem('pendingJoinCode', joinCode);
+    localStorage.setItem('pendingJoinHogarId', joinHogarId);
 }
 
 // 1. EL PATOVICA 

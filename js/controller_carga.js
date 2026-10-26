@@ -151,11 +151,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (selectResponsable) {
                         selectResponsable.innerHTML = '';
                         for (const uid of hogarData.miembros || []) {
-                            const uSnap = await getDoc(doc(db, "usuarios", uid));
-                            let nombreMostrar = "Usuario";
-                            if (uSnap.exists() && uSnap.data().nombre) {
-                                nombreMostrar = uSnap.data().nombre;
-                            }
+                            const uSnap = await getDoc(doc(db, "perfiles_publicos", uid));
+                            const nombreMostrar = uSnap.exists() && uSnap.data().nombre
+                                ? uSnap.data().nombre
+                                : "Usuario";
 
                             const opt = document.createElement('option');
                             opt.value = uid; 

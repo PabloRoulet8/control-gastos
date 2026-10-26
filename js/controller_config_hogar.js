@@ -1,9 +1,11 @@
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc, updateDoc, arrayRemove, arrayUnion, deleteDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { HogarService } from "./services/HogarService.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { ConfirmManager } from "./ui/ConfirmManager.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
+import { AppUtils } from "./utils/AppUtils.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const toast = new ToastManager();
@@ -72,16 +74,44 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.mostrar("¡Nombre actualizado!");
     });
 
-    // 3. COPIAR LINK DE INVITACIÓN (Aplica para el botón + y para el menú navegable)
-    const copiarLinkInvitacion = () => {
-        if(!hogarData) return;
-        const codigo = hogarData.codigo_invitacion;
-        const urlBase = window.location.origin + window.location.pathname.replace('config_hogar.html', 'index.html');
-        navigator.clipboard.writeText(`${urlBase}?join=${codigo}`);
-        toast.mostrar("¡Link copiado al portapapeles! 🔗");
+    // 3. GENERAR Y COMPARTIR LINK DE INVITACIÓN
+    const btnCompartirInvitacion = document.getElementById('btn-compartir-invitacion');
+    const inputLinkInvitacion = document.getElementById('link-invitacion-generado');
+
+    const generarLinkInvitacion = async () => {
+        if (!hogarData || !auth.currentUser) return;
+
+        btnCompartirInvitacion.disabled = true;
+        const contenidoOriginal = btnCompartirInvitacion.innerHTML;
+
+        try {
+            const { codigo } = await HogarService.generarInvitacion(db, hogarId, auth.currentUser.uid);
+            const url = new URL('index.html', window.location.href);
+            url.searchParams.set('hogarId', hogarId);
+            url.searchParams.set('join', codigo);
+            const link = url.toString();
+
+            if (inputLinkInvitacion) {
+                inputLinkInvitacion.value = link;
+                inputLinkInvitacion.parentElement.style.display = 'block';
+                inputLinkInvitacion.select();
+            }
+
+            try {
+                await navigator.clipboard.writeText(link);
+                toast.mostrar("¡Link de invitación copiado! 🔗");
+            } catch (error) {
+                toast.mostrar("Link generado. Copialo manualmente.");
+            }
+        } catch (error) {
+            toast.mostrar(error.message || "No se pudo generar la invitación.");
+        } finally {
+            btnCompartirInvitacion.disabled = false;
+            btnCompartirInvitacion.innerHTML = contenidoOriginal;
+        }
     };
 
-    document.getElementById('btn-compartir-invitacion').addEventListener('click', copiarLinkInvitacion);
+    btnCompartirInvitacion.addEventListener('click', generarLinkInvitacion);
 
     // 4. ELIMINAR HOGAR
     const modalDelete = document.getElementById('modal-confirm-delete');
@@ -117,11 +147,12 @@ document.addEventListener('DOMContentLoaded', () => {
         lista.innerHTML = '';
 
         for (const uid of uids) {
-            const snapUser = await getDoc(doc(db, "usuarios", uid));
-            const userData = snapUser.exists() ? snapUser.data() : { nombre: "Usuario" };
+            const snapUser = await getDoc(doc(db, "perfiles_publicos", uid));
+            const perfil = snapUser.exists() ? snapUser.data() : {};
+            const nombreMostrar = perfil.nombre || "Usuario";
             
             const esEsteUserAdmin = admins.includes(uid);
-            const inicial = userData.nombre.charAt(0).toUpperCase(); // Sacamos la primera letra
+            const inicial = nombreMostrar.charAt(0).toUpperCase();
 
             const li = document.createElement('li');
             li.className = 'flex-between mb-10';
@@ -132,10 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             li.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="avatar-circle">${inicial}</div>
+                    <div class="avatar-circle">${AppUtils.escapeHTML(inicial)}</div>
                     <div style="display: flex; flex-direction: column;">
                         <strong style="color: var(--text-main); font-size: 1.05rem;">
-                            ${userData.nombre} ${esEsteUserAdmin ? '⭐' : ''}
+                            ${AppUtils.escapeHTML(nombreMostrar)} ${esEsteUserAdmin ? '⭐' : ''}
                         </strong>
                         <small style="color: var(--text-muted);">${uid === miUid ? '(Vos)' : ''}</small>
                     </div>

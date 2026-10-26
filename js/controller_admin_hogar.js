@@ -2,6 +2,7 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { GastoRepository } from "./api/GastoRepository.js";
+import { HogarService } from "./services/HogarService.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { AdminHogarRenderer } from "./ui/AdminHogarRenderer.js";
 import { AppUtils } from "./utils/AppUtils.js";
@@ -213,11 +214,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         administradores: [auth.currentUser.uid] 
                     }, { merge: true });
                     
-                    const snapHogar = await getDoc(doc(db, "hogares", nuevoId));
-                    const codigoGenerado = snapHogar.data().codigo_invitacion;
-                    
-                    const urlBase = window.location.origin + window.location.pathname.replace("admin_hogar.html", "index.html");
-                    const linkFinal = `${urlBase}?join=${codigoGenerado}`;
+                    const invitacion = await HogarService.generarInvitacion(db, nuevoId, auth.currentUser.uid);
+                    const urlInvitacion = new URL("index.html", window.location.href);
+                    urlInvitacion.searchParams.set("hogarId", nuevoId);
+                    urlInvitacion.searchParams.set("join", invitacion.codigo);
+                    const linkFinal = urlInvitacion.toString();
                     
                     const modalLink = document.getElementById("modal-link-invitacion");
                     const inputLink = document.getElementById("input-link-generado");

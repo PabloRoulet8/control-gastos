@@ -220,8 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cacheUsuariosHogar = {};
                 for (const uid of dataHogar.miembros || []) {
                     if (!cacheUsuariosHogar[uid]) {
-                        const u = await getDoc(doc(db, "usuarios", uid));
-                        if (u.exists()) cacheUsuariosHogar[uid] = u.data().nombre;
+                        const u = await getDoc(doc(db, "perfiles_publicos", uid));
+                        cacheUsuariosHogar[uid] = u.exists() ? (u.data().nombre || "Usuario") : "Usuario";
                     }
                     mapaNombres[uid] = cacheUsuariosHogar[uid];
                 }
@@ -255,8 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const nHogar = {};
                     for (const uid of hData.miembros || []) {
                         if (!cacheUsuarios[uid]) {
-                            const u = await getDoc(doc(db, "usuarios", uid));
-                            if (u.exists()) cacheUsuarios[uid] = u.data().nombre;
+                            const u = await getDoc(doc(db, "perfiles_publicos", uid));
+                            cacheUsuarios[uid] = u.exists() ? (u.data().nombre || "Usuario") : "Usuario";
                         }
                         nHogar[uid] = cacheUsuarios[uid];
                     }

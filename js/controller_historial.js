@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const hogarNombre = snap.data().nombre;
                     if (tituloHeader) tituloHeader.textContent = hogarNombre;
                     for (const uid of snap.data().miembros || []) {
-                        const u = await getDoc(doc(db, "usuarios", uid));
-                        if (u.exists()) mapaNombres[uid] = u.data().nombre;
+                        const u = await getDoc(doc(db, "perfiles_publicos", uid));
+                        mapaNombres[uid] = u.exists() ? (u.data().nombre || "Usuario") : "Usuario";
                     }
                 }
                 if(filtroTipoGroup) filtroTipoGroup.style.display = 'block';
