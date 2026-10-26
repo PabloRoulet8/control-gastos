@@ -14,7 +14,7 @@ La aplicación escribe y lee gastos exclusivamente bajo `/usuarios/{uid}/gastos`
 
 | Dimensión | Estado | Observación |
 |---|---|---|
-| Separación de capas | Parcial | Excelente en carga; adopción desigual en el resto de controladores. |
+| Separación de capas | Buena | Los controladores delegan Firestore en `js/api/` y `js/services/`; la lógica de presentación sigue concentrada en algunos controladores grandes. |
 | Persistencia | Buena | Rutas anidadas y lotes atómicos para cuotas. |
 | Seguridad de datos | En revisión | Reglas versionadas y compiladas en dry-run, con brechas de contrato y XSS residual. |
 | Resiliencia offline | Buena base | Caché persistente + Service Worker; falta estrategia de actualización y errores de sincronización. |
@@ -49,7 +49,7 @@ Controladores (DOMContentLoaded + onAuthStateChanged)
               firebase-config.js -> IndexedDB (caché persistente)
 ```
 
-La dirección esperada es `controlador -> servicio/store -> repositorio -> Firebase`. En la práctica, siete de los ocho controladores importan funciones de Firestore directamente y consultan la base sin pasar por el repositorio. Las 33 llamadas directas detectadas se distribuyen así: `controller_resumen` 8, `controller_config_hogar` 7, `controller_dashboard` 6, `controller_admin_hogar` 4, `controller_carga` 3, `controller_perfil` 3 y `controller_historial` 2.
+La dirección esperada es `controlador -> servicio/store -> repositorio -> Firebase`. Los controladores delegan las operaciones de Firestore en `js/api/` y `js/services/`; ninguno importa `firebase/firestore`. Las importaciones directas quedan acotadas a `firebase-config.js`, `GastoRepository`, `HogarService` y `PerfilPublicoService`.
 
 ### 2.2 Estructura del repositorio
 
@@ -251,7 +251,7 @@ Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de o
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v13.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v23.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
 - `fetch` es cache-first para todos los GET; si no hay caché, consulta la red y guarda respuestas 200.
 - `firebase.json` envía `Cache-Control: no-cache` para `sw.js`.
@@ -271,7 +271,7 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-02 | Alta | Contrato roto entre reglas y lecturas de perfiles de otros miembros. | Al desplegar reglas, pueden fallar responsables, historial, resumen y administración de miembros. | Crear una proyección pública de perfiles (`nombre`, avatar) legible por miembros, o resolver nombres mediante Cloud Function/custom claims. |
 | DT-03 | Alta | Unión por código incompatible con la regla `list` de hogares y sujeta a carrera. | El enlace de invitación no funciona con reglas estrictas; dos uniones simultáneas pueden pisar `miembros`. | Modelar invitaciones en subcolección/documento con token, expiración y límites; unir mediante transacción o backend. |
 | DT-05 | Alta | Reglas sin despliegue verificado ni pruebas automatizadas de seguridad. | Producción puede seguir con reglas permisivas o romperse al aplicarlas. | Añadir tests con Firebase Emulator Suite, validar en staging y documentar el despliegue. |
-| DT-06 | Media | Firestore accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Ampliar repositorios por agregado y prohibir imports de Firestore fuera de `js/api`. |
+| DT-06 | Resuelta | Firestore estaba accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Completado en dos fases: `GastoRepository`, `HogarService` y `PerfilPublicoService` encapsulan Firestore; los controladores ya no importan `firebase/firestore`. |
 | DT-07 | Media | `controller_carga.js` sigue teniendo 1.117 líneas. | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Extraer orquestadores de guardado, carga de contexto, dictado/IA y selectores de responsables. |
 | DT-08 | Media | Uso inconsistente de `innerHTML` y ausencia de CSP. | Superficie XSS y defensa en profundidad insuficiente. | Unificar renderizado seguro, añadir CSP y headers de seguridad en Hosting. |
 | DT-09 | Media | Lecturas completas de gastos y filtrado en cliente. | Costo y latencia crecen con el historial; límites de Firestore a futuro. | Consultas por rango de fechas, paginación, índices y agregaciones cuando corresponda. |
@@ -286,7 +286,7 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 
 1. **DT-02, DT-03 y DT-05:** definir el contrato real de acceso a perfiles e invitaciones, probarlo en emulador y recién después desplegar reglas.
 2. **DT-01 y DT-08:** cerrar XSS y añadir CSP antes de exponer la app a más usuarios.
-3. **DT-06, DT-07 y DT-09:** consolidar la capa de datos y dividir la carga para reducir el costo de los próximos cambios.
+3. **DT-07 y DT-09:** dividir la carga y optimizar las lecturas para reducir el costo de los próximos cambios.
 4. **DT-10 a DT-15:** endurecer validaciones, precisión monetaria, PWA y tooling de forma incremental.
 
 ### Criterios de cierre recomendados
@@ -295,5 +295,6 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 - Un nombre de hogar/perfil con etiquetas HTML no ejecuta código en ninguna pantalla.
 - El enlace de invitación funciona con reglas estrictas, expira y no puede reutilizarse de forma indefinida.
 - Todas las lecturas y escrituras de gastos usan exclusivamente las subcolecciones por usuario y hogar.
+- Ningún `controller_*.js` importa `firebase/firestore`; el acceso a datos pasa por `js/api/` o `js/services/`.
 - El flujo de carga sigue funcionando offline y existe visibilidad de errores de sincronización.
 - Cada cambio relevante puede verificarse con lint, tests y un pipeline reproducible.

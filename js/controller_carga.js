@@ -1,8 +1,8 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ToastManager } from "./ui/ToastManager.js";
-import { auth, db } from "./firebase-config.js"; 
+import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
+import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 import { AppUtils } from "./utils/AppUtils.js";
 import { DraftService } from "./services/DraftService.js";
@@ -118,8 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            const userSnap = await getDoc(doc(db, "usuarios", userId));
-            const userData = userSnap.exists() ? userSnap.data() : {};
+            const userData = await api.obtenerUsuario(userId) || {};
             
             // Forzamos a que SIEMPRE lea tus categorías de Firebase primero
             let categoriasPropias = userData.categorias_personales || [];
@@ -134,9 +133,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (ambitoActual === 'hogar' && hogarId) {
-                const hogarSnap = await getDoc(doc(db, "hogares", hogarId));
-                if (hogarSnap.exists()) {
-                    const hogarData = hogarSnap.data();
+                const hogarData = await api.obtenerHogar(hogarId);
+                if (hogarData) {
                     
                     // Acá cargamos EXCLUSIVAMENTE las categorías compartidas del hogar
                     store.setCategorias(CategoryService.obtenerCategoriasParaAmbito('hogar', {
@@ -151,10 +149,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (selectResponsable) {
                         selectResponsable.innerHTML = '';
                         for (const uid of hogarData.miembros || []) {
-                            const uSnap = await getDoc(doc(db, "perfiles_publicos", uid));
-                            const nombreMostrar = uSnap.exists() && uSnap.data().nombre
-                                ? uSnap.data().nombre
-                                : "Usuario";
+                            const perfil = await PerfilPublicoService.obtener(uid);
+                            const nombreMostrar = perfil?.nombre || "Usuario";
 
                             const opt = document.createElement('option');
                             opt.value = uid; 

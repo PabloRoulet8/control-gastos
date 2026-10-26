@@ -1,11 +1,13 @@
-import { auth, db } from "./firebase-config.js";
+import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { GastoRepository } from "./api/GastoRepository.js";
+import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { PerfilRenderer } from "./ui/PerfilRenderer.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 
 document.addEventListener('DOMContentLoaded', () => {
+    const api = new GastoRepository();
     const toast = new ToastManager();
     let currentUserUid = null;
     let userData = {};
@@ -79,8 +81,7 @@ if (btnCancelarEdit) {
 
     async function cargarDatosUsuario() {
         try {
-            const docSnap = await getDoc(doc(db, "usuarios", currentUserUid));
-            userData = docSnap.exists() ? docSnap.data() : { nombre: "", categorias_personales: [], metodos_pago: ["Efectivo / Transferencia"], fondos: [] };
+            userData = await api.obtenerUsuario(currentUserUid) || { nombre: "", categorias_personales: [], metodos_pago: ["Efectivo / Transferencia"], fondos: [] };
 
             userData.categorias_personales = (userData.categorias_personales || []).map(c => typeof c === 'string' ? { nombre: c, es_fijo: false, lleva_stock: false } : c);
 
@@ -100,7 +101,15 @@ if (btnCancelarEdit) {
             
             btnGuardarPerfil.textContent = "Guardando...";
             try {
-                await updateDoc(doc(db, "usuarios", currentUserUid), { nombre });
+                await api.actualizarUsuario(currentUserUid, { nombre });
+                userData.nombre = nombre;
+
+                try {
+                    await PerfilPublicoService.sincronizar(currentUserUid, nombre, userData.avatar_url || '');
+                } catch (error) {
+                    console.warn("No se pudo sincronizar el perfil público:", error);
+                }
+
                 toast.mostrar("¡Nombre actualizado!");
                 displayNombre.textContent = nombre;
                 editModeNombre.style.display = 'none';
@@ -202,7 +211,15 @@ toast.mostrar("¡Presupuesto creado!");
              };
 
              // 2. Guardamos en Firebase usando los datos limpios
-             await updateDoc(doc(db, "usuarios", currentUserUid), datosLimpios);
+             await api.actualizarUsuario(currentUserUid, datosLimpios);
+
+             if (userData.nombre) {
+                 try {
+                     await PerfilPublicoService.sincronizar(currentUserUid, userData.nombre, userData.avatar_url || '');
+                 } catch (error) {
+                     console.warn("No se pudo sincronizar el perfil público:", error);
+                 }
+             }
              
              // Si llega hasta acá, Firebase lo aceptó perfecto.
              console.log("Guardado exitoso en Firebase");

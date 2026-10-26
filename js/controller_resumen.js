@@ -3,9 +3,9 @@ import { ResumenService } from "./services/ResumenService.js";
 import { ResumenRenderer } from "./ui/ResumenRenderer.js";
 import { ChartManager } from "./ui/ChartManager.js";
 import { ToastManager } from "./ui/ToastManager.js";
-import { auth, db } from "./firebase-config.js";
+import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
+import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 import { AppUtils } from "./utils/AppUtils.js";
 
@@ -181,8 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const mesActual = `${anioActual}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
             const mesAnterior = new Date(anioActual, hoy.getMonth() - 1, 1).toISOString().substring(0, 7);
             
-            const snapUser = await getDoc(doc(db, "usuarios", userId));
-            const userData = snapUser.exists() ? snapUser.data() : {};
+            const userData = await api.obtenerUsuario(userId) || {};
             
             const categoriasPersonales = (userData.categorias_personales || [])
                 .map(c => typeof c === 'string' ? { nombre: c, es_fijo: false, lleva_stock: false } : c)
@@ -213,15 +212,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderer.mostrarComunes(gastosMes, categoriasPersonales, true, gastosMesAnt); 
 
             } else if (ambitoActual === 'hogar' && hogarId) {
-                const snapHogar = await getDoc(doc(db, "hogares", hogarId));
-                const dataHogar = snapHogar.exists() ? snapHogar.data() : {};
+                const dataHogar = await api.obtenerHogar(hogarId) || {};
                 if (tituloHeader) tituloHeader.textContent = dataHogar.nombre;
                 
                 const cacheUsuariosHogar = {};
                 for (const uid of dataHogar.miembros || []) {
                     if (!cacheUsuariosHogar[uid]) {
-                        const u = await getDoc(doc(db, "perfiles_publicos", uid));
-                        cacheUsuariosHogar[uid] = u.exists() ? (u.data().nombre || "Usuario") : "Usuario";
+                        const perfil = await PerfilPublicoService.obtener(uid);
+                        cacheUsuariosHogar[uid] = perfil?.nombre || "Usuario";
                     }
                     mapaNombres[uid] = cacheUsuariosHogar[uid];
                 }
@@ -244,23 +242,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const ingresosPersonales = todosP.filter(g => g.tipo === 'ingreso');
                 totalIngresosMesGlobal = ingresosPersonales.filter(g => g.fecha?.startsWith(mesActual)).reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
 
-                const q = query(collection(db, "hogares"), where("miembros", "array-contains", userId));
-                const hogaresSnap = await getDocs(q);
+                const hogares = await api.obtenerMisHogares(userId);
                 
                 let miParteHogarTotal = 0, todosHogaresParaGraficos = [], gastosHogarMesListas = [];
                 const cacheUsuarios = {};
                 
-                for (const hDoc of hogaresSnap.docs) {
-                    const hData = hDoc.data();
+                for (const hData of hogares) {
                     const nHogar = {};
                     for (const uid of hData.miembros || []) {
                         if (!cacheUsuarios[uid]) {
-                            const u = await getDoc(doc(db, "perfiles_publicos", uid));
-                            cacheUsuarios[uid] = u.exists() ? (u.data().nombre || "Usuario") : "Usuario";
+                            const perfil = await PerfilPublicoService.obtener(uid);
+                            cacheUsuarios[uid] = perfil?.nombre || "Usuario";
                         }
                         nHogar[uid] = cacheUsuarios[uid];
                     }
-                    const gH = await api.obtenerGastos(hDoc.id) || [];
+                    const gH = await api.obtenerGastos(hData.id) || [];
                     const gH_Generales = gH.filter(g => g.tipo === 'general' || !g.tipo);
                     
                     // LE PASAMOS LOS PRESUPUESTOS AL SERVICIO EN UNIFICADO TAMBIÉN

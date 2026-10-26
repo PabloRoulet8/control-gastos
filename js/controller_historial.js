@@ -1,8 +1,8 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { HistorialRenderer } from "./ui/HistorialRenderer.js";
-import { auth, db } from "./firebase-config.js"; 
+import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
+import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -29,13 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             if (ambitoActual === 'hogar' && hogarId) {
-                const snap = await getDoc(doc(db, "hogares", hogarId));
-                if(snap.exists()) {
-                    const hogarNombre = snap.data().nombre;
-                    if (tituloHeader) tituloHeader.textContent = hogarNombre;
-                    for (const uid of snap.data().miembros || []) {
-                        const u = await getDoc(doc(db, "perfiles_publicos", uid));
-                        mapaNombres[uid] = u.exists() ? (u.data().nombre || "Usuario") : "Usuario";
+                const hogar = await api.obtenerHogar(hogarId);
+                if (hogar) {
+                    if (tituloHeader) tituloHeader.textContent = hogar.nombre;
+                    for (const uid of hogar.miembros || []) {
+                        const perfil = await PerfilPublicoService.obtener(uid);
+                        mapaNombres[uid] = perfil?.nombre || "Usuario";
                     }
                 }
                 if(filtroTipoGroup) filtroTipoGroup.style.display = 'block';
