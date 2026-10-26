@@ -79,8 +79,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if(seccionNombre) seccionNombre.style.display = "none";
         if(btnAccionFinal) btnAccionFinal.textContent = "Guardar";
     }
+
+    let hogarCreado = false;
+    let modalInvitacionVisible = false;
     
     onAuthStateChanged(auth, async (user) => {
+        if (hogarCreado || modalInvitacionVisible) return;
+
         if (user && !esModoCreacion) {
             const snap = await getDoc(doc(db, "hogares", hogarId));
             if (snap.exists()) {
@@ -190,8 +195,15 @@ document.addEventListener("DOMContentLoaded", () => {
     
     if (btnAccionFinal) {
         btnAccionFinal.addEventListener("click", async () => {
+            if (btnAccionFinal.disabled || modalInvitacionVisible) return;
+
             btnAccionFinal.disabled = true;
             const textoOriginal = btnAccionFinal.textContent;
+
+            const restaurarBotonFinal = () => {
+                btnAccionFinal.disabled = false;
+                btnAccionFinal.textContent = textoOriginal;
+            };
             
             try {
                 if (esModoCreacion) {
@@ -205,6 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     btnAccionFinal.textContent = "Guardando...";
                     const nuevoHogar = await api.crearHogar(nombreHogar);
                     const nuevoId = nuevoHogar.id;
+                    hogarCreado = true;
 
                     const urlActual = new URL(window.location.href);
                     urlActual.searchParams.set("id", nuevoId);
@@ -227,7 +240,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     const modalLink = document.getElementById("modal-link-invitacion");
                     const inputLink = document.getElementById("input-link-generado");
                     if (modalLink && inputLink) {
-                        modalLink.style.display = "flex"; 
+                        modalInvitacionVisible = true;
+                        restaurarBotonFinal();
+                        modalLink.style.display = "flex";
                         inputLink.value = linkFinal;
                         
                         const btnCopiar = document.getElementById("btn-copiar-link-modal");
@@ -259,8 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch (error) {
                 toast.mostrar("Error al guardar");
             } finally {
-                btnAccionFinal.disabled = false;
-                btnAccionFinal.textContent = textoOriginal;
+                restaurarBotonFinal();
             }
         });
     }
