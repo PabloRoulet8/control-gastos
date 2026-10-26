@@ -199,13 +199,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (!nombreHogar) {
                         toast.mostrar("⚠️ Ingresá el nombre del hogar");
                         inputNombreHogar.focus();
-                        btnAccionFinal.disabled = false;
                         return;
                     }
                     
                     btnAccionFinal.textContent = "Guardando...";
                     const nuevoHogar = await api.crearHogar(nombreHogar);
                     const nuevoId = nuevoHogar.id;
+
+                    const urlActual = new URL(window.location.href);
+                    urlActual.searchParams.set("id", nuevoId);
+                    window.history.replaceState(null, "", urlActual.toString());
                     
                     await setDoc(doc(db, "hogares", nuevoId), {
                         categorias_compartidas: categoriasBorrador,
@@ -255,6 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 
             } catch (error) {
                 toast.mostrar("Error al guardar");
+            } finally {
                 btnAccionFinal.disabled = false;
                 btnAccionFinal.textContent = textoOriginal;
             }
