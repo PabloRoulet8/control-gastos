@@ -60,11 +60,16 @@ service cloud.firestore {
       return docId.split('_')[2];
     }
 
-    function configLegible(docId) {
+    function esConfigHogar(docId) {
       return isSignedIn() &&
-        docId.matches('^(hogar_config|estado_deudas)_[A-Za-z0-9]+$') &&
-        (configContexto(docId) == request.auth.uid ||
-         isHogarMember(configContexto(docId)));
+        docId.matches('^hogar_config_[A-Za-z0-9]+$') &&
+        isHogarMember(configContexto(docId));
+    }
+
+    function esConfigPersonal(docId) {
+      return isSignedIn() &&
+        docId.matches('^estado_deudas_[A-Za-z0-9]+$') &&
+        configContexto(docId) == request.auth.uid;
     }
 
     function perfilPublicoValido(data) {
@@ -240,7 +245,11 @@ service cloud.firestore {
     }
 
     match /config/{docId} {
-      allow read, write: if configLegible(docId);
+      allow get: if esConfigHogar(docId) || esConfigPersonal(docId);
+      allow list: if esConfigHogar(docId) || esConfigPersonal(docId);
+      allow create: if esConfigHogar(docId) || esConfigPersonal(docId);
+      allow update: if esConfigHogar(docId) || esConfigPersonal(docId);
+      allow delete: if false;
     }
   }
 }
