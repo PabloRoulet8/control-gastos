@@ -10,6 +10,8 @@ import { InventarioService } from "./services/InventarioService.js";
 import { CategoryService } from "./services/CategoryService.js";
 import { FormService } from "./services/FormService.js";
 import { IAService } from "./services/IAService.js";
+import { VoiceService } from "./services/VoiceService.js";
+import { CargaStore } from "./store/CargaStore.js";
 
 // Backend de IA (procesamiento del gasto dictado)
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
@@ -19,15 +21,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
     const toast = new ToastManager();
 
+    const store = CargaStore.getInstance();
     const urlParams = new URLSearchParams(window.location.search);
-    let ambitoActual = NavigationBuilder.normalizeAmbito(urlParams.get('ambito'));
-    
-    const hogarId = urlParams.get('id');
-    const hogarNombre = urlParams.get('nombre');
 
-    let arrayInventario = [];
-    let listaCategorias = [];
-    let currentUserIdGlobal = null;
+    store.setContexto({
+        ambitoActual: NavigationBuilder.normalizeAmbito(urlParams.get('ambito')),
+        hogarId: urlParams.get('id'),
+        hogarNombre: urlParams.get('nombre')
+    });
 
     const selectCategoria = document.getElementById('categoria');
     const selectResponsable = document.getElementById('responsable');
@@ -41,11 +42,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grupoReferencia = document.getElementById('referencia-group');
     const inputReferencia = document.getElementById('referencia');
 
-    NavigationBuilder.buildConfigButton(ambitoActual, hogarId);
-    NavigationBuilder.buildNav(ambitoActual, hogarId, 'carga');
+    const contextoInicial = store.getState();
+    NavigationBuilder.buildConfigButton(contextoInicial.ambitoActual, contextoInicial.hogarId);
+    NavigationBuilder.buildNav(contextoInicial.ambitoActual, contextoInicial.hogarId, 'carga');
 
     // 1. GESTIÓN DE BORRADOR Y NAVEGACIÓN
     const guardarBorradorStock = () => {
+        const { currentUserIdGlobal, ambitoActual, hogarId, arrayInventario } = store.getState();
         const guardado = DraftService.guardarBorrador(
             currentUserIdGlobal,
             ambitoActual,
@@ -64,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const actualizarListaInventarioUI = () => {
         if(!listaUI) return;
+        const { arrayInventario } = store.getState();
         listaUI.innerHTML = '';
         let totalAcumulado = 0;
         arrayInventario.forEach((item, index) => {
@@ -107,10 +111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         listaUI.querySelectorAll('.btn-delete-item').forEach(btn => {
             btn.onclick = (e) => {
                 const idx = Number(e.currentTarget.dataset.index);
-                arrayInventario = InventarioService.eliminarItem(arrayInventario, idx);
-
-                // Redibuja la lista y dispara 'change' sobre #lista-inventario
-                actualizarListaInventarioUI();
+                const { arrayInventario: inventarioActual } = store.getState();
+                store.setInventario(InventarioService.eliminarItem(inventarioActual, idx));
                 guardarBorradorStock();
             };
         });
@@ -142,16 +144,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Lógica única para agregar un producto al inventario (manual o por IA)
     const agregarProductoInventario = ({ producto, cantidad, unidad, precio = 0 }) => {
-        const inventarioAntes = Array.isArray(arrayInventario) ? arrayInventario.length : 0;
-        arrayInventario = InventarioService.agregarItem(arrayInventario, {
+        const { arrayInventario: inventarioActual } = store.getState();
+        const inventarioAntes = Array.isArray(inventarioActual) ? inventarioActual.length : 0;
+        const inventarioNuevo = InventarioService.agregarItem(inventarioActual, {
             producto,
             cantidad,
             unidad,
             precio
         });
-        const inventarioDespues = Array.isArray(arrayInventario) ? arrayInventario.length : 0;
+        const inventarioDespues = Array.isArray(inventarioNuevo) ? inventarioNuevo.length : 0;
 
-        return inventarioDespues >= inventarioAntes && arrayInventario.length > 0;
+        store.setInventario(inventarioNuevo);
+
+        return inventarioDespues >= inventarioAntes && inventarioNuevo.length > 0;
     };
 
     // Solicita permiso de micrófono al ingresar para evitar el prompt en el primer toque
@@ -171,7 +176,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. INICIALIZACIÓN DE DATOS
     const inicializarPagina = async (userId) => {
-        currentUserIdGlobal = userId;
+        store.setContexto({ currentUserIdGlobal: userId });
+        const { ambitoActual, hogarId, hogarNombre } = store.getState();
 
         // Despierta el backend gratuito sin bloquear ni esperar respuesta.
         fetch(API_IA_PING_URL, {
@@ -193,13 +199,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             let categoriasPropias = userData.categorias_personales || [];
             
             if (ambitoActual === 'personal') {
-                listaCategorias = CategoryService.obtenerCategoriasParaAmbito('personal', {
+                store.setCategorias(CategoryService.obtenerCategoriasParaAmbito('personal', {
                     personales: categoriasPropias
-                });
+                }));
 
                 if (tituloHeader) tituloHeader.textContent = "Gastos Personales";
                 if (subtituloHeader) subtituloHeader.textContent = "¿Qué gasto vas a anotar?"; 
-                llenarSelectCategorias(); // Llenamos de inmediato
             }
 
             if (ambitoActual === 'hogar' && hogarId) {
@@ -208,9 +213,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const hogarData = hogarSnap.data();
                     
                     // Acá cargamos EXCLUSIVAMENTE las categorías compartidas del hogar
-                    listaCategorias = CategoryService.obtenerCategoriasParaAmbito('hogar', {
+                    store.setCategorias(CategoryService.obtenerCategoriasParaAmbito('hogar', {
                         hogar: hogarData.categorias_compartidas || []
-                    });
+                    }));
                     
                     const nombreHogar = hogarNombre || hogarData.nombre;
                     if (tituloHeader) tituloHeader.textContent = nombreHogar;
@@ -234,13 +239,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }
                 }
-                llenarSelectCategorias(); // Llenamos con las del hogar
             }
             
             DraftService.limpiarBorradorLegacy();
+            const { currentUserIdGlobal } = store.getState();
             const guardado = DraftService.cargarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
             if (guardado) {
-                arrayInventario = guardado.items || [];
                 if (guardado.categoria && selectCategoria) {
                     selectCategoria.value = guardado.categoria;
                     selectCategoria.dispatchEvent(new Event('change'));
@@ -253,7 +257,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
                 if (guardado.monto && inputMontoGlobal) inputMontoGlobal.value = guardado.monto;
-                actualizarListaInventarioUI();
+                store.setInventario(guardado.items || []);
+                const { arrayInventario } = store.getState();
                 const seccionStock = document.getElementById('seccion-inventario');
                 if (seccionStock && arrayInventario.length > 0) {
                     seccionStock.style.display = 'block';
@@ -268,6 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const llenarSelectCategorias = () => {
         if (!selectCategoria) return;
+        const { listaCategorias } = store.getState();
 
         selectCategoria.innerHTML = '<option value="" disabled selected>Seleccioná una categoría</option>';
 
@@ -280,6 +286,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectCategoria.appendChild(option);
         });
     };
+
+    store.subscribe(({ changed }) => {
+        if (changed.includes('arrayInventario')) actualizarListaInventarioUI();
+        if (changed.includes('listaCategorias')) llenarSelectCategorias();
+    });
 
     // 3. EVENTOS DE INTERACCIÓN
     
@@ -353,7 +364,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('inv-cant').value = '';
         document.getElementById('inv-precio').value = '';
 
-        actualizarListaInventarioUI();
         guardarBorradorStock();
     });
 
@@ -413,31 +423,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     btnConfirmarLimpiar?.addEventListener('click', () => {
         cancelarProcesamientoIA();
-
-        if (reconocimiento) {
-            try {
-                reconocimiento.abort();
-            } catch (error) {
-                console.warn('No se pudo abortar el reconocimiento:', error);
-            }
-        }
-
-        if (temporizadorReinicio) {
-            clearTimeout(temporizadorReinicio);
-            temporizadorReinicio = null;
-        }
-
-        isRecording = false;
         isProcessing = false;
-        stopSolicitado = false;
-        yaConsolidado = false;
-        reiniciosSilencio = 0;
+        voiceService.abortar();
         transcripcionInterina = '';
         fragmentosConfirmados = [];
         actualizarTranscripcionUI();
         pintarBotonDictar('idle');
 
-        arrayInventario = [];
+        const { currentUserIdGlobal, ambitoActual, hogarId } = store.getState();
         DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
         DraftService.limpiarBorradorLegacy();
         if (formGasto) formGasto.reset();
@@ -453,7 +446,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const divCuotasConfig = document.getElementById('div-cuotas-config');
         if (checkCuotas) checkCuotas.checked = false;
         if (divCuotasConfig) divCuotasConfig.style.display = 'none';
-        actualizarListaInventarioUI();
+        store.setInventario([]);
         cerrarModalLimpiar();
         toast.mostrar('Inventario y formulario limpiados.', 'info');
     });
@@ -474,19 +467,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const REINICIO_DEMORA_MS = 300;
 
     // Banderas de estado: evitan clics dobles y envíos simultáneos
-    let isRecording = false;        // el micrófono está activo
-    let isProcessing = false;       // hay un fetch a la IA en curso (o finalizando)
-    let yaConsolidado = false;      // evita consolidar/enviar dos veces el mismo dictado
-    let stopSolicitado = false;     // el usuario tocó "finalizar"
-    let reiniciosSilencio = 0;      // cortes automáticos consecutivos sin voz
-
-    let reconocimiento = null;
-    let temporizadorReinicio = null;
+    let isProcessing = false;       // hay a una petición de IA en curso (or finalizando)
     let abortControllerIA = null;
     let idProcesamientoIA = 0;
-    let transcripcionInterina = ''; // lo que el motor está interpretando ahora
-    let fragmentosConfirmados = []; // fragmentos finales únicos por sesión
-
     const cancelarProcesamientoIA = () => {
         idProcesamientoIA += 1;
         if (abortControllerIA) {
@@ -495,12 +478,63 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    let transcripcionInterina = '';
+    let fragmentosConfirmados = [];
+
+    const voiceService = new VoiceService({
+        lang: 'es-AR',
+        continuous: false,
+        interimResults: true,
+        maxAlternatives: 1,
+        reinicioDemoraMs: 300,
+        onStateChange: (estado) => {
+            if (estado === 'recording') {
+                pintarBotonDictar('recording');
+            } else if (estado === 'processing') {
+                pintarBotonDictar('processing');
+            } else if (estado === 'idle') {
+                pintarBotonDictar('idle');
+            }
+        },
+        onInterim: (snapshot) => {
+            fragmentosConfirmados = [...snapshot.fragmentosConfirmados];
+            transcripcionInterina = snapshot.transcripcionInterina;
+            actualizarTranscripcionUI();
+        },
+        onFinal: (snapshot) => {
+            fragmentosConfirmados = [...snapshot.fragmentosConfirmados];
+            transcripcionInterina = snapshot.transcripcionInterina;
+            actualizarTranscripcionUI();
+        },
+        onReadyToConsolidate: () => {
+            consolidarYProcesar();
+        },
+        onError: (codigo) => {
+            console.warn('Error de reconocimiento de voz:', codigo);
+        },
+        onFatalError: (codigo) => {
+            const mensajes = {
+                'not-allowed': 'Permiso de micrófono denegado. Habilitalo en the navegador.',
+                'service-not-allowed': 'El navegador bloqueó the servicio de voz.',
+                'audio-capture': 'No se encontró a micrófono disponible.',
+                'start-failed': 'No se pudo iniciar the dictado por voz.'
+            };
+            toast.mostrar(mensajes[codigo] || 'Error con the reconocimiento de voz.', 'error', 5000);
+            cancelarProcesamientoIA();
+            isProcessing = false;
+            voiceService.reset();
+            actualizarTranscripcionUI();
+            pintarBotonDictar('idle');
+        }
+    });
+
     // Normaliza texto para comparar (minúsculas y sin acentos)
     const normalizar = (texto) => CategoryService.normalizarTexto(texto);
 
     // Busca la categoría que mejor corresponde a lo que devolvió la IA
     const buscarCategoriaIA = (nombreIA) => {
         if (!nombreIA) return null;
+        const { listaCategorias } = store.getState();
         return CategoryService.buscarCategoria(nombreIA, listaCategorias);
     };
 
@@ -554,6 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!isNaN(monto) && monto > 0) {
             // Solo hay un total propio si los ítems ya cargados tienen precio.
             // Si todos valen 0 (típico de la IA), se respeta el monto dictado.
+            const { arrayInventario } = store.getState();
             const totalPrecios = arrayInventario.reduce(
                 (acc, item) => acc + (Number(item.precio) || 0),
                 0
@@ -627,8 +662,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const seccionStock = document.getElementById('seccion-inventario');
                 if (seccionStock) seccionStock.style.display = 'block';
 
-                // Redibuja las filas, recalcula el total y dispara 'input'/'change'
-                actualizarListaInventarioUI();
                 guardarBorradorStock();
 
                 completados.push(`${agregados} producto(s)`);
@@ -679,19 +712,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Vuelve todo a reposo y limpia la transcripción
     const resetEstado = () => {
-        isRecording = false;
         isProcessing = false;
-        yaConsolidado = false;
-        stopSolicitado = false;
-        reiniciosSilencio = 0;
+        voiceService.reset();
         fragmentosConfirmados = [];
         transcripcionInterina = '';
-
-        if (temporizadorReinicio) {
-            clearTimeout(temporizadorReinicio);
-            temporizadorReinicio = null;
-        }
-
         actualizarTranscripcionUI();
         pintarBotonDictar('idle');
     };
@@ -711,6 +735,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         toast.mostrar(`🎤 Enviado: "${texto}" — procesando...`, 'info', 4000);
 
         // Mandamos las categorías reales para que la IA elija una y no invente nombres
+        const { listaCategorias } = store.getState();
         const categoriasDisponibles = CategoryService
             .prepararCategorias(listaCategorias)
             .map(cat => cat.valor);
@@ -728,7 +753,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const controller = new AbortController();
         abortControllerIA = controller;
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
 
         try {
             const datos = await IAService.procesarTexto({
@@ -1089,6 +1114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
 
+                const { currentUserIdGlobal, ambitoActual, hogarId, arrayInventario } = store.getState();
                 const tipo = FormService.determinarTipo(ambitoActual);
                 const responsable = (ambitoActual === 'hogar')
                     ? selectResponsable.value
@@ -1136,7 +1162,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 toast.mostrar("✅ ¡Gasto guardado!");
                 DraftService.limpiarBorrador(currentUserIdGlobal, ambitoActual, hogarId);
                 DraftService.limpiarBorradorLegacy();
-                arrayInventario = [];
                 formGasto.reset();
 
                 const checkEsCuotas = document.getElementById('check-es-cuotas');
@@ -1147,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (inputReferencia) inputReferencia.value = '';
                 if (grupoReferencia) grupoReferencia.style.display = 'none';
 
-                actualizarListaInventarioUI();
+                store.setInventario([]);
 
             } catch (err) {
                 console.error(err);
