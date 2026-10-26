@@ -1,3 +1,5 @@
+import { AppUtils } from "../utils/AppUtils.js";
+
 export class FormService {
     static METODO_PAGO_TARJETA_CREDITO = 'tarjeta-credito';
     static METODOS_PAGO_VALIDOS = ['efectivo', 'tarjeta-credito'];
@@ -69,10 +71,12 @@ export class FormService {
             ...this.validarCuotas(datos)
         ];
 
+        const monto = this.parsearMonto(datos.monto);
+
         return {
             valido: errores.length === 0,
             errores,
-            monto: this.parsearMonto(datos.monto)
+            monto: monto === null ? null : AppUtils.redondearMonto(monto)
         };
     }
 
@@ -146,7 +150,7 @@ export class FormService {
 
         return {
             fecha,
-            monto: montoNumerico,
+            monto: AppUtils.redondearMonto(montoNumerico),
             categoria: String(categoria || '').trim(),
             detalle_inventario: Array.isArray(inventario)
                 ? inventario.map(item => ({ ...item }))
@@ -181,15 +185,19 @@ export class FormService {
         const fechas = this.calcularFechasCuotas(fecha, cuotas, postCierre);
         if (fechas.length !== cuotas) return [];
 
-        const montoCuota = total / cuotas;
+        const totalRedondeado = AppUtils.redondearMonto(total);
+        const montosCuotas = AppUtils.distribuirEnCuotas(totalRedondeado, cuotas);
         const referenciaSegura = this.escaparHTML(referencia);
-        const totalFormateado = total.toLocaleString('es-AR');
+        const totalFormateado = totalRedondeado.toLocaleString('es-AR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
 
         return fechas.map((fechaCuota, indice) => {
             const numeroCuota = indice + 1;
             return {
                 fecha: fechaCuota,
-                monto: montoCuota,
+                monto: montosCuotas[indice],
                 categoria: String(categoria || '').trim(),
                 detalle_inventario: [],
                 responsable,

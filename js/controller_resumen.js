@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const nuevoIngreso = {
                 fecha: AppUtils.getFechaLocal(),
-                monto: parseFloat(monto),
+                monto: AppUtils.redondearMonto(parseFloat(monto)),
                 categoria: "Ingreso",
                 referencia: concepto,
                 tipo: 'ingreso',
@@ -140,8 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const mesGastoNum = parseInt(g.fecha.substring(5, 7), 10);
             if (mesGastoNum <= mesActualNum) {
                 const mesKey = g.fecha.substring(0, 7); 
-                const monto = Number(g.monto) || 0;
-                if (monto > 0) sumasPorMes[mesKey] = (sumasPorMes[mesKey] || 0) + monto;
+                const montoCentavos = AppUtils.aCentavos(g.monto);
+                if (montoCentavos > 0) sumasPorMes[mesKey] = (sumasPorMes[mesKey] || 0) + montoCentavos;
             }
         });
         
@@ -151,9 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const minimo = Math.min(...totalesMensuales);
         const maximo = Math.max(...totalesMensuales);
         const sumaTotal = totalesMensuales.reduce((a,b) => a + b, 0);
-        const promedio = sumaTotal / totalesMensuales.length;
+        const promedio = Math.round(sumaTotal / totalesMensuales.length);
         
-        return { minimo, promedio, maximo };
+        return {
+            minimo: AppUtils.aPesos(minimo),
+            promedio: AppUtils.aPesos(promedio),
+            maximo: AppUtils.aPesos(maximo)
+        };
     };
 
     const calcularMontosTarjetas = (todosLosGastos, gastosMes, mesActual) => {
@@ -162,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const metodo = g.metodo_pago.toLowerCase();
             return metodo.includes('tarjeta') || metodo.includes('credito');
         });
-        const montoTarjetasMes = gastosTarjetaMes.reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
+        const montoTarjetasMes = AppUtils.sumarMontos(gastosTarjetaMes.map(g => g.monto));
 
         const [year, month] = mesActual.split('-').map(Number);
         const inicioMesActual = new Date(year, month - 1, 1).toISOString().split('T')[0];
@@ -174,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const fechaMayorOIgual = g.fecha >= inicioMesActual;
             return esTarjeta && fechaMayorOIgual;
         });
-        const montoTarjetasTotal = gastosTarjetaTotal.reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
+        const montoTarjetasTotal = AppUtils.sumarMontos(gastosTarjetaTotal.map(g => g.monto));
 
         return { montoTarjetasMes, montoTarjetasTotal };
     };
@@ -250,7 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const gastosPersonalesReales = todosP.filter(g => g.tipo !== 'ingreso');
                 const ingresosPersonales = todosP.filter(g => g.tipo === 'ingreso');
-                totalIngresosMesGlobal = ingresosPersonales.filter(g => g.fecha?.startsWith(mesActual)).reduce((sum, g) => sum + (Number(g.monto) || 0), 0);
+                totalIngresosMesGlobal = AppUtils.sumarMontos(
+                    ingresosPersonales.filter(g => g.fecha?.startsWith(mesActual)).map(g => g.monto)
+                );
 
                 const hogares = await api.obtenerMisHogares(userId);
                 
@@ -270,19 +276,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     const gH_Generales = gH.filter(g => g.tipo === 'general' || !g.tipo);
                     
                     // LE PASAMOS LOS PRESUPUESTOS AL SERVICIO EN UNIFICADO TAMBIÉN
-                    const cuota = resumenService.calcularHogar(gH_Generales.filter(g => g.fecha?.startsWith(mesActual)), nHogar, hData.presupuestos_compartidos || []).cuotaPorPersona;
-                    miParteHogarTotal += cuota;
+                    const hogarInfo = resumenService.calcularHogar(gH_Generales.filter(g => g.fecha?.startsWith(mesActual)), nHogar, hData.presupuestos_compartidos || []);
+                    const cuota = hogarInfo.cuotasMiembro[userId] ?? hogarInfo.cuotaPorPersona;
+                    miParteHogarTotal = AppUtils.sumarMontos(miParteHogarTotal, cuota);
                     
-                    todosHogaresParaGraficos.push(...gH_Generales.map(g => ({ ...g, monto: Number(g.monto) / (hData.miembros?.length || 1) })));
+                    const cantidadMiembros = hData.miembros?.length || 1;
+                    todosHogaresParaGraficos.push(...gH_Generales.map(g => {
+                        const montoCentavos = Math.round(AppUtils.aCentavos(g.monto) / cantidadMiembros);
+                        return { ...g, monto: AppUtils.aPesos(montoCentavos) };
+                    }));
                     gastosHogarMesListas.push(...gH.filter(g => g.fecha?.startsWith(mesActual)));
                 }
+
+                const gastosPersonalesMes = gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual));
+                const personalMes = resumenService.calcularPersonal(gastosPersonalesMes, []).total;
 
                 todosLosGastos = [...gastosPersonalesReales, ...todosHogaresParaGraficos];
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);
                 
                 renderer.renderizarUnificado({ 
-                    totalBolsillo: resumenService.calcularPersonal(gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), []).total + miParteHogarTotal,
-                    desglosePersonal: resumenService.calcularPersonal(gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual)), []).total,
+                    totalBolsillo: AppUtils.sumarMontos(personalMes, miParteHogarTotal),
+                    desglosePersonal: personalMes,
                     desgloseHogar: miParteHogarTotal
                 }, kpisTotales, totalIngresosMesGlobal); 
                 
@@ -304,8 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const montosTarjetas = calcularMontosTarjetas(todosLosGastos, gastosMesGlobal, mesActual);
             const elMes = document.getElementById('monto-tarjetas-mes');
             const elTotal = document.getElementById('monto-tarjetas-total');
-            if (elMes) elMes.innerHTML = `<strong>$ ${montosTarjetas.montoTarjetasMes.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>`;
-            if (elTotal) elTotal.innerHTML = `<strong>$ ${montosTarjetas.montoTarjetasTotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>`;
+            if (elMes) elMes.innerHTML = `<strong>${AppUtils.formatearARS(montosTarjetas.montoTarjetasMes)}</strong>`;
+            if (elTotal) elTotal.innerHTML = `<strong>${AppUtils.formatearARS(montosTarjetas.montoTarjetasTotal)}</strong>`;
             
         } catch (error) {
             console.error(error); 

@@ -1,3 +1,5 @@
+import { AppUtils } from "../utils/AppUtils.js";
+
 export class InventarioService {
     static normalizarUnidadInventario(unidad) {
         const u = String(unidad || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -23,7 +25,7 @@ export class InventarioService {
 
         const nombreLimpio = this.normalizarNombreProducto(nombre);
         const unidad = this.normalizarUnidadInventario(nuevoItem?.unidad);
-        const precio = Number.isFinite(precioNum) ? precioNum : 0;
+        const precio = Number.isFinite(precioNum) ? AppUtils.redondearMonto(precioNum) : 0;
 
         const indiceExistente = inventario.findIndex(item => {
             if (!item) return false;
@@ -37,10 +39,8 @@ export class InventarioService {
             const cantidadExistente = parseFloat(itemExistente.cantidad) || 0;
             itemExistente.cantidad = cantidadExistente + cant;
 
-            if (precio > 0 && (Number(itemExistente.precio) || 0) <= 0) {
-                itemExistente.precio = precio;
-            } else if (precio > 0) {
-                itemExistente.precio = (Number(itemExistente.precio) || 0) + precio;
+            if (precio > 0) {
+                itemExistente.precio = AppUtils.sumarMontos(itemExistente.precio, precio);
             }
 
             inventario[indiceExistente] = itemExistente;
@@ -61,12 +61,6 @@ export class InventarioService {
 
     static calcularTotal(inventarioActual) {
         const inventario = Array.isArray(inventarioActual) ? inventarioActual : [];
-        let totalAcumulado = 0;
-        inventario.forEach(item => {
-            if (!item) return;
-            const precio = Number(item.precio) || 0;
-            totalAcumulado += precio;
-        });
-        return totalAcumulado;
+        return AppUtils.sumarMontos(inventario.map(item => item?.precio ?? 0));
     }
 }

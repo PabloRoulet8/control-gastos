@@ -31,6 +31,7 @@ export class GastoSaveService {
             : userId;
         const contextoGuardado = FormService.construirContexto(ambitoActual, hogarId);
         const fecha = AppUtils.getFechaLocal();
+        const montoExacto = AppUtils.redondearMonto(validacion.monto);
         const usaCuotas = FormService.esPagoEnCuotas({
             metodoPago: datosFormulario.metodoPago,
             esCuotas: datosFormulario.esCuotas,
@@ -40,7 +41,7 @@ export class GastoSaveService {
         if (!usaCuotas) {
             const nuevoGasto = FormService.construirGasto({
                 fecha,
-                monto: validacion.monto,
+                monto: montoExacto,
                 categoria: datosFormulario.categoria,
                 inventario,
                 responsable,
@@ -59,7 +60,7 @@ export class GastoSaveService {
 
         const gastosCuota = FormService.construirGastosEnCuotas({
             fecha,
-            montoTotal: validacion.monto,
+            montoTotal: montoExacto,
             categoria: datosFormulario.categoria,
             responsable,
             metodoPago: datosFormulario.metodoPago,

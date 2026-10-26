@@ -1,5 +1,6 @@
 import { db, auth } from "../firebase-config.js"; 
 import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp, writeBatch, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { AppUtils } from "../utils/AppUtils.js";
 
 export class GastoRepository {
     constructor() {
@@ -34,6 +35,7 @@ export class GastoRepository {
 
         let gastoFirmado = {
             ...nuevoGasto,
+            monto: AppUtils.redondearMonto(nuevoGasto.monto),
             usuario_id: usuarioActual.uid,       
             creador_email: usuarioActual.email,  
             timestamp: serverTimestamp(), 
@@ -83,6 +85,7 @@ export class GastoRepository {
         for (const gasto of arrayGastos) {
             const gastoFirmado = {
                 ...gasto,
+                monto: AppUtils.redondearMonto(gasto.monto),
                 usuario_id: usuarioActual.uid,
                 creador_email: usuarioActual.email,
                 timestamp: serverTimestamp()
@@ -221,8 +224,8 @@ export class GastoRepository {
             tipo: 'pagoDeuda', // Etiqueta clave para diferenciarlo de un gasto de súper
             pagador_id: pagadorId,
             receptor_id: acreedorId,
-            monto: parseFloat(monto),
-            fecha: new Date().toISOString().split('T')[0],
+            monto: AppUtils.redondearMonto(parseFloat(monto)),
+            fecha: AppUtils.getFechaLocal(),
             timestamp: serverTimestamp(),
             usuario_id: usuarioActual.uid,       
             ambito: 'hogar',

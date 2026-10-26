@@ -1,5 +1,6 @@
 import { CategoryService } from "../services/CategoryService.js";
 import { FormService } from "../services/FormService.js";
+import { AppUtils } from "../utils/AppUtils.js";
 
 const TEXTOS_MICROFONO = {
     idle: 'Mantén presionado para dictar',
@@ -343,7 +344,7 @@ export class FormUI {
                 });
             } else {
                 const montoAnterior = parseFloat(inputMonto.value) || 0;
-                inputMonto.value = (montoAnterior + monto).toFixed(2);
+                inputMonto.value = AppUtils.sumarMontos(montoAnterior, monto).toFixed(2);
                 inputMonto.readOnly = false;
                 completados.push('monto');
             }

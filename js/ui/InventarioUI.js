@@ -1,3 +1,6 @@
+import { InventarioService } from "../services/InventarioService.js";
+import { AppUtils } from "../utils/AppUtils.js";
+
 export class InventarioUI {
     static renderizarLista(arrayInventario, contenedorLista, inputMonto, seccionStock, onDeleteCallback) {
         if (!contenedorLista) return;
@@ -29,7 +32,7 @@ export class InventarioUI {
 
             if (precio > 0) {
                 const precioEl = document.createElement('strong');
-                precioEl.textContent = `$${precio.toLocaleString('es-AR')}`;
+                precioEl.textContent = AppUtils.formatearARS(precio);
                 acciones.appendChild(precioEl);
             }
 
@@ -57,10 +60,7 @@ export class InventarioUI {
 
         window.lucide?.createIcons();
 
-        const totalInventario = inventario.reduce(
-            (acumulado, item) => acumulado + (Number(item?.precio) || 0),
-            0
-        );
+        const totalInventario = InventarioService.calcularTotal(inventario);
 
         if (inputMonto) {
             if (totalInventario > 0) {

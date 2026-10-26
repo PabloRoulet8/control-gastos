@@ -33,5 +33,40 @@ export const AppUtils = {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    },
+
+    aCentavos: (monto) => {
+        const numero = Number(monto);
+        return Number.isFinite(numero) ? Math.round(numero * 100) : 0;
+    },
+
+    aPesos: (centavos) => {
+        const numero = Number(centavos);
+        return Number.isFinite(numero) ? Math.round(numero) / 100 : 0;
+    },
+
+    redondearMonto: (monto) => {
+        const numero = Number(monto);
+        return Number.isFinite(numero) ? Math.round(numero * 100) / 100 : 0;
+    },
+
+    sumarMontos: (...montos) => {
+        const totalCentavos = montos
+            .flat(Infinity)
+            .reduce((total, monto) => total + AppUtils.aCentavos(monto), 0);
+        return AppUtils.aPesos(totalCentavos);
+    },
+
+    distribuirEnCuotas: (montoTotal, cantidadCuotas) => {
+        const cuotas = Math.trunc(Number(cantidadCuotas));
+        if (!Number.isInteger(cuotas) || cuotas <= 0) return [];
+
+        const totalCentavos = AppUtils.aCentavos(montoTotal);
+        const baseCentavos = Math.floor(totalCentavos / cuotas);
+        const restoCentavos = totalCentavos % cuotas;
+
+        return Array.from({ length: cuotas }, (_, indice) => (
+            AppUtils.aPesos(baseCentavos + (indice < restoCentavos ? 1 : 0))
+        ));
     }
 };

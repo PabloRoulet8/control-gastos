@@ -28,11 +28,13 @@ export class ResumenRenderer {
 
         fondos.forEach(f => {
             const catsFondoNorm = (f.categorias || []).map(normalizeCat);
-            const gastado = gastosMes
-                .filter(g => catsFondoNorm.includes(normalizeCat(g.categoria)))
-                .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
+            const gastado = AppUtils.sumarMontos(
+                gastosMes
+                    .filter(g => catsFondoNorm.includes(normalizeCat(g.categoria)))
+                    .map(g => g.monto)
+            );
             
-            const restante = Number(f.monto) - gastado;
+            const restante = AppUtils.sumarMontos(f.monto, -gastado);
             
             let lineaMonto = '';
             if (restante < 0) {
@@ -65,7 +67,7 @@ export class ResumenRenderer {
                     <div class="grid-2-col mt-15 gap-10">
                         <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
                             <span class="text-sm-gray" style="display:block;">Fijos + Stock <i data-lucide="home"></i></span>
-                            <span class="text-bold-dark text-lg">${AppUtils.formatearARS(data.fijos + data.fijosStock)}</span>
+                            <span class="text-bold-dark text-lg">${AppUtils.formatearARS(AppUtils.sumarMontos(data.fijos, data.fijosStock))}</span>
                         </div>
                         <div class="text-center" style="background: var(--bg-app); padding: 15px; border-radius: 8px;">
                             <span class="text-sm-gray" style="display:block;">Variables <i data-lucide="package"></i></span>
@@ -98,22 +100,25 @@ export class ResumenRenderer {
             mapCategorias[normalizeCat(c.nombre)] = c;
         });
         
-        let totalFijosStock = 0;
-        let totalVariables = 0;
+        let totalFijosStockCentavos = 0;
+        let totalVariablesCentavos = 0;
         
         gastosMes.forEach(g => {
             const catNorm = normalizeCat(g.categoria);
             const configCat = mapCategorias[catNorm] || {};
-            const monto = Number(g.monto) || 0;
+            const montoCentavos = AppUtils.aCentavos(g.monto);
             const tipoGasto = (g.tipo || '').toLowerCase().trim();
             
             // LA CORRECCIÓN CLAVE: Sumamos si es fijo, o si es stock en la db o en el config
             if (tipoGasto === 'fijo' || tipoGasto === 'stock' || configCat.es_fijo === true || configCat.lleva_stock === true) {
-                totalFijosStock += monto;
+                totalFijosStockCentavos += montoCentavos;
             } else if (tipoGasto !== 'pagodeuda' && tipoGasto !== 'ingreso') { 
-                totalVariables += monto;
+                totalVariablesCentavos += montoCentavos;
             }
         });
+
+        const totalFijosStock = AppUtils.aPesos(totalFijosStockCentavos);
+        const totalVariables = AppUtils.aPesos(totalVariablesCentavos);
 
         let htmlDeudas = '';
         if (data.compensaciones.length === 0) {
@@ -191,7 +196,7 @@ export class ResumenRenderer {
 
                     <div class="mt-20 text-center pt-20" style="border-top: 1px solid var(--border-color);">
                         <span class="text-sm-gray">A cada uno le corresponde poner:</span>
-                        <div style="font-size: 1.6rem; font-weight: bold; color: var(--text-main); margin-top: 5px;">${AppUtils.formatearARS(data.cuotaPorPersona)}</div>
+                        <div style="font-size: 1.6rem; font-weight: bold; color: var(--text-main); margin-top: 5px;">${AppUtils.formatearARS(data.cuotasMiembro?.[currentUserId] ?? data.cuotaPorPersona)}</div>
                     </div>
                 </div>
 
@@ -209,7 +214,7 @@ export class ResumenRenderer {
     renderizarUnificado(data, kpis, totalIngresos = 0) {
         let htmlSaldo = '';
         if (totalIngresos > 0) {
-            const saldo = totalIngresos - data.totalBolsillo;
+            const saldo = AppUtils.sumarMontos(totalIngresos, -data.totalBolsillo);
             const colorSaldo = saldo >= 0 ? 'var(--primary-color)' : '#ef4444';
             htmlSaldo = `
                 <div class="text-center" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
