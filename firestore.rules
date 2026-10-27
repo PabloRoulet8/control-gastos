@@ -58,6 +58,33 @@ service cloud.firestore {
         data.actualizado_en == request.time;
     }
 
+    function gastoValido(data) {
+      return data.get('monto', 0) is number &&
+        data.get('monto', 0) > 0 &&
+        data.get('fecha', '') is string &&
+        data.get('fecha', '').size() >= 8 &&
+        data.get('fecha', '').size() <= 30 &&
+        (data.get('tipo', '') == 'pagoDeuda' ||
+         (data.get('categoria', '') is string && data.get('categoria', '').size() > 0));
+    }
+
+    function hogarValido(data) {
+      return data.get('nombre', '') is string &&
+        data.get('nombre', '').size() > 0 &&
+        data.get('nombre', '').size() <= 100 &&
+        data.get('miembros', []) is list &&
+        data.get('miembros', []).size() > 0;
+    }
+
+    function puedeSalirDeHogar() {
+      return isSignedIn() &&
+        request.auth.uid in resource.data.get('miembros', []) &&
+        !(request.auth.uid in request.resource.data.get('miembros', [])) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros', 'administradores']) &&
+        request.resource.data.get('miembros', []).size() == resource.data.get('miembros', []).size() - 1 &&
+        resource.data.get('miembros', []).hasAll(request.resource.data.get('miembros', []));
+    }
+
     function invitacionData(hogarId, codigo) {
       return get(/databases/$(database)/documents/hogares/$(hogarId)/invitaciones/$(codigo)).data;
     }
@@ -123,9 +150,11 @@ service cloud.firestore {
       match /gastos/{gastoId} {
         allow read: if isSelf(userId);
         allow create: if isSelf(userId) &&
+          gastoValido(request.resource.data) &&
           request.resource.data.get('usuario_id', '') == request.auth.uid &&
           request.resource.data.get('responsable', '') == request.auth.uid;
         allow update: if isSelf(userId) &&
+          gastoValido(request.resource.data) &&
           resource.data.get('usuario_id', '') == request.auth.uid &&
           request.resource.data.get('usuario_id', '') == request.auth.uid &&
           request.resource.data.get('responsable', '') == request.auth.uid;
@@ -139,11 +168,14 @@ service cloud.firestore {
       allow list: if isSignedIn() &&
         request.auth.uid in resource.data.get('miembros', []);
       allow create: if isSignedIn() &&
+        hogarValido(request.resource.data) &&
         request.resource.data.get('creador_id', '') == request.auth.uid &&
         request.auth.uid in request.resource.data.get('miembros', []);
       allow update: if puedeUnirseConInvitacion(hogarId) ||
-        isHogarAdmin(hogarId) ||
+        puedeSalirDeHogar() ||
+        (isHogarAdmin(hogarId) && hogarValido(request.resource.data)) ||
         (isHogarMember(hogarId) &&
+         hogarValido(request.resource.data) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'nombre',
            'categorias_compartidas',
@@ -155,8 +187,10 @@ service cloud.firestore {
       match /gastos/{gastoId} {
         allow read: if isHogarMember(hogarId);
         allow create: if isHogarMember(hogarId) &&
+          gastoValido(request.resource.data) &&
           request.resource.data.get('usuario_id', '') == request.auth.uid;
         allow update: if isHogarMember(hogarId) &&
+          gastoValido(request.resource.data) &&
           resource.data.get('usuario_id', '') == request.auth.uid &&
           request.resource.data.get('usuario_id', '') == request.auth.uid;
         allow delete: if isHogarMember(hogarId);
@@ -203,8 +237,15 @@ service cloud.firestore {
           request.resource.data.usada_en == request.time
         ) || (
           isHogarAdmin(hogarId) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
-          request.resource.data.estado == 'revocada'
+          resource.data.estado == 'pendiente' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'estado',
+            'revocada_por',
+            'revocada_en'
+          ]) &&
+          request.resource.data.estado == 'revocada' &&
+          request.resource.data.revocada_por == request.auth.uid &&
+          request.resource.data.revocada_en == request.time
         );
         allow delete: if isHogarAdmin(hogarId);
       }
