@@ -5,22 +5,22 @@ import {
     runTransaction,
     serverTimestamp,
     setDoc,
-    Timestamp
+    Timestamp,
+    updateDoc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 export class HogarService {
+    static DURACION_INVITACION_MS = 48 * 60 * 60 * 1000;
+
     static generarCodigoInvitacion() {
         const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         const bytes = new Uint8Array(16);
 
-        if (globalThis.crypto?.getRandomValues) {
-            globalThis.crypto.getRandomValues(bytes);
-        } else {
-            for (let i = 0; i < bytes.length; i++) {
-                bytes[i] = Math.floor(Math.random() * 256);
-            }
+        if (!globalThis.crypto?.getRandomValues) {
+            throw new Error('No hay un generador de números seguros disponible.');
         }
 
+        globalThis.crypto.getRandomValues(bytes);
         return Array.from(bytes, byte => alfabeto[byte % alfabeto.length]).join('');
     }
 
@@ -29,7 +29,7 @@ export class HogarService {
         if (!adminUid) throw new Error('El administrador es obligatorio.');
 
         const codigo = this.generarCodigoInvitacion();
-        const expiraEn = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+        const expiraEn = Timestamp.fromDate(new Date(Date.now() + this.DURACION_INVITACION_MS));
         const invitacionRef = doc(db, 'hogares', hogarId, 'invitaciones', codigo);
 
         await setDoc(invitacionRef, {
@@ -43,6 +43,25 @@ export class HogarService {
         });
 
         return { codigo, hogarId, expiraEn };
+    }
+
+    static async revocarInvitacion(hogarId, codigo, adminUid) {
+        if (!hogarId) throw new Error('El hogar es obligatorio.');
+        if (!adminUid) throw new Error('El administrador es obligatorio.');
+
+        const codigoNormalizado = String(codigo || '').trim().toUpperCase();
+        if (!/^[A-Z0-9]{8,64}$/.test(codigoNormalizado)) {
+            throw new Error('El código de invitación no es válido.');
+        }
+
+        const invitacionRef = doc(db, 'hogares', hogarId, 'invitaciones', codigoNormalizado);
+        await updateDoc(invitacionRef, {
+            estado: 'revocada',
+            revocada_por: adminUid,
+            revocada_en: serverTimestamp()
+        });
+
+        return { hogarId, codigo: codigoNormalizado, estado: 'revocada' };
     }
 
     static async consumirInvitacion(hogarId, codigo, usuarioUid) {
