@@ -71,9 +71,16 @@ export class ChartManager {
         const categoriasSet = new Set(this.gastos.map(g => g.categoria || 'Sin Categoría'));
         const select = document.getElementById('filtro-cat-grafico');
         if (select) {
-            select.innerHTML = '<option value="todas">Todas las categorías</option>';
+            const opcionTodas = document.createElement('option');
+            opcionTodas.value = 'todas';
+            opcionTodas.textContent = 'Todas las categorías';
+            select.replaceChildren(opcionTodas);
+
             Array.from(categoriasSet).sort().forEach(cat => {
-                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+                const opcion = document.createElement('option');
+                opcion.value = cat;
+                opcion.textContent = cat;
+                select.appendChild(opcion);
             });
         }
 

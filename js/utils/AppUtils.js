@@ -20,11 +20,15 @@ export const AppUtils = {
     },
 
     // 3. Sanitizador de HTML para evitar XSS (Crucial para la seguridad)
+    // Escapa también comillas para que el valor sea seguro tanto en texto como en atributos.
     escapeHTML: (str) => {
         if (!str) return "";
-        const p = document.createElement('p');
-        p.textContent = str;
-        return p.innerHTML;
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     // 4. Manejador de Fechas (YYYY-MM-DD local)

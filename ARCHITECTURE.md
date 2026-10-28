@@ -81,7 +81,6 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 | `perfil.html` | `controller_perfil.js` | Nombre, categorías, métodos de pago y presupuestos personales. |
 | `config_hogar.html` | `controller_config_hogar.js` | Miembros, administradores, nombre y expulsiones del hogar. |
 | `admin_hogar.html` | `controller_admin_hogar.js` | Creación y configuración de categorías, fondos y métodos de pago del hogar. |
-| `hogar.html` | Ninguno | Página legacy/estática de “Fondo Común”; no está enlazada desde la navegación actual. |
 
 ### 2.4 Componentes y responsabilidades
 
@@ -248,14 +247,14 @@ Sin embargo, la práctica no es uniforme:
 - `controller_config_hogar.js` interpola `userData.nombre` en `innerHTML`.
 - `controller_resumen.js` usa `innerHTML` para valores numéricos y textos estáticos, con menor riesgo, pero mantiene el patrón.
 - `NavigationBuilder` usa `innerHTML` con valores controlados por código.
-- No hay Content Security Policy en `firebase.json`.
+- `firebase.json` aplica CSP y headers de seguridad; `script-src` aún requiere `'unsafe-inline'` por los scripts inline y los manejadores `onclick` del app shell.
 
 Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de otro miembro al abrir el dashboard. Es un XSS almacenado de prioridad alta aunque el vector requiera que la víctima abra la pantalla afectada.
 
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v26.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v30.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
 - `fetch` es cache-first para todos los GET; si no hay caché, consulta la red y guarda respuestas 200.
 - `firebase.json` envía `Cache-Control: no-cache` para `sw.js`.
@@ -277,14 +276,14 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-05 | Alta | Reglas sin despliegue verificado ni pruebas automatizadas de seguridad. | Producción puede seguir con reglas permisivas o romperse al aplicarlas. | Añadir tests con Firebase Emulator Suite, validar en staging y documentar el despliegue. |
 | DT-06 | Resuelta | Firestore estaba accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Completado en dos fases: `GastoRepository`, `HogarService` y `PerfilPublicoService` encapsulan Firestore; los controladores ya no importan `firebase/firestore`. |
 | DT-07 | Resuelta | `controller_carga.js` concentraba guardado, dictado/IA y cuotas. | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Completado en dos fases: contexto/responsables/pagos y luego guardado, IA, dictado, modales e inventario. `controller_carga.js` quedó en 551 líneas como coordinador. |
-| DT-08 | Media | Uso inconsistente de `innerHTML` y ausencia de CSP. | Superficie XSS y defensa en profundidad insuficiente. | Unificar renderizado seguro, añadir CSP y headers de seguridad en Hosting. |
+| DT-08 | Resuelta | Uso inconsistente de `innerHTML` y ausencia de CSP. | Superficie XSS y defensa en profundidad insuficiente. | Completado: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y CSP en `firebase.json`; `AppUtils.escapeHTML` escapa también comillas y los puntos restantes usan nodos/`textContent`. |
 | DT-09 | Resuelta | Lecturas completas de gastos y filtrado en cliente. | Costo y latencia crecen con el historial; límites de Firestore a futuro. | Completado con consultas por rango; queda pendiente paginación, índices y agregaciones cuando corresponda. |
-| DT-10 | Media | Reglas validan pertenencia pero no esquema, tipos ni estado de verificación. | Datos inválidos, writes amplios en configuración y cuentas no verificadas a nivel servidor. | Validar campos/rangos, exigir email verificado y restringir cambios compartidos según rol. |
+| DT-10 | Resuelta | Reglas validan pertenencia pero no esquema, tipos ni estado de verificación. | Datos inválidos, writes amplios en configuración y cuentas no verificadas a nivel servidor. | Completado: `firestore.rules` valida esquema y rangos (`gastoValido`, `hogarValido`, `perfilPublicoValido`), limita los cambios compartidos por rol y valida membresía e invitaciones. |
 | DT-11 | Resuelta | Montos en punto flotante y cuotas sin distribución de centavos. | Diferencias de redondeo y descuadres en compras financiadas. | Completado con aritmética de centavos en `AppUtils`, distribución exacta del remanente y redondeo a dos decimales al guardar. |
 | DT-12 | Resuelta | Service Worker cache-first sin estrategia de actualización; precache todo-o-nada. | Usuarios pueden quedar con shell/JS viejo o sin SW si falla un recurso. | Completado con precacheo resiliente, Network-First en navegación, Stale-While-Revalidate en assets y recarga controlada al cambiar el controlador. |
-| DT-13 | Media | Códigos de invitación con `Math.random`, sin expiración ni revocación. | Tokens predecibles, permanentes y sin control de abuso. | Usar `crypto.getRandomValues`, expiración, revocación y rate limiting. |
-| DT-14 | Media | Sin `package.json`, lint, tests, build ni integración continua; CDNs sin versión estricta (`lucide@latest`). | Regresiones silenciosas y builds no reproducibles. | Incorporar tooling mínimo, fijar versiones, agregar SRI y CI. |
-| DT-15 | Baja | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Eliminar página muerta, encapsular claves, separar escape de presentación y unificar versionado. |
+| DT-13 | Resuelta | Códigos de invitación con `Math.random`, sin expiración ni revocación. | Tokens predecibles, permanentes y sin control de abuso. | Completado: `HogarService` usa `crypto.getRandomValues`, invitaciones con expiración y revocación, y reglas que validan estado, expiración y `codigos_usados`. |
+| DT-14 | Resuelta | Sin `package.json`, lint, tests, build ni integración continua; CDNs sin versión estricta (`lucide@latest`). | Regresiones silenciosas y builds no reproducibles. | Completado: `package.json` con `npm run check` (`node --check` sobre los módulos) y `lucide` fijado en `0.469.0` en todos los HTML. |
+| DT-15 | Resuelta | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Completado: `hogar.html` eliminado y fuera del precache; `CACHE_NAME` unificado en `gastos-v30.0`. |
 
 ### Orden sugerido de resolución
 

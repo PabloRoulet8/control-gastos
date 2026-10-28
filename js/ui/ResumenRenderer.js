@@ -365,7 +365,7 @@ export class ResumenRenderer {
                             <li class="flex-between" style="padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
                                 <span style="text-transform: capitalize; color: var(--text-main); font-weight: 500;">${AppUtils.escapeHTML(prod)}</span>
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-weight: 700; color: ${colorAct}; font-size: 1rem;">${cantActFmt} <span style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">${act.unidad}</span></span>
+                                    <span style="font-weight: 700; color: ${colorAct}; font-size: 1rem;">${cantActFmt} <span style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">${AppUtils.escapeHTML(act.unidad)}</span></span>
                                     <span style="color: var(--glass-border);">|</span>
                                     <span style="color: var(--text-muted); font-size: 0.85rem;">${cantAntFmt}</span>
                                 </div>
