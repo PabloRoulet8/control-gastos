@@ -4,7 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null &&
+        request.auth.token.email_verified == true;
     }
 
     function isSelf(userId) {
@@ -59,7 +60,8 @@ service cloud.firestore {
     }
 
     function gastoValido(data) {
-      return data.get('monto', 0) is number &&
+      return data.get('tipo', 'gasto') is string &&
+        data.get('monto', 0) is number &&
         data.get('monto', 0) > 0 &&
         data.get('fecha', '') is string &&
         data.get('fecha', '').size() >= 8 &&
@@ -193,10 +195,12 @@ service cloud.firestore {
         allow read: if isHogarMember(hogarId);
         allow create: if isHogarMember(hogarId) &&
           gastoValido(request.resource.data) &&
+          request.resource.data.get('hogar_id', '') == hogarId &&
           request.resource.data.get('usuario_id', '') == request.auth.uid &&
           responsableDeHogarValido(hogarId);
         allow update: if isHogarMember(hogarId) &&
           gastoValido(request.resource.data) &&
+          request.resource.data.get('hogar_id', '') == hogarId &&
           resource.data.get('usuario_id', '') == request.auth.uid &&
           request.resource.data.get('usuario_id', '') == request.auth.uid &&
           responsableDeHogarValido(hogarId);
@@ -263,8 +267,10 @@ service cloud.firestore {
     match /config/{docId} {
       allow get: if esConfigHogar(docId) || esConfigPersonal(docId);
       allow list: if esConfigHogar(docId) || esConfigPersonal(docId);
-      allow create: if esConfigHogar(docId) || esConfigPersonal(docId);
-      allow update: if esConfigHogar(docId) || esConfigPersonal(docId);
+      allow create: if (esConfigHogar(docId) || esConfigPersonal(docId)) &&
+        request.resource.data.keys().size() <= 50;
+      allow update: if (esConfigHogar(docId) || esConfigPersonal(docId)) &&
+        request.resource.data.keys().size() <= 50;
       allow delete: if false;
     }
   }

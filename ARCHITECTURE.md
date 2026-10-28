@@ -1,6 +1,6 @@
 # Informe de arquitectura — Control de Gastos
 
-> **Estado analizado:** rama `main`, commit `a990e97` (2026-10-26).
+> **Estado analizado:** rama `main`, commit `0cd7965` (2026-10-28).
 > **Alcance:** revisión estática de páginas HTML, controladores, servicios, store, acceso a Firestore, reglas de seguridad, PWA/Service Worker y configuración de despliegue.
 > **Fuera de alcance:** pruebas E2E, auditoría de accesibilidad visual y verificación del estado real de las reglas en la consola de Firebase.
 
@@ -66,7 +66,7 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 | `js/auth_guard.js` | Redirección por sesión y verificación de email en cliente. |
 | `js/pwa.js`, `sw.js`, `manifest.json` | Registro del Service Worker, instalación y precache del app shell. |
 | `css/`, `scss/`, `assets/` | Presentación, fuentes de estilo e imágenes. |
-| `firestore.rules`, `firebase.json` | Contrato de seguridad y configuración de Hosting/Firestore. |
+| `firestore.rules`, `firestore.indexes.json`, `firebase.json` | Contrato de seguridad, índices y configuración de Hosting/Firestore. |
 | `01_*.md` a `04_*.md` | Documentación funcional y técnica previa. |
 
 ### 2.3 Páginas y responsabilidades
@@ -216,7 +216,7 @@ Antes de guardar, el controlador detecta `navigator.onLine === false` y muestra 
 - Firebase Authentication gestiona email/contraseña y Google.
 - El registro por email exige verificación en el cliente; las cuentas de Google se consideran verificadas.
 - `auth_guard.js` redirige a `login.html` si no hay sesión y cierra sesión si el email no está verificado.
-- Las reglas de Firestore exigen `request.auth != null`, pero no verifican `request.auth.token.email_verified`.
+- Las reglas de Firestore exigen sesión con `request.auth.token.email_verified == true` en `isSignedIn()`, alineadas con la verificación de `auth_guard.js`.
 - La autorización de hogar se basa en `miembros`, `creador_id` y `administradores`.
 
 ### 4.2 Contrato actual de `firestore.rules`
@@ -226,8 +226,8 @@ Antes de guardar, el controlador detecta `navigator.onLine === false` y muestra 
 | `/usuarios/{uid}` | Solo el propio usuario (`get`); `list` denegado | Propio usuario | Propio usuario | Denegado |
 | `/usuarios/{uid}/gastos/{id}` | Propio usuario | Propio usuario con `usuario_id` y `responsable` iguales al UID | Propietario original y nuevo `usuario_id`/`responsable` propios | Propietario |
 | `/hogares/{hogarId}` | Miembro (`get`); `list` filtrado por membresía | Usuario autenticado que se incluye como creador y miembro | Admin, o miembro limitado a nombre/categorías/presupuestos/métodos de pago | Admin |
-| `/hogares/{hogarId}/gastos/{id}` | Miembro | Miembro con `usuario_id` propio | Miembro propietario del gasto | Cualquier miembro |
-| `/config/{docId}` | Propietario o miembro del contexto | Misma condición | Misma condición | Misma condición |
+| `/hogares/{hogarId}/gastos/{id}` | Miembro | Miembro con `usuario_id` propio y `hogar_id == hogarId` | Miembro propietario del gasto, con `hogar_id` consistente | Cualquier miembro |
+| `/config/{docId}` | Propietario o miembro del contexto | Misma condición y máximo 50 claves | Misma condición y máximo 50 claves | Denegado |
 
 Las reglas fueron validadas con `firebase deploy --only firestore:rules --dry-run --project control-gastos-cf09c`. El dry-run confirma sintaxis y compilación, no el despliegue ni el comportamiento con datos reales.
 
@@ -240,22 +240,16 @@ Las reglas fueron validadas con `firebase deploy --only firestore:rules --dry-ru
 
 ### 4.4 XSS y manejo de contenido
 
-La pantalla de carga está bien protegida: `actualizarTranscripcionUI()` usa `textContent`, `ToastManager` usa `textContent`, `InventarioUI` construye nodos y asigna texto, y `FormService` escapa la referencia antes de persistirla. `AppUtils.escapeHTML()` está disponible y varios renderizadores lo usan.
+La pantalla de carga está bien protegida: `actualizarTranscripcionUI()` usa `textContent`, `ToastManager` usa `textContent`, `InventarioUI` construye nodos y asigna texto, y `FormService` escapa la referencia antes de persistirla. Los renderizadores aplican `AppUtils.escapeHTML()` únicamente dentro de plantillas `innerHTML`; las asignaciones a `textContent` reciben el valor directo para evitar el doble escape (`&#39;`, `&amp;`).
 
-Sin embargo, la práctica no es uniforme:
+`controller_dashboard.js` y `controller_config_hogar.js` construyen nodos y asignan nombres con `textContent` (DT-01 resuelta). `controller_resumen.js` mantiene `innerHTML` para estructuras y valores numéricos, pero escapa el texto dinámico. `NavigationBuilder` usa `innerHTML` solo con valores controlados por código.
 
-- `controller_dashboard.js` interpola `hogar.nombre` en `innerHTML`.
-- `controller_config_hogar.js` interpola `userData.nombre` en `innerHTML`.
-- `controller_resumen.js` usa `innerHTML` para valores numéricos y textos estáticos, con menor riesgo, pero mantiene el patrón.
-- `NavigationBuilder` usa `innerHTML` con valores controlados por código.
-- `firebase.json` aplica CSP y headers de seguridad; `script-src` aún requiere `'unsafe-inline'` por los scripts inline y los manejadores `onclick` del app shell.
-
-Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de otro miembro al abrir el dashboard. Es un XSS almacenado de prioridad alta aunque el vector requiera que la víctima abra la pantalla afectada.
+`firebase.json` aplica CSP y headers de seguridad; `script-src` aún requiere `'unsafe-inline'` por los scripts inline y los manejadores `onclick` del app shell.
 
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v30.1` y precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v30.2` y precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
 - La instalación es resiliente: `Promise.allSettled` evita que un recurso fallido aborte el `install`; los fallos se registran como advertencia.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
 - Navegación con **Network-First**: intenta la red, actualiza la caché y, si falla, sirve el documento cacheado o `index.html`.
@@ -272,9 +266,9 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 
 | ID | Prioridad | Deuda | Impacto | Acción recomendada |
 |---|---|---|---|---|
-| DT-01 | Alta | XSS almacenado por `innerHTML` con datos de usuario en dashboard y configuración de hogar. | Un nombre de hogar o de miembro puede ejecutar HTML/JS en otra sesión. | Reemplazar interpolaciones por `textContent`/nodos o escapar con un helper único; agregar tests de XSS. |
-| DT-02 | Alta | Contrato roto entre reglas y lecturas de perfiles de otros miembros. | Al desplegar reglas, pueden fallar responsables, historial, resumen y administración de miembros. | Crear una proyección pública de perfiles (`nombre`, avatar) legible por miembros, o resolver nombres mediante Cloud Function/custom claims. |
-| DT-03 | Alta | Unión por código incompatible con la regla `list` de hogares y sujeta a carrera. | El enlace de invitación no funciona con reglas estrictas; dos uniones simultáneas pueden pisar `miembros`. | Modelar invitaciones en subcolección/documento con token, expiración y límites; unir mediante transacción o backend. |
+| DT-01 | Resuelta | XSS almacenado por `innerHTML` con datos de usuario en dashboard y configuración de hogar. | Un nombre de hogar o de miembro puede ejecutar HTML/JS en otra sesión. | Completado: dashboard y configuración de hogar renderizan nombres con `textContent`; el escape HTML queda reservado a plantillas `innerHTML` y ya no se aplica dos veces. |
+| DT-02 | Resuelta | Contrato roto entre reglas y lecturas de perfiles de otros miembros. | Al desplegar reglas, pueden fallar responsables, historial, resumen y administración de miembros. | Completado: proyección `perfiles_publicos` mantenida por `PerfilPublicoService`, legible con `get` autenticado y `list` denegado; los controladores resuelven nombres desde ese servicio. |
+| DT-03 | Resuelta | Unión por código incompatible con la regla `list` de hogares y sujeta a carrera. | El enlace de invitación no funciona con reglas estrictas; dos uniones simultáneas pueden pisar `miembros`. | Completado: invitaciones en subcolección con token `crypto.getRandomValues`, expiración de 48 h, consumo transaccional, revocación y reglas que validan estado y `codigos_usados`. |
 | DT-05 | Alta | Reglas sin despliegue verificado ni pruebas automatizadas de seguridad. | Producción puede seguir con reglas permisivas o romperse al aplicarlas. | Añadir tests con Firebase Emulator Suite, validar en staging y documentar el despliegue. |
 | DT-06 | Resuelta | Firestore estaba accedido directamente desde siete controladores. | Duplicación, reglas de negocio dispersas y difícil testing. | Completado en dos fases: `GastoRepository`, `HogarService` y `PerfilPublicoService` encapsulan Firestore; los controladores ya no importan `firebase/firestore`. |
 | DT-07 | Resuelta | `controller_carga.js` concentraba guardado, dictado/IA y cuotas. | Alto costo de cambio, estados difíciles de seguir y riesgo de regresión. | Completado en dos fases: contexto/responsables/pagos y luego guardado, IA, dictado, modales e inventario. `controller_carga.js` quedó en 551 líneas como coordinador. |
@@ -285,14 +279,13 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-12 | Resuelta | Service Worker cache-first sin estrategia de actualización; precache todo-o-nada. | Usuarios pueden quedar con shell/JS viejo o sin SW si falla un recurso. | Completado con precacheo resiliente, Network-First en navegación, Stale-While-Revalidate en assets y recarga controlada al cambiar el controlador. |
 | DT-13 | Resuelta | Códigos de invitación con `Math.random`, sin expiración ni revocación. | Tokens predecibles, permanentes y sin control de abuso. | Completado: `HogarService` usa `crypto.getRandomValues`, invitaciones con expiración y revocación, y reglas que validan estado, expiración y `codigos_usados`. |
 | DT-14 | Resuelta | Sin `package.json`, lint, tests, build ni integración continua; CDNs sin versión estricta (`lucide@latest`). | Regresiones silenciosas y builds no reproducibles. | Completado: `package.json` con `npm run check` (`node --check` sobre los módulos) y `lucide` fijado en `0.469.0` en todos los HTML. |
-| DT-15 | Resuelta | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Completado: `hogar.html` eliminado y fuera del precache; `CACHE_NAME` unificado en `gastos-v30.1`. |
+| DT-15 | Resuelta | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Completado: `hogar.html` eliminado y fuera del precache; `CACHE_NAME` unificado en `gastos-v30.2`. |
 
 ### Orden sugerido de resolución
 
-1. **DT-02, DT-03 y DT-05:** definir el contrato real de acceso a perfiles e invitaciones, probarlo en emulador y recién después desplegar reglas.
-2. **DT-01 y DT-08:** cerrar XSS y añadir CSP antes de exponer la app a más usuarios.
-3. **DT-07 y DT-09:** dividir la carga y optimizar las lecturas para reducir el costo de los próximos cambios.
-4. **DT-10 a DT-15:** endurecer validaciones, precisión monetaria, PWA y tooling de forma incremental.
+1. **DT-05:** añadir tests con Firebase Emulator Suite para las garantías de seguridad y validar cada cambio de reglas antes de desplegar.
+2. **DT-09:** incorporar paginación, índices y agregaciones cuando el volumen de gastos lo requiera.
+3. **Higiene continua:** mantener `npm run check` en CI, visibilidad de errores de sincronización offline y revisión periódica de la CSP.
 
 ### Criterios de cierre recomendados
 

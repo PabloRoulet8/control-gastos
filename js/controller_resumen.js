@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnGuardarIngreso) {
         btnGuardarIngreso.addEventListener('click', async () => {
-            const concepto = AppUtils.escapeHTML(inputConceptoIngreso.value.trim());
+            const concepto = inputConceptoIngreso.value.trim();
             const monto = inputMontoIngreso.value.trim();
             const toast = new ToastManager();
 

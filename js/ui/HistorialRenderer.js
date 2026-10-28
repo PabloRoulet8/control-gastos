@@ -215,7 +215,7 @@ export class HistorialRenderer {
             Object.entries(mapaNombres).forEach(([uid, nombre]) => {
                 const opt = document.createElement('option');
                 opt.value = uid;
-                opt.textContent = AppUtils.escapeHTML(nombre);
+                opt.textContent = nombre;
                 select.appendChild(opt);
             });
         }
@@ -236,7 +236,7 @@ export class HistorialRenderer {
             categorias.forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat;
-                opt.textContent = AppUtils.escapeHTML(cat);
+                opt.textContent = cat;
                 select.appendChild(opt);
             });
         }
