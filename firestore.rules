@@ -68,6 +68,11 @@ service cloud.firestore {
          (data.get('categoria', '') is string && data.get('categoria', '').size() > 0));
     }
 
+    function responsableDeHogarValido(hogarId) {
+      return request.resource.data.get('tipo', '') == 'pagoDeuda' ||
+        request.resource.data.get('responsable', '') in hogarData(hogarId).get('miembros', []);
+    }
+
     function hogarValido(data) {
       return data.get('nombre', '') is string &&
         data.get('nombre', '').size() > 0 &&
@@ -188,12 +193,16 @@ service cloud.firestore {
         allow read: if isHogarMember(hogarId);
         allow create: if isHogarMember(hogarId) &&
           gastoValido(request.resource.data) &&
-          request.resource.data.get('usuario_id', '') == request.auth.uid;
+          request.resource.data.get('usuario_id', '') == request.auth.uid &&
+          responsableDeHogarValido(hogarId);
         allow update: if isHogarMember(hogarId) &&
           gastoValido(request.resource.data) &&
           resource.data.get('usuario_id', '') == request.auth.uid &&
-          request.resource.data.get('usuario_id', '') == request.auth.uid;
-        allow delete: if isHogarMember(hogarId);
+          request.resource.data.get('usuario_id', '') == request.auth.uid &&
+          responsableDeHogarValido(hogarId);
+        allow delete: if isSignedIn() &&
+          (resource.data.get('usuario_id', '') == request.auth.uid ||
+           isHogarAdmin(hogarId));
       }
 
       match /invitaciones/{codigo} {

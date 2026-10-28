@@ -233,9 +233,10 @@ Las reglas fueron validadas con `firebase deploy --only firestore:rules --dry-ru
 
 ### 4.3 Brechas entre reglas y aplicación
 
-1. **Lecturas de perfiles de otros miembros:** `controller_carga`, `controller_historial`, `controller_resumen` y `controller_config_hogar` hacen `getDoc(/usuarios/{otroUid})` para mostrar nombres. La regla actual solo permite `get` del propio usuario. Con las reglas desplegadas, esas lecturas pueden fallar con `permission-denied`.
-2. **Unión por código de invitación:** `unirseAHogar()` consulta `hogares` por `codigo_invitacion`, pero la regla `list` exige pertenencia. Un usuario nuevo no puede descubrir el hogar y el flujo queda bloqueado.
-3. **Lecturas de hogares:** el flujo normal por `array-contains` sí coincide con la regla de `list`; consultas por código no.
+1. **Lecturas de perfiles de otros miembros:** resueltas con la proyección `perfiles_publicos` (`get` para usuarios autenticados, `list` denegado). `CargaContextService`, `controller_historial`, `controller_resumen` y `controller_config_hogar` leen los nombres desde ese servicio.
+2. **Unión por invitación:** el flujo usa `HogarService.consumirInvitacion` sobre `hogares/{hogarId}/invitaciones/{codigo}`, con token aleatorio, expiración de 48 h, consumo transaccional y revocación. El método legacy `unirseAHogar()` se eliminó.
+3. **Lecturas de hogares:** el flujo normal por `array-contains` coincide con la regla de `list`; no quedan consultas por `codigo_invitacion`.
+4. **Verificación pendiente:** no hay tests con Firebase Emulator Suite que demuestren estas garantías de extremo a extremo (DT-05).
 
 ### 4.4 XSS y manejo de contenido
 
@@ -254,13 +255,14 @@ Un nombre de hogar malicioso puede persistirse y ejecutarse en el navegador de o
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v30.0`, precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v30.1` y precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- La instalación es resiliente: `Promise.allSettled` evita que un recurso fallido aborte el `install`; los fallos se registran como advertencia.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
-- `fetch` es cache-first para todos los GET; si no hay caché, consulta la red y guarda respuestas 200.
-- `firebase.json` envía `Cache-Control: no-cache` para `sw.js`.
-- `pwa.js` registra el Service Worker y llama a `registration.update()`, pero no muestra un aviso de nueva versión ni fuerza recarga.
-- La instalación del Service Worker es todo-o-nada: si falta un recurso de `urlsToCache`, falla el `install`.
-- El `fetch` también intercepta GET de terceros y puede cachear SDKs, fuentes o CDN con respuestas válidas.
+- Navegación con **Network-First**: intenta la red, actualiza la caché y, si falla, sirve el documento cacheado o `index.html`.
+- Assets estáticos con **Stale-While-Revalidate**: responde desde caché y revalida en segundo plano; si no hay coincidencia exacta, reintenta con `ignoreSearch` para reutilizar el precache de las URLs versionadas (`?v=`).
+- Las APIs de Firebase y `/api/` se excluyen del SW; las peticiones a otros orígenes no se interceptan.
+- `firebase.json` envía `Cache-Control: no-cache` para `sw.js` y aplica CSP y cabeceras de seguridad.
+- `pwa.js` registra el Service Worker, llama a `registration.update()` y recarga una sola vez cuando un controlador nuevo toma el control (sin recargar en la primera instalación).
 - El guardado offline no tiene confirmación del servidor ni canal de error de sincronización.
 - `IAService` depende de un backend externo; aplica timeout de 45 segundos, pero no hay reintento automático ni fallback local de interpretación.
 
@@ -283,7 +285,7 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-12 | Resuelta | Service Worker cache-first sin estrategia de actualización; precache todo-o-nada. | Usuarios pueden quedar con shell/JS viejo o sin SW si falla un recurso. | Completado con precacheo resiliente, Network-First en navegación, Stale-While-Revalidate en assets y recarga controlada al cambiar el controlador. |
 | DT-13 | Resuelta | Códigos de invitación con `Math.random`, sin expiración ni revocación. | Tokens predecibles, permanentes y sin control de abuso. | Completado: `HogarService` usa `crypto.getRandomValues`, invitaciones con expiración y revocación, y reglas que validan estado, expiración y `codigos_usados`. |
 | DT-14 | Resuelta | Sin `package.json`, lint, tests, build ni integración continua; CDNs sin versión estricta (`lucide@latest`). | Regresiones silenciosas y builds no reproducibles. | Completado: `package.json` con `npm run check` (`node --check` sobre los módulos) y `lucide` fijado en `0.469.0` en todos los HTML. |
-| DT-15 | Resuelta | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Completado: `hogar.html` eliminado y fuera del precache; `CACHE_NAME` unificado en `gastos-v30.0`. |
+| DT-15 | Resuelta | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Completado: `hogar.html` eliminado y fuera del precache; `CACHE_NAME` unificado en `gastos-v30.1`. |
 
 ### Orden sugerido de resolución
 

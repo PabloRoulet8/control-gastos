@@ -326,39 +326,4 @@ export class GastoRepository {
         
         return { id: docRef.id, nombre: nombreHogar };
     }
-
-    async unirseAHogar(codigoStr) {
-        const usuarioActual = auth.currentUser;
-        if (!usuarioActual) throw new Error("Acceso denegado.");
-
-        const codigoLimpio = codigoStr.trim().toUpperCase();
-
-        const q = query(this.coleccionHogares, where("codigo_invitacion", "==", codigoLimpio));
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) {
-            throw new Error("Código inválido. Revisá bien lo que escribiste.");
-        }
-
-        const hogarDoc = snapshot.docs[0];
-        const hogarData = hogarDoc.data();
-
-        if (hogarData.miembros.includes(usuarioActual.uid)) {
-            throw new Error("Ya sos miembro de este hogar.");
-        }
-
-        const nuevosMiembros = [...hogarData.miembros, usuarioActual.uid];
-        await updateDoc(doc(db, "hogares", hogarDoc.id), { miembros: nuevosMiembros });
-
-        return hogarData.nombre;
-    }
-
-    async obtenerEstadoDeudas(contextoId) {
-        const docSnap = await getDoc(doc(db, "config", `estado_deudas_${contextoId}`));
-        return docSnap.exists() ? docSnap.data() : {};
-    }
-
-    async guardarEstadoDeuda(contextoId, mes, estaSaldado) {
-        await setDoc(doc(db, "config", `estado_deudas_${contextoId}`), { [mes]: estaSaldado }, { merge: true });
-    }
 }

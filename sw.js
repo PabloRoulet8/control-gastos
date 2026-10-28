@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v30.0';
+const CACHE_NAME = 'gastos-v30.1';
 const ROOT_URL = new URL('./', self.location.href).href;
 const INDEX_URL = new URL('./index.html', self.location.href).href;
 const ESTATICOS_REGEX = /\.(?:js|css|png|jpe?g|gif|svg|webp|ico|json|woff2?|ttf)$/i;
@@ -102,6 +102,10 @@ async function estrategiaRedPrimero(request) {
         const cached = await cache.match(request);
         if (cached) return cached;
 
+        // Fallback sin query: permite reutilizar el precache de assets versionados (?v=).
+        const cachedSinQuery = await caches.match(request, { ignoreSearch: true });
+        if (cachedSinQuery) return cachedSinQuery;
+
         if (request.mode === 'navigate') {
             return (await cache.match(INDEX_URL)) || (await cache.match(ROOT_URL)) || Response.error();
         }
@@ -130,6 +134,10 @@ async function estrategiaStaleWhileRevalidate(request, actualizacion) {
     const cached = await cache.match(request);
 
     if (cached) return cached;
+
+    // Fallback sin query: permite reutilizar el precache de assets versionados (?v=).
+    const cachedSinQuery = await caches.match(request, { ignoreSearch: true });
+    if (cachedSinQuery) return cachedSinQuery;
 
     return (await actualizacion) || Response.error();
 }
