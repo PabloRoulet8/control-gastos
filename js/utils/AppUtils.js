@@ -1,6 +1,10 @@
 /**
  * Cerebro de Utilidades - Centraliza lógica repetitiva para evitar Deuda Técnica
  */
+
+// Entidades que pudieron quedar persistidas por versiones anteriores de la app.
+const ENTIDADES_HTML_BASICAS = /&(?:amp|lt|gt|quot|apos|#0*39|#x0*27);/gi;
+
 export const AppUtils = {
     // 1. Capitalizar texto (Ej: "juan" -> "Juan")
     capitalizar: (str) => {
@@ -21,14 +25,41 @@ export const AppUtils = {
 
     // 3. Sanitizador de HTML para evitar XSS (Crucial para la seguridad)
     // Escapa también comillas para que el valor sea seguro tanto en texto como en atributos.
+    // Normaliza entidades antes de escapar: registros antiguos guardados con `&#39;`
+    // o `&amp;` no deben terminar mostrando `&amp;#39;` (doble escape).
     escapeHTML: (str) => {
         if (!str) return "";
-        return String(str)
+        return AppUtils.desescaparHTMLBasico(str)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    },
+
+    // Decodifica solo las entidades básicas que generaba la app. Se repite el
+    // proceso para limpiar textos con más de un nivel de escape, sin tocar
+    // caracteres sueltos como `&` o `<` escritos por el usuario.
+    desescaparHTMLBasico: (str) => {
+        if (str === null || str === undefined) return "";
+        let texto = String(str);
+
+        for (let intento = 0; intento < 3; intento += 1) {
+            const siguiente = texto.replace(ENTIDADES_HTML_BASICAS, (entidad) => {
+                switch (entidad.toLowerCase()) {
+                    case '&amp;': return '&';
+                    case '&lt;': return '<';
+                    case '&gt;': return '>';
+                    case '&quot;': return '"';
+                    default: return "'";
+                }
+            });
+
+            if (siguiente === texto) break;
+            texto = siguiente;
+        }
+
+        return texto;
     },
 
     // 4. Manejador de Fechas (YYYY-MM-DD local)

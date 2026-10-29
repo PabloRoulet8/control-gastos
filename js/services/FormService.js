@@ -112,15 +112,6 @@ export class FormService {
         });
     }
 
-    static escaparHTML(texto) {
-        return String(texto ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
     static determinarTipo(ambito) {
         return ambito === 'hogar' ? 'general' : 'individual';
     }
@@ -158,7 +149,7 @@ export class FormService {
             responsable,
             metodo_pago: String(metodoPago || '').trim().toLowerCase(),
             tipo,
-            referencia: this.escaparHTML(referencia)
+            referencia: String(referencia ?? '').trim()
         };
     }
 
@@ -187,7 +178,8 @@ export class FormService {
 
         const totalRedondeado = AppUtils.redondearMonto(total);
         const montosCuotas = AppUtils.distribuirEnCuotas(totalRedondeado, cuotas);
-        const referenciaSegura = this.escaparHTML(referencia);
+        const referenciaLimpia = String(referencia ?? '').trim();
+        const prefijoReferencia = referenciaLimpia ? `${referenciaLimpia} ` : '';
         const totalFormateado = totalRedondeado.toLocaleString('es-AR', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
@@ -203,7 +195,7 @@ export class FormService {
                 responsable,
                 metodo_pago: String(metodoPago || '').trim().toLowerCase(),
                 tipo,
-                referencia: `${referenciaSegura} (Cuota ${numeroCuota} de ${cuotas}) - Total: $${totalFormateado}`,
+                referencia: `${prefijoReferencia}(Cuota ${numeroCuota} de ${cuotas}) - Total: $${totalFormateado}`,
                 es_cuota: true,
                 compra_id: compraId
             };

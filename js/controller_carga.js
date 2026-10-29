@@ -17,11 +17,28 @@ import { FormUI } from "./ui/FormUI.js";
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
 const API_IA_PING_URL = new URL('/', API_IA_URL).href;
 
+// Despierta Render en segundo plano sin retrasar la carga ni la autenticación.
+const programarDespertarServidorIA = () => {
+    if (!navigator.onLine) return;
+
+    const despertar = () => {
+        IAService.despertarServidor({ url: API_IA_PING_URL }).catch(() => {});
+    };
+
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(despertar, { timeout: 4000 });
+    } else {
+        setTimeout(despertar, 1500);
+    }
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
     const api = new GastoRepository();
     const contextService = new CargaContextService({ repository: api });
     const saveService = new GastoSaveService({ repository: api });
     const toast = new ToastManager();
+
+    programarDespertarServidorIA();
 
     const store = CargaStore.getInstance();
     const urlParams = new URLSearchParams(window.location.search);
@@ -112,12 +129,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inicializarPagina = async (userId) => {
         store.setContexto({ currentUserIdGlobal: userId });
         const { ambitoActual, hogarId, hogarNombre } = store.getState();
-
-        fetch(API_IA_PING_URL, {
-            method: 'GET',
-            mode: 'no-cors',
-            cache: 'no-store'
-        }).catch(() => {});
 
         if (ambitoActual === 'personal') {
             FormUI.actualizarVisibilidadElemento(grupoResponsable, false);

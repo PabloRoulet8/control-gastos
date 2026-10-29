@@ -240,7 +240,7 @@ Las reglas fueron validadas con `firebase deploy --only firestore:rules --dry-ru
 
 ### 4.4 XSS y manejo de contenido
 
-La pantalla de carga está bien protegida: `actualizarTranscripcionUI()` usa `textContent`, `ToastManager` usa `textContent`, `InventarioUI` construye nodos y asigna texto, y `FormService` escapa la referencia antes de persistirla. Los renderizadores aplican `AppUtils.escapeHTML()` únicamente dentro de plantillas `innerHTML`; las asignaciones a `textContent` reciben el valor directo para evitar el doble escape (`&#39;`, `&amp;`).
+La pantalla de carga está bien protegida: `actualizarTranscripcionUI()` usa `textContent`, `ToastManager` usa `textContent`, `InventarioUI` construye nodos y asigna texto, y `FormService` persiste la referencia como texto crudo recortado. Los renderizadores aplican `AppUtils.escapeHTML()` únicamente dentro de plantillas `innerHTML`; `escapeHTML()` normaliza entidades heredadas con `AppUtils.desescaparHTMLBasico()` antes de escapar, de modo que los registros viejos con `&#39;`, `&amp;` o `&quot;` no se muestren como `&amp;#39;`. Las asignaciones a `textContent` reciben el valor directo.
 
 `controller_dashboard.js` y `controller_config_hogar.js` construyen nodos y asignan nombres con `textContent` (DT-01 resuelta). `controller_resumen.js` mantiene `innerHTML` para estructuras y valores numéricos, pero escapa el texto dinámico. `NavigationBuilder` usa `innerHTML` solo con valores controlados por código.
 
@@ -249,16 +249,16 @@ La pantalla de carga está bien protegida: `actualizarTranscripcionUI()` usa `te
 ### 4.5 Resiliencia y PWA
 
 - `firebase-config.js` inicializa Firestore con caché persistente y soporte multitab.
-- `sw.js` usa `gastos-v30.2` y precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
+- `sw.js` usa `gastos-v30.3` y precachea páginas, estilos, módulos, controladores, renderizadores, utilidades e iconos.
 - La instalación es resiliente: `Promise.allSettled` evita que un recurso fallido aborte el `install`; los fallos se registran como advertencia.
 - `activate` elimina cachés anteriores y aplica `clients.claim()`.
 - Navegación con **Network-First**: intenta la red, actualiza la caché y, si falla, sirve el documento cacheado o `index.html`.
 - Assets estáticos con **Stale-While-Revalidate**: responde desde caché y revalida en segundo plano; si no hay coincidencia exacta, reintenta con `ignoreSearch` para reutilizar el precache de las URLs versionadas (`?v=`).
 - Las APIs de Firebase y `/api/` se excluyen del SW; las peticiones a otros orígenes no se interceptan.
 - `firebase.json` envía `Cache-Control: no-cache` para `sw.js` y aplica CSP y cabeceras de seguridad.
-- `pwa.js` registra el Service Worker, llama a `registration.update()` y recarga una sola vez cuando un controlador nuevo toma el control (sin recargar en la primera instalación).
+- `pwa.js` registra el Service Worker, llama a `registration.update()` y recarga una sola vez cuando un controlador nuevo toma el control (sin recargar en la primera instalación). También escucha los eventos `online`/`offline` y muestra un aviso no intrusivo sobre el modo sin conexión y la sincronización al reconectar.
 - El guardado offline no tiene confirmación del servidor ni canal de error de sincronización.
-- `IAService` depende de un backend externo; aplica timeout de 45 segundos, pero no hay reintento automático ni fallback local de interpretación.
+- `IAService` depende de un backend externo; aplica timeout de 45 segundos, pero no hay reintento automático ni fallback local de interpretación. Al abrir la pantalla de carga ejecuta `despertarServidor()` para mitigar el cold start de Render (ping silencioso con timeout de 8 s y límite de una vez cada 10 minutos por sesión).
 
 ## 5. Deuda Técnica
 
@@ -279,7 +279,7 @@ La deuda se ordena por prioridad de riesgo. “Alta” significa que puede bloqu
 | DT-12 | Resuelta | Service Worker cache-first sin estrategia de actualización; precache todo-o-nada. | Usuarios pueden quedar con shell/JS viejo o sin SW si falla un recurso. | Completado con precacheo resiliente, Network-First en navegación, Stale-While-Revalidate en assets y recarga controlada al cambiar el controlador. |
 | DT-13 | Resuelta | Códigos de invitación con `Math.random`, sin expiración ni revocación. | Tokens predecibles, permanentes y sin control de abuso. | Completado: `HogarService` usa `crypto.getRandomValues`, invitaciones con expiración y revocación, y reglas que validan estado, expiración y `codigos_usados`. |
 | DT-14 | Resuelta | Sin `package.json`, lint, tests, build ni integración continua; CDNs sin versión estricta (`lucide@latest`). | Regresiones silenciosas y builds no reproducibles. | Completado: `package.json` con `npm run check` (`node --check` sobre los módulos) y `lucide` fijado en `0.469.0` en todos los HTML. |
-| DT-15 | Resuelta | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Completado: `hogar.html` eliminado y fuera del precache; `CACHE_NAME` unificado en `gastos-v30.2`. |
+| DT-15 | Resuelta | `hogar.html` legacy, IDs de configuración por `split('_')`, doble escape HTML y versiones de caché inconsistentes. | Ruido, fragilidad y comportamiento sutil inesperado. | Completado: `hogar.html` eliminado y fuera del precache; `CACHE_NAME` unificado en `gastos-v30.3`. |
 
 ### Orden sugerido de resolución
 

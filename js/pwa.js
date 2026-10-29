@@ -76,6 +76,72 @@
         document.getElementById('banner-instalar-pwa')?.remove();
     });
 
+    const AVISO_CONEXION_ID = 'aviso-conexion';
+    let avisoConexionTimer = null;
+
+    function mostrarAvisoConexion(mensaje, esOnline) {
+        let aviso = document.getElementById(AVISO_CONEXION_ID);
+
+        if (!aviso) {
+            aviso = document.createElement('div');
+            aviso.id = AVISO_CONEXION_ID;
+            aviso.setAttribute('role', 'status');
+            aviso.setAttribute('aria-live', 'polite');
+            aviso.style.cssText = [
+                'position: fixed',
+                'top: 14px',
+                'left: 50%',
+                'transform: translate(-50%, -8px)',
+                'z-index: 10000',
+                'max-width: calc(100% - 32px)',
+                'padding: 10px 18px',
+                'border-radius: 999px',
+                'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25)',
+                'color: #ffffff',
+                'font-family: inherit',
+                'font-size: 13px',
+                'font-weight: 600',
+                'line-height: 1.35',
+                'text-align: center',
+                'opacity: 0',
+                'pointer-events: none',
+                'transition: opacity 0.25s ease, transform 0.25s ease'
+            ].join(';');
+            document.body.appendChild(aviso);
+        }
+
+        aviso.textContent = mensaje;
+        aviso.style.background = esOnline
+            ? 'rgba(16, 185, 129, 0.96)'
+            : 'rgba(245, 158, 11, 0.96)';
+
+        // Reinicia la transición si el aviso ya estaba visible.
+        void aviso.offsetWidth;
+        aviso.style.opacity = '1';
+        aviso.style.transform = 'translate(-50%, 0)';
+
+        if (avisoConexionTimer) clearTimeout(avisoConexionTimer);
+        avisoConexionTimer = setTimeout(function () {
+            aviso.style.opacity = '0';
+            aviso.style.transform = 'translate(-50%, -8px)';
+            avisoConexionTimer = null;
+        }, 5000);
+    }
+
+    window.addEventListener('offline', function () {
+        mostrarAvisoConexion(
+            'Modo sin conexión activo: los gastos se guardarán en el dispositivo',
+            false
+        );
+    });
+
+    window.addEventListener('online', function () {
+        mostrarAvisoConexion(
+            'Conexión restablecida: sincronizando datos con la nube',
+            true
+        );
+    });
+
     if (!('serviceWorker' in navigator)) return;
 
     let primeraTomaDeControl = !navigator.serviceWorker.controller;

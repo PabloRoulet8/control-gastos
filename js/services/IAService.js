@@ -1,4 +1,60 @@
 export class IAService {
+    static URL_BACKEND = 'https://control-gastos-backend-o6nv.onrender.com/';
+    static WAKEUP_STORAGE_KEY = 'ia_wakeup_ultimo_intento';
+    static WAKEUP_INTERVALO_MS = 10 * 60 * 1000;
+    static WAKEUP_TIMEOUT_MS = 8000;
+
+    static obtenerSessionStorage() {
+        try {
+            return typeof window !== 'undefined' ? window.sessionStorage : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    /**
+     * Despierta el backend de IA alojado en Render para mitigar el cold start.
+     * Es silencioso, no bloqueante y se ejecuta como máximo una vez cada 10 minutos
+     * por sesión de navegador. Nunca lanza errores.
+     * @returns {Promise<boolean>} `true` si se intentó el ping y respondió.
+     */
+    static async despertarServidor({
+        url = IAService.URL_BACKEND,
+        timeoutMs = IAService.WAKEUP_TIMEOUT_MS,
+        intervaloMs = IAService.WAKEUP_INTERVALO_MS,
+        storage = IAService.obtenerSessionStorage()
+    } = {}) {
+        if (!url) return false;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+
+        try {
+            const ahora = Date.now();
+            const ultimoIntento = Number(storage?.getItem(IAService.WAKEUP_STORAGE_KEY)) || 0;
+            if (ahora - ultimoIntento < intervaloMs) return false;
+            storage?.setItem(IAService.WAKEUP_STORAGE_KEY, String(ahora));
+        } catch (error) {
+            // sessionStorage puede estar bloqueado (modo privado, políticas del navegador).
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            const respuesta = await fetch(url, {
+                method: 'GET',
+                mode: 'no-cors',
+                cache: 'no-store',
+                signal: controller.signal
+            });
+
+            return respuesta.type === 'opaque' ? true : respuesta.ok;
+        } catch (error) {
+            return false;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
     static async procesarTexto({
         texto,
         categoriasDisponibles = [],

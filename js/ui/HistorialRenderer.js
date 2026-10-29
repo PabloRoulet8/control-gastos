@@ -180,7 +180,8 @@ export class HistorialRenderer {
                 const etiquetaCategoria = esPago ? 'Pago de Deuda' : AppUtils.escapeHTML(gasto.categoria || 'Sin categoría');
                 const metodoPago = gasto.metodo_pago ? ` • ${AppUtils.escapeHTML(gasto.metodo_pago)}` : '';
                 
-                // Extraemos la referencia / detalle de la cuota y la mostramos bonita debajo del título
+                // La referencia se persiste como texto crudo. `escapeHTML` normaliza
+                // entidades heredadas antes de escapar para evitar el doble escape.
                 const refHtml = gasto.referencia ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${AppUtils.escapeHTML(gasto.referencia)}</div>` : '';
                 
                 // Sacamos el símbolo $ harcodeado del HTML porque AppUtils.formatearARS ya lo incluye
