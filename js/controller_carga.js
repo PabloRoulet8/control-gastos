@@ -80,6 +80,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputInvCantidad = document.getElementById('inv-cant');
     const inputInvPrecio = document.getElementById('inv-precio');
     const inputInvUnidad = document.getElementById('inv-unid');
+    const contenedorLimpiar = document.getElementById('acciones-limpiar');
+
+    const actualizarVisibilidadLimpiar = FormUI.configurarVisibilidadBotonLimpiar({
+        contenedorLimpiar,
+        campos: [inputMontoGlobal, selectCategoria, inputReferencia]
+    });
 
     const contextoInicial = store.getState();
     NavigationBuilder.buildConfigButton(contextoInicial.ambitoActual, contextoInicial.hogarId);
@@ -228,6 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             actualizarOpcionFondo();
+            actualizarVisibilidadLimpiar();
             await solicitarPermisoMicrofonoInicial();
         } catch (error) {
             console.error("Error cargando perfil:", error);
@@ -328,6 +335,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (resultado.completados.length > 0) {
             toast.mostrar(`✅ Listo: ${resultado.completados.join(', ')}. Revisá y guardá.`, 'success');
         }
+
+        actualizarVisibilidadLimpiar();
     };
 
     const procesarConIA = async (texto) => {
@@ -483,7 +492,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             checkEsCuotas,
             divCuotasConfig,
             inputCantidadCuotas,
-            checkPostCierre
+            checkPostCierre,
+            contenedorLimpiar
         });
 
         actualizarOpcionFondo();
@@ -613,7 +623,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     checkEsCuotas,
                     divCuotasConfig,
                     inputCantidadCuotas,
-                    checkPostCierre
+                    checkPostCierre,
+                    contenedorLimpiar
                 });
 
                 actualizarOpcionFondo();

@@ -63,6 +63,37 @@ export class FormUI {
         elemento.style.display = visible ? 'block' : 'none';
     }
 
+    static hayDatosEnCampos(campos = []) {
+        return (Array.isArray(campos) ? campos : []).some(campo => (
+            String(campo?.value ?? '').trim() !== ''
+        ));
+    }
+
+    static actualizarVisibilidadBotonLimpiar({ contenedorLimpiar, campos = [] } = {}) {
+        FormUI.actualizarVisibilidadElemento(
+            contenedorLimpiar,
+            FormUI.hayDatosEnCampos(campos)
+        );
+    }
+
+    static configurarVisibilidadBotonLimpiar({ contenedorLimpiar, campos = [] } = {}) {
+        const listaCampos = Array.isArray(campos) ? campos : [];
+        const actualizar = () => FormUI.actualizarVisibilidadBotonLimpiar({
+            contenedorLimpiar,
+            campos: listaCampos
+        });
+
+        listaCampos.forEach(campo => {
+            if (!campo) return;
+            campo.addEventListener('input', actualizar);
+            campo.addEventListener('change', actualizar);
+        });
+
+        actualizar();
+
+        return actualizar;
+    }
+
     static actualizarOpcionFondo({
         grupoFondo,
         checkPagadoFondo,
@@ -491,7 +522,8 @@ export class FormUI {
         checkEsCuotas,
         divCuotasConfig,
         inputCantidadCuotas,
-        checkPostCierre
+        checkPostCierre,
+        contenedorLimpiar
     } = {}) {
         if (formGasto) formGasto.reset();
         if (inputMonto) {
@@ -503,6 +535,7 @@ export class FormUI {
         FormUI.actualizarVisibilidadElemento(seccionStockUI, false);
         FormUI.actualizarVisibilidadElemento(contenedorOpcionCuotas, false);
         FormUI.actualizarVisibilidadElemento(grupoFondo, false);
+        FormUI.actualizarVisibilidadElemento(contenedorLimpiar, false);
 
         if (checkPagadoFondo) {
             checkPagadoFondo.checked = checkPagadoFondo.defaultChecked;
