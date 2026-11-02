@@ -206,9 +206,11 @@ export class ResumenService {
                 let montoAImputarCentavos = montoOriginalCentavos;
                 const catNorm = this._normalizarCategoria(g.categoria);
                 const fondoId = catAFondo[catNorm];
+                const usaFondoComun = g.usar_fondo === true;
 
-                // 2. APLICAMOS EL ESCUDO DEL PRESUPUESTO
-                if (fondoId && saldosFondos[fondoId] > 0) {
+                // 2. APLICAMOS EL ESCUDO DEL PRESUPUESTO SOLO SI SE PAGÓ DEL FONDO.
+                // Los gastos sin el campo (legacy) se consideran pagados del bolsillo.
+                if (usaFondoComun && fondoId && saldosFondos[fondoId] > 0) {
                     const saldoDisponibleCentavos = saldosFondos[fondoId];
                     const montoCubiertoCentavos = Math.min(montoAImputarCentavos, saldoDisponibleCentavos);
                     saldosFondos[fondoId] -= montoCubiertoCentavos;

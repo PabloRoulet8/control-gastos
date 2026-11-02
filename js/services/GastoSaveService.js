@@ -29,6 +29,9 @@ export class GastoSaveService {
         const responsable = ambitoActual === 'hogar'
             ? datosFormulario.responsable
             : userId;
+        const usarFondo = ambitoActual === 'hogar'
+            ? Boolean(datosFormulario.usarFondo)
+            : undefined;
         const contextoGuardado = FormService.construirContexto(ambitoActual, hogarId);
         const fecha = AppUtils.getFechaLocal();
         const montoExacto = AppUtils.redondearMonto(validacion.monto);
@@ -47,7 +50,8 @@ export class GastoSaveService {
                 responsable,
                 metodoPago: datosFormulario.metodoPago,
                 tipo,
-                referencia: datosFormulario.referencia
+                referencia: datosFormulario.referencia,
+                usarFondo
             });
 
             if (!nuevoGasto) {
@@ -68,7 +72,8 @@ export class GastoSaveService {
             referencia: datosFormulario.referencia,
             cantidadCuotas: datosFormulario.cantidadCuotas,
             postCierre: datosFormulario.postCierre,
-            compraId: 'cuotas_' + Date.now()
+            compraId: 'cuotas_' + Date.now(),
+            usarFondo
         });
 
         if (gastosCuota.length === 0) {

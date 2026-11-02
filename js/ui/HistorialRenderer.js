@@ -179,6 +179,23 @@ export class HistorialRenderer {
                 
                 const etiquetaCategoria = esPago ? 'Pago de Deuda' : AppUtils.escapeHTML(gasto.categoria || 'Sin categoría');
                 const metodoPago = gasto.metodo_pago ? ` • ${AppUtils.escapeHTML(gasto.metodo_pago)}` : '';
+
+                let nombreResponsable = mapaNombres?.[idDelResponsable] || '';
+                if (esPago) {
+                    const pagador = mapaNombres?.[gasto.pagador_id] || '';
+                    const receptor = mapaNombres?.[gasto.receptor_id] || '';
+                    nombreResponsable = pagador && receptor
+                        ? `${pagador} → ${receptor}`
+                        : (pagador || receptor);
+                }
+
+                const responsableMeta = nombreResponsable
+                    ? ` • <span style="color: var(--text-muted);">${AppUtils.escapeHTML(nombreResponsable)}</span>`
+                    : '';
+
+                const fondoMeta = typeof gasto.usar_fondo === 'boolean'
+                    ? ` • <span style="color: ${gasto.usar_fondo ? '#10b981' : '#94a3b8'};" title="${gasto.usar_fondo ? 'Pagado con plata del fondo común' : 'Pagado del bolsillo del responsable'}">${gasto.usar_fondo ? 'Fondo común' : 'Bolsillo'}</span>`
+                    : '';
                 
                 // La referencia se persiste como texto crudo. `escapeHTML` normaliza
                 // entidades heredadas antes de escapar para evitar el doble escape.
@@ -189,7 +206,7 @@ export class HistorialRenderer {
                     <div class="gasto-info">
                         <strong>${etiquetaCategoria}</strong> 
                         ${refHtml}
-                        <span class="fecha">${fechaCorta}${metodoPago}</span>
+                        <span class="fecha">${fechaCorta}${metodoPago}${responsableMeta}${fondoMeta}</span>
                     </div>
                     <div class="gasto-acciones">
                         <span class="monto" style="color: ${colorMonto};">${prefijoMonto}${AppUtils.formatearARS(gasto.monto)}</span>

@@ -5,6 +5,12 @@
         event.preventDefault();
         deferredInstallPrompt = event;
 
+        try {
+            if (sessionStorage.getItem('pwa_banner_dismissed') === '1') return;
+        } catch (error) {
+            // sessionStorage puede fallar en modo privado; se muestra igual.
+        }
+
         if (document.getElementById('banner-instalar-pwa')) return;
 
         const banner = document.createElement('div');
@@ -15,8 +21,8 @@
             'position: fixed',
             'left: 16px',
             'right: 16px',
-            'bottom: 16px',
-            'z-index: 9999',
+            'bottom: calc(78px + env(safe-area-inset-bottom, 0px))',
+            'z-index: 9000',
             'display: flex',
             'align-items: center',
             'justify-content: space-between',
@@ -26,14 +32,19 @@
             'background: linear-gradient(135deg, #1f2937, #111827)',
             'color: #ffffff',
             'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35)',
-            'font-family: inherit'
+            'font-family: inherit',
+            'box-sizing: border-box'
         ].join(';');
 
         const texto = document.createElement('div');
+        texto.style.cssText = 'flex: 1; min-width: 0;';
         texto.innerHTML = [
             '<strong style="display:block;font-size:15px;">📲 Instalar App</strong>',
             '<span style="font-size:12px;opacity:0.85;">Accedé más rápido y sin navegador</span>'
         ].join('');
+
+        const acciones = document.createElement('div');
+        acciones.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;';
 
         const boton = document.createElement('button');
         boton.id = 'btn-instalar-pwa';
@@ -66,8 +77,38 @@
             banner.remove();
         });
 
+        const cerrar = document.createElement('button');
+        cerrar.id = 'btn-cerrar-banner-pwa';
+        cerrar.type = 'button';
+        cerrar.setAttribute('aria-label', 'Cerrar aviso de instalación');
+        cerrar.textContent = '✕';
+        cerrar.style.cssText = [
+            'border: none',
+            'border-radius: 50%',
+            'width: 30px',
+            'height: 30px',
+            'padding: 0',
+            'background: rgba(255, 255, 255, 0.14)',
+            'color: #ffffff',
+            'font-size: 16px',
+            'line-height: 1',
+            'cursor: pointer',
+            'flex-shrink: 0'
+        ].join(';');
+
+        cerrar.addEventListener('click', function () {
+            try {
+                sessionStorage.setItem('pwa_banner_dismissed', '1');
+            } catch (error) {
+                // Si sessionStorage no está disponible, igual ocultamos el banner.
+            }
+            banner.remove();
+        });
+
+        acciones.appendChild(boton);
+        acciones.appendChild(cerrar);
         banner.appendChild(texto);
-        banner.appendChild(boton);
+        banner.appendChild(acciones);
         document.body.appendChild(banner);
     });
 

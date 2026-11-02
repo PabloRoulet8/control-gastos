@@ -70,6 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 if(filtroTipoGroup) filtroTipoGroup.style.display = 'none';
                 if(filtroResponsableGroup) filtroResponsableGroup.style.display = 'none';
+
+                // En el historial personal también mostramos quién realizó
+                // el gasto cuando el documento trae `responsable`.
+                const perfil = await PerfilPublicoService.obtener(user.uid);
+                mapaNombres[user.uid] = perfil?.nombre || user.displayName || 'Usuario';
             }
             
             await cargarFiltroCategorias(user.uid);

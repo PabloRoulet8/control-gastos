@@ -56,6 +56,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const subtituloHeader = document.querySelector('.container h2');
     const grupoResponsable = document.getElementById('responsable-group');
     const grupoReferencia = document.getElementById('referencia-group');
+    const grupoFondo = document.getElementById('fondo-group');
+    const checkPagadoFondo = document.getElementById('pagado-fondo');
+    const descripcionFondo = document.getElementById('fondo-desc');
+    let presupuestosHogar = [];
+    let fondoVisibleAnterior = false;
     const inputMontoGlobal = document.getElementById('monto');
     const inputReferencia = document.getElementById('referencia');
     const listaUI = document.getElementById('lista-inventario');
@@ -78,6 +83,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     const contextoInicial = store.getState();
     NavigationBuilder.buildConfigButton(contextoInicial.ambitoActual, contextoInicial.hogarId);
     NavigationBuilder.buildNav(contextoInicial.ambitoActual, contextoInicial.hogarId, 'carga');
+
+    const obtenerFondoDeCategoria = (categoriaValor) => {
+        if (!categoriaValor) return null;
+        const categoriaNorm = CategoryService.normalizarTexto(categoriaValor);
+
+        return presupuestosHogar.find(fondo =>
+            (fondo.categorias || []).some(categoria =>
+                CategoryService.normalizarTexto(categoria) === categoriaNorm
+            )
+        ) || null;
+    };
+
+    const actualizarOpcionFondo = () => {
+        const { ambitoActual } = store.getState();
+        const fondo = ambitoActual === 'hogar'
+            ? obtenerFondoDeCategoria(selectCategoria?.value)
+            : null;
+        const correspondeAFondo = Boolean(fondo);
+
+        // Al entrar a una categoría con fondo, arranca marcado por defecto.
+        if (correspondeAFondo && !fondoVisibleAnterior && checkPagadoFondo) {
+            checkPagadoFondo.checked = true;
+        }
+
+        fondoVisibleAnterior = correspondeAFondo;
+
+        FormUI.actualizarOpcionFondo({
+            grupoFondo,
+            checkPagadoFondo,
+            descripcionFondo,
+            fondo,
+            visible: correspondeAFondo
+        });
+    };
 
     const guardarBorradorStock = () => {
         const { currentUserIdGlobal, ambitoActual, hogarId, arrayInventario } = store.getState();
@@ -142,6 +181,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 hogarNombre
             });
 
+            presupuestosHogar = ambitoActual === 'hogar' && contexto.hogar
+                ? (contexto.hogar.presupuestos_compartidos || [])
+                : [];
+
             if (Array.isArray(contexto.categorias)) {
                 store.setCategorias(contexto.categorias);
             }
@@ -183,6 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 );
             }
 
+            actualizarOpcionFondo();
             await solicitarPermisoMicrofonoInicial();
         } catch (error) {
             console.error("Error cargando perfil:", error);
@@ -215,6 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 selectCategoria,
                 CategoryService.prepararCategorias(listaCategorias)
             );
+            actualizarOpcionFondo();
         }
     });
 
@@ -424,6 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             checkPostCierre
         });
 
+        actualizarOpcionFondo();
         store.setInventario([]);
         toast.mostrar('Inventario y formulario limpiados.', 'info');
     };
@@ -444,6 +490,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         seccionStockUI,
         grupoReferencia
     });
+
+    selectCategoria?.addEventListener('change', actualizarOpcionFondo);
 
     FormUI.configurarEventosPago({
         selectMetodoPago,
@@ -505,7 +553,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     grupoReferencia,
                     checkEsCuotas,
                     inputCantidadCuotas,
-                    checkPostCierre
+                    checkPostCierre,
+                    grupoFondo,
+                    checkPagadoFondo
                 });
 
                 const {
@@ -546,6 +596,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     checkPostCierre
                 });
 
+                actualizarOpcionFondo();
                 store.setInventario([]);
             } catch (err) {
                 console.error(err);

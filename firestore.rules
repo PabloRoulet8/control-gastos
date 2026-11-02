@@ -66,6 +66,7 @@ service cloud.firestore {
         data.get('fecha', '') is string &&
         data.get('fecha', '').size() >= 8 &&
         data.get('fecha', '').size() <= 30 &&
+        data.get('usar_fondo', false) is bool &&
         (data.get('tipo', '') == 'pagoDeuda' ||
          (data.get('categoria', '') is string && data.get('categoria', '').size() > 0));
     }

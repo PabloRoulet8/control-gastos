@@ -63,6 +63,28 @@ export class FormUI {
         elemento.style.display = visible ? 'block' : 'none';
     }
 
+    static actualizarOpcionFondo({
+        grupoFondo,
+        checkPagadoFondo,
+        descripcionFondo,
+        fondo = null,
+        visible = false
+    } = {}) {
+        const correspondeAFondo = Boolean(visible && fondo);
+
+        FormUI.actualizarVisibilidadElemento(grupoFondo, correspondeAFondo);
+
+        if (descripcionFondo) {
+            descripcionFondo.textContent = correspondeAFondo
+                ? `Se descuenta de «${fondo.nombre}» (${AppUtils.formatearARS(fondo.monto)}). Si lo pagó del bolsillo del responsable, desmarcá.`
+                : '';
+        }
+
+        if (checkPagadoFondo) {
+            checkPagadoFondo.disabled = !correspondeAFondo;
+        }
+    }
+
     static aplicarContextoCarga({
         tituloHeader,
         subtituloHeader,
@@ -420,7 +442,9 @@ export class FormUI {
         grupoReferencia,
         checkEsCuotas,
         inputCantidadCuotas,
-        checkPostCierre
+        checkPostCierre,
+        grupoFondo,
+        checkPagadoFondo
     } = {}) {
         const categoria = selectCategoria?.value
             ? selectCategoria.options[selectCategoria.selectedIndex]?.text || ''
@@ -436,6 +460,12 @@ export class FormUI {
             referencia = inputReferencia.value.trim();
         }
 
+        const usarFondo = Boolean(
+            grupoFondo &&
+            grupoFondo.style.display !== 'none' &&
+            checkPagadoFondo?.checked
+        );
+
         return {
             monto: inputMonto?.value || '',
             categoria,
@@ -444,7 +474,8 @@ export class FormUI {
             esCuotas,
             cantidadCuotas,
             postCierre,
-            referencia
+            referencia,
+            usarFondo
         };
     }
 

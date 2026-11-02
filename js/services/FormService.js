@@ -134,7 +134,8 @@ export class FormService {
         responsable,
         metodoPago,
         tipo,
-        referencia = ''
+        referencia = '',
+        usarFondo
     }) {
         const montoNumerico = this.parsearMonto(monto);
         if (montoNumerico === null) return null;
@@ -149,7 +150,8 @@ export class FormService {
             responsable,
             metodo_pago: String(metodoPago || '').trim().toLowerCase(),
             tipo,
-            referencia: String(referencia ?? '').trim()
+            referencia: String(referencia ?? '').trim(),
+            ...(typeof usarFondo === 'boolean' ? { usar_fondo: usarFondo } : {})
         };
     }
 
@@ -163,7 +165,8 @@ export class FormService {
         referencia = '',
         cantidadCuotas,
         postCierre = false,
-        compraId
+        compraId,
+        usarFondo
     }) {
         const total = this.parsearMonto(montoTotal);
         const cuotas = this.normalizarCantidadCuotas(cantidadCuotas);
@@ -176,6 +179,7 @@ export class FormService {
         const fechas = this.calcularFechasCuotas(fecha, cuotas, postCierre);
         if (fechas.length !== cuotas) return [];
 
+        const camposFondo = typeof usarFondo === 'boolean' ? { usar_fondo: usarFondo } : {};
         const totalRedondeado = AppUtils.redondearMonto(total);
         const montosCuotas = AppUtils.distribuirEnCuotas(totalRedondeado, cuotas);
         const referenciaLimpia = String(referencia ?? '').trim();
@@ -197,7 +201,8 @@ export class FormService {
                 tipo,
                 referencia: `${prefijoReferencia}(Cuota ${numeroCuota} de ${cuotas}) - Total: $${totalFormateado}`,
                 es_cuota: true,
-                compra_id: compraId
+                compra_id: compraId,
+                ...camposFondo
             };
         });
     }
