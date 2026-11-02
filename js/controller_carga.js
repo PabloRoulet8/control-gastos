@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 signal: controller.signal,
                 auth,
                 apiUrl: API_IA_URL,
-                timeoutMs: 45000
+                timeoutMs: 65000
             });
 
             if (idProcesamiento !== idProcesamientoIA) return;

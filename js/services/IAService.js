@@ -61,7 +61,7 @@ export class IAService {
         signal,
         auth,
         apiUrl,
-        timeoutMs = 45000
+        timeoutMs = 65000
     } = {}) {
         const usuarioActual = auth?.currentUser;
 

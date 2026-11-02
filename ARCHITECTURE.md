@@ -94,7 +94,7 @@ La dirección esperada es `controlador -> servicio/store -> repositorio -> Fireb
 | `ResumenService` | Calcula totales personales, fondos, aportes, deudas y compensaciones del hogar. |
 | `DraftService` | Guarda, carga y limpia borradores en `localStorage` por usuario, ámbito y hogar. |
 | `VoiceService` | Encapsula Web Speech API, estados, reinicios y consolidación de transcripción. |
-| `IAService` | Envía texto autenticado al backend de IA, aplica timeout de 45 segundos y traduce errores HTTP. |
+| `IAService` | Envía texto autenticado al backend de IA, aplica timeout de 65 segundos y traduce errores HTTP. |
 | `CargaStore` | Único estado de la pantalla de carga y notificaciones a suscriptores. |
 | `FormUI`, `InventarioUI` | Renderizado y lectura del formulario, contexto inicial, responsables, cuotas, dictado, datos de IA, modales y alta rápida del inventario. |
 | `ResumenRenderer`, `HistorialRenderer`, `PerfilRenderer`, `AdminHogarRenderer` | Renderizado de sus pantallas, con distinto grado de aislamiento. |
@@ -176,7 +176,7 @@ La separación física por ámbito es correcta: los gastos personales viven bajo
 
 ### 3.2 Carga manual, voz e IA
 
-La carga manual y la dictada comparten el mismo formulario y las mismas validaciones. La voz no guarda directamente: primero transcribe, luego el backend interpreta el texto y finalmente el usuario puede revisar y corregir los campos. La llamada de IA tiene `AbortController`, timeout de 45 segundos y distintos mensajes para timeout, error de red o error del servidor.
+La carga manual y la dictada comparten el mismo formulario y las mismas validaciones. La voz no guarda directamente: primero transcribe, luego el backend interpreta el texto y finalmente el usuario puede revisar y corregir los campos. La llamada de IA tiene `AbortController`, timeout de 65 segundos y distintos mensajes para timeout, error de red o error del servidor.
 
 El inventario se mantiene en `CargaStore` y `InventarioService` normaliza unidades y fusiona productos equivalentes. `InventarioUI` dibuja el estado, gestiona el alta rápida y notifica la eliminación mediante callback.
 
@@ -258,7 +258,7 @@ La pantalla de carga está bien protegida: `actualizarTranscripcionUI()` usa `te
 - `firebase.json` envía `Cache-Control: no-cache` para `sw.js` y aplica CSP y cabeceras de seguridad.
 - `pwa.js` registra el Service Worker, llama a `registration.update()` y recarga una sola vez cuando un controlador nuevo toma el control (sin recargar en la primera instalación). También escucha los eventos `online`/`offline` y muestra un aviso no intrusivo sobre el modo sin conexión y la sincronización al reconectar.
 - El guardado offline no tiene confirmación del servidor ni canal de error de sincronización.
-- `IAService` depende de un backend externo; aplica timeout de 45 segundos, pero no hay reintento automático ni fallback local de interpretación. Al abrir la pantalla de carga ejecuta `despertarServidor()` para mitigar el cold start de Render (ping silencioso con timeout de 8 s y límite de una vez cada 10 minutos por sesión).
+- `IAService` depende de un backend externo; aplica timeout de 65 segundos, pero no hay reintento automático ni fallback local de interpretación. Al abrir la pantalla de carga ejecuta `despertarServidor()` para mitigar el cold start de Render (ping silencioso con timeout de 8 s y límite de una vez cada 10 minutos por sesión).
 
 ## 5. Deuda Técnica
 
