@@ -160,6 +160,16 @@ export class ResumenRenderer {
         const saldoMesSeleccionado = Number(deudas.saldoMesSeleccionado) || 0;
         const hayArrastre = Math.abs(saldoMesesAnteriores) >= 0.005;
 
+        // Posición del usuario logueado en cada período (misma convención que las
+        // compensaciones): balance positivo = aportó de más (a favor, le deben),
+        // negativo = debe (en contra). El servicio expone el balance por usuario.
+        const saldoUsuarioMesesAnteriores = Number(deudas.saldosMesesAnterioresPorUsuario?.[currentUserId]) || 0;
+        const saldoUsuarioMesSeleccionado = Number(deudas.saldosMesSeleccionadoPorUsuario?.[currentUserId]) || 0;
+        const colorSaldoPeriodo = (saldo) => {
+            if (Math.abs(saldo) < 0.005) return 'var(--text-main)';
+            return saldo > 0 ? '#10b981' : '#ff5252';
+        };
+
         let htmlDeudas = '';
         if (compensaciones.length === 0) {
              htmlDeudas = '<li class="text-center text-muted" style="padding: 20px 0;">¡Cuentas claras! Nadie debe nada. <i data-lucide="check-circle"></i></li>';
@@ -259,7 +269,7 @@ export class ResumenRenderer {
                                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Saldo Total Acumulado</span>
                                <span style="font-size: 1.35rem; font-weight: 800; color: ${Math.abs(saldoTotalAcumulado) < 0.005 ? 'var(--text-main)' : '#d32f2f'};">${AppUtils.formatearARS(saldoTotalAcumulado)}</span>
                           </div>
-                          ${hayArrastre ? `<div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">(Meses anteriores: ${AppUtils.formatearARS(saldoMesesAnteriores)} · Este mes: ${AppUtils.formatearARS(saldoMesSeleccionado)})</div>` : ''}
+                          ${hayArrastre ? `<div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">(Meses anteriores: <span style="color: ${colorSaldoPeriodo(saldoUsuarioMesesAnteriores)}; font-weight: 600;">${AppUtils.formatearARS(saldoMesesAnteriores)}</span> · Este mes: <span style="color: ${colorSaldoPeriodo(saldoUsuarioMesSeleccionado)}; font-weight: 600;">${AppUtils.formatearARS(saldoMesSeleccionado)}</span>)</div>` : ''}
                      </div>
                      <p class="text-sm-gray mb-15">Quién le transfiere a quién para quedar a mano:</p>
                      <ul class="lista-minimal">

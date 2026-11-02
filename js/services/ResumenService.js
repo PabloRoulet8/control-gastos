@@ -157,6 +157,8 @@ export class ResumenService {
             saldoTotalAcumulado: 0,
             saldoMesesAnteriores: 0,
             saldoMesSeleccionado: 0,
+            saldosMesesAnterioresPorUsuario: {},
+            saldosMesSeleccionadoPorUsuario: {},
             hayArrastre: false
         };
 
@@ -207,12 +209,22 @@ export class ResumenService {
         const pagosRegistrados = gastosHastaMes.filter(g => this._esPagoDeuda(g));
         const compensaciones = this._construirCompensaciones(balancesTotales, nombres, pagosRegistrados);
 
+        const aPesosPorUsuario = (balances) => {
+            const resultado = {};
+            Object.entries(balances || {}).forEach(([id, centavos]) => {
+                resultado[id] = AppUtils.aPesos(centavos);
+            });
+            return resultado;
+        };
+
         return {
             compensaciones,
             saldoTotal: AppUtils.aPesos(saldoTotalCentavos),
             saldoTotalAcumulado: AppUtils.aPesos(saldoTotalCentavos),
             saldoMesesAnteriores: AppUtils.aPesos(saldoMesesAnterioresCentavos),
             saldoMesSeleccionado: AppUtils.aPesos(saldoMesSeleccionadoCentavos),
+            saldosMesesAnterioresPorUsuario: aPesosPorUsuario(balancesMesesAnteriores),
+            saldosMesSeleccionadoPorUsuario: aPesosPorUsuario(balancesMesSeleccionado),
             hayArrastre: saldoMesesAnterioresCentavos !== 0
         };
     }
