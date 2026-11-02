@@ -1,6 +1,19 @@
 (function () {
     let deferredInstallPrompt = null;
 
+    // Navegación declarativa para no necesitar manejadores inline (CSP estricta).
+    document.addEventListener('click', function (event) {
+        const objetivo = event.target instanceof Element ? event.target.closest('[data-nav]') : null;
+        if (!objetivo) return;
+
+        const destino = objetivo.getAttribute('data-nav');
+        if (destino === 'back') {
+            window.history.back();
+        } else if (destino === 'home') {
+            window.location.href = 'index.html';
+        }
+    });
+
     window.addEventListener('beforeinstallprompt', function (event) {
         event.preventDefault();
         deferredInstallPrompt = event;

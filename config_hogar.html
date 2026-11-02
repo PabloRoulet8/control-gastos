@@ -9,15 +9,12 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <script src="https://unpkg.com/lucide@0.469.0"></script>
-    <script>
-        const savedTheme = localStorage.getItem('theme');
-        document.documentElement.setAttribute('data-theme', savedTheme === 'light' ? 'light' : 'dark');
-    </script>
+    <script src="js/theme-init.js?v=1"></script>
 </head>
 <body>
     <!-- HEADER -->
     <header class="header flex-between">
-        <button onclick="window.history.back()" class="btn-icon-white" title="Volver">
+        <button data-nav="back" class="btn-icon-white" title="Volver">
             <i data-lucide="arrow-left"></i>
         </button>
         <h1 class="text-center flex-1" style="color: var(--text-main);">Panel de Control</h1>
@@ -99,9 +96,7 @@
     
     <script type="module" src="js/auth_guard.js?v=11.2"></script>
     <script type="module" src="js/controller_config_hogar.js?v=11.2"></script>
-    <script>
-        lucide.createIcons();
-    </script>
+    <script src="js/lucide-init.js?v=1"></script>
     <script src="js/pwa.js?v=1"></script>
 </body>
 </html>

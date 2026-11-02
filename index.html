@@ -7,14 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css?v=20.0">
     <script src="https://unpkg.com/lucide@0.469.0"></script>
-    <script>
-        // Evitar FOUC aplicando tema guardado ANTES de que renderice el body
-        const temaGuardado = localStorage.getItem('theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', temaGuardado);
-        if (temaGuardado === 'light') {
-            document.documentElement.setAttribute('data-theme', 'light');
-        }
-    </script>
+    <script src="js/theme-init.js?v=1"></script>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
 </head>
@@ -59,9 +52,7 @@
 
     <script type="module" src="js/auth_guard.js?v=11.2"></script>
     <script type="module" src="js/controller_dashboard.js?v=11.2"></script>
-    <script>
-        lucide.createIcons();
-    </script>
+    <script src="js/lucide-init.js?v=1"></script>
     <script src="js/pwa.js?v=1"></script>
 </body>
 </html>

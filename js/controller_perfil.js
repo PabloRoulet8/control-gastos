@@ -5,6 +5,7 @@ import { PerfilPublicoService } from "./services/PerfilPublicoService.js";
 import { ToastManager } from "./ui/ToastManager.js";
 import { PerfilRenderer } from "./ui/PerfilRenderer.js";
 import { NavigationBuilder } from "./utils/NavigationBuilder.js";
+import { AppUtils } from "./utils/AppUtils.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const api = new GastoRepository();
@@ -222,10 +223,10 @@ toast.mostrar("¡Presupuesto creado!");
              }
              
              // Si llega hasta acá, Firebase lo aceptó perfecto.
-             console.log("Guardado exitoso en Firebase");
+             AppUtils.logDebug("Guardado exitoso en Firebase");
              
          } catch(error) {
-             console.error(error);
+             console.error('Error al guardar el perfil:', error?.message || error);
              
              // 3. LA SONDA DE DIAGNÓSTICO: Este cartelito feo va a saltar en el medio 
              // de la pantalla del iPhone de Yane gritándonos cuál es el problema real.

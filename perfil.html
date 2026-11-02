@@ -9,16 +9,11 @@
     <meta name="theme-color" content="#10b981">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@0.469.0"></script>
-    <script>
-        document.documentElement.setAttribute(
-            'data-theme', 
-            localStorage.getItem('theme') || 'dark'
-        );
-    </script>
+    <script src="js/theme-init.js?v=1"></script>
 </head>
 <body>
     <header class="header flex-between">
-        <button onclick="window.history.back()" class="btn-icon-white" title="Volver"><i data-lucide="arrow-left"></i></button>
+        <button data-nav="back" class="btn-icon-white" title="Volver"><i data-lucide="arrow-left"></i></button>
         <h1 class="text-center flex-1">Mi Perfil</h1>
         <button id="btn-guardar-perfil" class="btn-header-save">Guardar</button>
     </header>
@@ -124,9 +119,7 @@
     
     <script type="module" src="js/auth_guard.js?v=11.2"></script>
     <script type="module" src="js/controller_perfil.js?v=11.2"></script>
-    <script>
-        lucide.createIcons();
-    </script>
+    <script src="js/lucide-init.js?v=1"></script>
     <script src="js/pwa.js?v=1"></script>
 </body>
 </html>

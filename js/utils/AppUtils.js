@@ -23,6 +23,12 @@ export const AppUtils = {
         });
     },
 
+    // 2.b Logger de desarrollo: no filtra datos sensibles en producción.
+    logDebug: (...args) => {
+        const esLocal = typeof location !== 'undefined' && location.hostname === 'localhost';
+        if (esLocal) console.log(...args);
+    },
+
     // 3. Sanitizador de HTML para evitar XSS (Crucial para la seguridad)
     // Escapa también comillas para que el valor sea seguro tanto en texto como en atributos.
     // Normaliza entidades antes de escapar: registros antiguos guardados con `&#39;`

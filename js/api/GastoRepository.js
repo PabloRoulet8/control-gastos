@@ -137,7 +137,7 @@ export class GastoRepository {
         } catch (error) {
             if (!fechaInicio && !fechaFin) throw error;
 
-            console.warn("No se pudo aplicar la consulta por rango. Se reintenta con filtrado local.", error);
+            console.warn("No se pudo aplicar la consulta por rango. Se reintenta con filtrado local.");
             const snapshot = await getDocs(rutaColeccion);
             let gastos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             gastos = this.filtrarGastosPorRango(gastos, fechaInicio, fechaFin);
@@ -369,8 +369,8 @@ export class GastoRepository {
 
         try {
             await this.guardarConfiguracionHogar(docRef.id, { fondo_comun: 0 });
-        } catch (error) {
-            console.warn("No se pudo guardar la configuración inicial del hogar:", error);
+        } catch {
+            console.warn("No se pudo guardar la configuración inicial del hogar.");
         }
         
         return { id: docRef.id, nombre: nombreHogar };

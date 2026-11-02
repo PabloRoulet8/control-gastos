@@ -13,6 +13,7 @@ import { VoiceService } from "./services/VoiceService.js";
 import { CargaStore } from "./store/CargaStore.js";
 import { InventarioUI } from "./ui/InventarioUI.js";
 import { FormUI } from "./ui/FormUI.js";
+import { AppUtils } from "./utils/AppUtils.js";
 
 const API_IA_URL = 'https://control-gastos-backend-o6nv.onrender.com/api/procesar-gasto';
 const API_IA_PING_URL = new URL('/', API_IA_URL).href;
@@ -337,7 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             abortControllerIA = null;
         }
 
-        console.log('[IA] Texto consolidado enviado:', JSON.stringify(texto));
+        AppUtils.logDebug('[IA] Texto consolidado enviado:', JSON.stringify(texto));
         toast.mostrar(`🎤 Enviado: "${texto}" — procesando...`, 'info', 4000);
 
         const categoriasDisponibles = CategoryService
@@ -364,10 +365,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             if (idProcesamiento !== idProcesamientoIA) return;
 
-            console.error('Error al procesar el gasto con IA:', error);
+            console.error('Error al procesar el gasto con IA:', error?.message || error);
             toast.mostrar(`❌ ${IAService.obtenerMensajeError(error)}`, 'error', 6000);
         } finally {
-            console.log(`[IA] Fetch completado en ${Math.round(performance.now() - inicioFetch)} ms`);
+            AppUtils.logDebug(`[IA] Fetch completado en ${Math.round(performance.now() - inicioFetch)} ms`);
 
             if (abortControllerIA === controller) {
                 abortControllerIA = null;

@@ -9,16 +9,11 @@
     <meta name="theme-color" content="#10b981">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@0.469.0"></script>
-    <script>
-        document.documentElement.setAttribute(
-            'data-theme', 
-            localStorage.getItem('theme') || 'dark'
-        );
-    </script>
+    <script src="js/theme-init.js?v=1"></script>
 </head>
 <body>
     <header class="header flex-between">
-        <button onclick="window.location.href='index.html'" class="btn-icon-white" title="Volver al Inicio"><i data-lucide="home"></i></button>
+        <button data-nav="home" class="btn-icon-white" title="Volver al Inicio"><i data-lucide="home"></i></button>
         <h1 id="titulo-header" class="text-center flex-1">Cargando...</h1>
         
         <!-- Nuevo contenedor para el botón de Ingresos -->
@@ -134,9 +129,7 @@
     <nav class="bottom-nav" id="nav-contextual"></nav>
     <script type="module" src="js/auth_guard.js?v=11.2"></script>
     <script type="module" src="js/controller_resumen.js?v=11.2"></script>
-    <script>
-        lucide.createIcons();
-    </script>
+    <script src="js/lucide-init.js?v=1"></script>
     <script src="js/pwa.js?v=1"></script>
 </body>
 </html>
