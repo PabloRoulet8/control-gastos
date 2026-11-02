@@ -120,11 +120,23 @@ export class ResumenRenderer {
         const totalFijosStock = AppUtils.aPesos(totalFijosStockCentavos);
         const totalVariables = AppUtils.aPesos(totalVariablesCentavos);
 
+        const deudas = data.deudas || {
+            compensaciones: data.compensaciones || [],
+            saldoTotal: AppUtils.sumarMontos((data.compensaciones || []).map(c => c.monto)),
+            saldoMesesAnteriores: 0,
+            saldoMesSeleccionado: 0
+        };
+        const compensaciones = deudas.compensaciones || [];
+        const saldoTotalAcumulado = Number(deudas.saldoTotal) || 0;
+        const saldoMesesAnteriores = Number(deudas.saldoMesesAnteriores) || 0;
+        const saldoMesSeleccionado = Number(deudas.saldoMesSeleccionado) || 0;
+        const hayArrastre = Math.abs(saldoMesesAnteriores) >= 0.005;
+
         let htmlDeudas = '';
-        if (data.compensaciones.length === 0) {
-             htmlDeudas = '<li class="text-center text-muted" style="padding: 20px 0;">¡Cuentas claras! Nadie debe nada este mes. <i data-lucide="check-circle"></i></li>';
+        if (compensaciones.length === 0) {
+             htmlDeudas = '<li class="text-center text-muted" style="padding: 20px 0;">¡Cuentas claras! Nadie debe nada. <i data-lucide="check-circle"></i></li>';
         } else {
-            data.compensaciones.forEach(c => {
+            compensaciones.forEach(c => {
                 const msj = encodeURIComponent(`Hola ${c.de}, te recuerdo que tenemos un saldo pendiente en la App de Gastos de ${AppUtils.formatearARS(c.monto)}. ¡Avisame cuando puedas transferir! <i data-lucide="dollar-sign"></i>`);
                 const textoUltimoPago = c.ultimoPagoInfo ? `<span style="font-size: 0.75rem; color: #6b7280; display: block; margin-top: 4px;">Último pago: ${AppUtils.formatearARS(c.ultimoPagoInfo.monto)} el ${c.ultimoPagoInfo.fecha.split('-').reverse().join('/')}</span>` : '';
                 const esInvolucrado = (currentUserId === c.de_id || currentUserId === c.para_id);
@@ -202,6 +214,13 @@ export class ResumenRenderer {
 
                 <div class="card dashboard-card mt-20" style="border-top: 4px solid var(--primary-color);">
                      <h2 style="color: var(--primary-color); margin-bottom: 10px;"><i data-lucide="credit-card"></i> Liquidación de Deudas</h2>
+                     <div style="background: var(--bg-app); border-radius: 8px; padding: 14px 15px; margin-bottom: 12px;">
+                          <div class="flex-between" style="gap: 10px; align-items: baseline;">
+                               <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Saldo Total Acumulado</span>
+                               <span style="font-size: 1.35rem; font-weight: 800; color: #d32f2f;">${AppUtils.formatearARS(saldoTotalAcumulado)}</span>
+                          </div>
+                          ${hayArrastre ? `<div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">(Meses anteriores: ${AppUtils.formatearARS(saldoMesesAnteriores)} · Este mes: ${AppUtils.formatearARS(saldoMesSeleccionado)})</div>` : ''}
+                     </div>
                      <p class="text-sm-gray mb-15">Quién le transfiere a quién para quedar a mano:</p>
                      <ul class="lista-minimal">
                           ${htmlDeudas}

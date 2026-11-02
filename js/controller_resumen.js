@@ -245,7 +245,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); 
                 
                 // LE PASAMOS LOS PRESUPUESTOS AL SERVICIO
-                renderer.renderizarHogar(resumenService.calcularHogar(gastosMes, mapaNombres, dataHogar.presupuestos_compartidos || []), dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
+                const resumenHogar = resumenService.calcularHogar(gastosMes, mapaNombres, dataHogar.presupuestos_compartidos || []);
+
+                // La liquidación de deudas usa toda la ventana histórica para
+                // arrastrar saldos impagos de meses anteriores.
+                resumenHogar.deudas = resumenService.calcularDeudas(
+                    todosLosGastos,
+                    mapaNombres,
+                    mesActual,
+                    dataHogar.presupuestos_compartidos || []
+                );
+
+                renderer.renderizarHogar(resumenHogar, dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
                 renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true, gastosMesAnt); 
 
             } else if (ambitoActual === 'unificado') {
@@ -354,9 +365,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const montoDeuda = btn.dataset.monto;
             document.getElementById('hidden-monto-deuda').value = montoDeuda;
+
+            // Por defecto se propone el saldo acumulado pendiente entre ambos.
+            const inputMontoPago = document.getElementById('input-monto-pago');
+            if (inputMontoPago && montoDeuda) inputMontoPago.value = montoDeuda;
             
             const montoFormateado = Number(montoDeuda).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('texto-info-pago').textContent = `¿Cuánto transfirió ${nombre}? (Total: $${montoFormateado})`;
+            document.getElementById('texto-info-pago').textContent = `¿Cuánto transfirió ${nombre}? (Total acumulado: $${montoFormateado})`;
             
             setTimeout(() => {
                 if (modalPago && modalEstaAbierto) {

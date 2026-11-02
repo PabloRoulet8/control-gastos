@@ -43,38 +43,155 @@ export class ResumenService {
 
     // 2. RESUMEN HOGAR (NUEVA LÓGICA DE DOBLE CONTABILIDAD)
     calcularHogar(gastosHogar, mapaNombres, fondos = []) {
+        const {
+            totalHogarCentavos,
+            totalADividirCentavos,
+            aportesCentavos,
+            cuotasMiembro,
+            balancesCentavos,
+            baseCuotaCentavos,
+            restoCuotaCentavos,
+            idsMiembros
+        } = this._calcularBalancePeriodo(gastosHogar, mapaNombres, fondos);
+
+        const cuotaPorPersona = idsMiembros.length > 0
+            ? AppUtils.aPesos(baseCuotaCentavos + (restoCuotaCentavos > 0 ? 1 : 0))
+            : AppUtils.aPesos(totalADividirCentavos);
+
+        const pagosRegistrados = (gastosHogar || []).filter(g => this._esPagoDeuda(g));
+        const compensaciones = this._construirCompensaciones(balancesCentavos, mapaNombres, pagosRegistrados);
+
+        const aportes = {};
+        Object.entries(aportesCentavos).forEach(([id, centavos]) => {
+            aportes[id] = AppUtils.aPesos(centavos);
+        });
+
+        const cuotas = {};
+        Object.entries(cuotasMiembro).forEach(([id, centavos]) => {
+            cuotas[id] = AppUtils.aPesos(centavos);
+        });
+
+        return {
+            totalHogar: AppUtils.aPesos(totalHogarCentavos),
+            cuotaPorPersona,
+            cuotasMiembro: cuotas,
+            aportes,
+            compensaciones,
+            totalADividir: AppUtils.aPesos(totalADividirCentavos)
+        };
+    }
+
+    // 2.b DEUDAS ACUMULADAS ENTRE MIEMBROS (ARRASTRE DE SALDO)
+    calcularDeudas(gastosHistoricos, mapaNombres, mesSeleccionado, fondos = []) {
+        const nombres = mapaNombres || {};
+        const idsMiembros = Object.keys(nombres);
+        const balancesMesesAnteriores = {};
+        const balancesMesSeleccionado = {};
+
+        idsMiembros.forEach(id => {
+            balancesMesesAnteriores[id] = 0;
+            balancesMesSeleccionado[id] = 0;
+        });
+
+        const [anio, mes] = String(mesSeleccionado || '').split('-').map(Number);
+        const respuestaVacia = {
+            compensaciones: [],
+            saldoTotal: 0,
+            saldoTotalAcumulado: 0,
+            saldoMesesAnteriores: 0,
+            saldoMesSeleccionado: 0,
+            hayArrastre: false
+        };
+
+        if (!anio || !mes) return respuestaVacia;
+
+        const mesKey = `${anio}-${String(mes).padStart(2, '0')}`;
+        const ultimoDiaMes = new Date(anio, mes, 0).getDate();
+        const finMes = `${mesKey}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
+        // Ventana histórica completa hasta el último día del mes seleccionado.
+        const gastosHastaMes = (gastosHistoricos || []).filter(g => g && g.fecha && g.fecha <= finMes);
+        const gastosPorMes = {};
+
+        gastosHastaMes.forEach(g => {
+            const mesGasto = g.fecha.substring(0, 7);
+            if (!gastosPorMes[mesGasto]) gastosPorMes[mesGasto] = [];
+            gastosPorMes[mesGasto].push(g);
+        });
+
+        // Cada presupuesto es mensual: se recalcula mes a mes para no acumular
+        // el escudo de un mes sobre los gastos de otro.
+        Object.keys(gastosPorMes).sort().forEach(mesGasto => {
+            const { balancesCentavos } = this._calcularBalancePeriodo(gastosPorMes[mesGasto], nombres, fondos);
+            const destino = mesGasto < mesKey ? balancesMesesAnteriores : balancesMesSeleccionado;
+
+            Object.entries(balancesCentavos).forEach(([id, balanceCentavos]) => {
+                destino[id] = (destino[id] || 0) + balanceCentavos;
+            });
+        });
+
+        const balancesTotales = {};
+        const todosLosIds = new Set([
+            ...Object.keys(balancesMesesAnteriores),
+            ...Object.keys(balancesMesSeleccionado)
+        ]);
+
+        todosLosIds.forEach(id => {
+            balancesTotales[id] = (balancesMesesAnteriores[id] || 0) + (balancesMesSeleccionado[id] || 0);
+        });
+
+        const sumarSaldosPositivos = (balances) => Object.values(balances)
+            .reduce((total, balance) => total + (balance > 0 ? balance : 0), 0);
+
+        const saldoTotalCentavos = sumarSaldosPositivos(balancesTotales);
+        const saldoMesesAnterioresCentavos = sumarSaldosPositivos(balancesMesesAnteriores);
+        const saldoMesSeleccionadoCentavos = saldoTotalCentavos - saldoMesesAnterioresCentavos;
+
+        const pagosRegistrados = gastosHastaMes.filter(g => this._esPagoDeuda(g));
+        const compensaciones = this._construirCompensaciones(balancesTotales, nombres, pagosRegistrados);
+
+        return {
+            compensaciones,
+            saldoTotal: AppUtils.aPesos(saldoTotalCentavos),
+            saldoTotalAcumulado: AppUtils.aPesos(saldoTotalCentavos),
+            saldoMesesAnteriores: AppUtils.aPesos(saldoMesesAnterioresCentavos),
+            saldoMesSeleccionado: AppUtils.aPesos(saldoMesSeleccionadoCentavos),
+            hayArrastre: saldoMesesAnterioresCentavos !== 0
+        };
+    }
+
+    _calcularBalancePeriodo(gastos, mapaNombres, fondos = []) {
         let totalHogarCentavos = 0;
         let totalADividirCentavos = 0;
-        let aportesCentavos = {};
-        const idsMiembros = Object.keys(mapaNombres);
+        const aportesCentavos = {};
+        const nombres = mapaNombres || {};
+        const idsMiembros = Object.keys(nombres);
         idsMiembros.forEach(id => aportesCentavos[id] = 0);
-
-        const normalizeCat = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
         // Armamos las billeteras virtuales de cada presupuesto
         const saldosFondos = {};
-        fondos.forEach(f => {
+        (fondos || []).forEach(f => {
             saldosFondos[f.id || f.nombre] = AppUtils.aCentavos(f.monto);
         });
 
         // Mapeamos qué categoría pertenece a qué billetera
         const catAFondo = {};
-        fondos.forEach(f => {
+        (fondos || []).forEach(f => {
             (f.categorias || []).forEach(cat => {
-                catAFondo[normalizeCat(cat)] = f.id || f.nombre;
+                catAFondo[this._normalizarCategoria(cat)] = f.id || f.nombre;
             });
         });
 
         // Ordenamos los gastos desde el más viejo al más nuevo para descontar bien
-        const gastosOrdenados = [...gastosHogar].sort((a, b) => {
+        const gastosOrdenados = [...(gastos || [])].sort((a, b) => {
             const dateA = new Date(a.fecha + 'T00:00:00');
             const dateB = new Date(b.fecha + 'T00:00:00');
             return dateA - dateB;
         });
 
         gastosOrdenados.forEach(g => {
-            const isPagoDeuda = g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
-            const isIngreso = g.tipo === 'ingreso' || g.categoria === 'Ingreso';
+            const isPagoDeuda = this._esPagoDeuda(g);
+            const isIngreso = this._esIngreso(g);
 
             if (isPagoDeuda) {
                 const montoPagoCentavos = AppUtils.aCentavos(g.monto);
@@ -82,12 +199,12 @@ export class ResumenService {
                 if (aportesCentavos[g.receptor_id] !== undefined) aportesCentavos[g.receptor_id] -= montoPagoCentavos;
             } else if (!isIngreso) {
                 const montoOriginalCentavos = AppUtils.aCentavos(g.monto);
-                
+
                 // 1. SUMAMOS AL TOTAL VISUAL SIEMPRE (Representa el gasto total de la casa)
                 totalHogarCentavos += montoOriginalCentavos;
 
                 let montoAImputarCentavos = montoOriginalCentavos;
-                const catNorm = normalizeCat(g.categoria);
+                const catNorm = this._normalizarCategoria(g.categoria);
                 const fondoId = catAFondo[catNorm];
 
                 // 2. APLICAMOS EL ESCUDO DEL PRESUPUESTO
@@ -109,79 +226,90 @@ export class ResumenService {
         });
 
         const cantidadMiembros = idsMiembros.length > 0 ? idsMiembros.length : 1;
-        
         // LA CUOTA SE CALCULA SOBRE LO QUE REBALSÓ, NO SOBRE EL TOTAL GASTADO
         const baseCuotaCentavos = Math.floor(totalADividirCentavos / cantidadMiembros);
         const restoCuotaCentavos = totalADividirCentavos % cantidadMiembros;
         const cuotasMiembro = {};
+
         idsMiembros.forEach((id, indice) => {
             cuotasMiembro[id] = baseCuotaCentavos + (indice < restoCuotaCentavos ? 1 : 0);
         });
-        const cuotaPorPersona = idsMiembros.length > 0
-            ? AppUtils.aPesos(baseCuotaCentavos + (restoCuotaCentavos > 0 ? 1 : 0))
-            : AppUtils.aPesos(totalADividirCentavos);
 
-        let deudores = [], acreedores = [];
-        for (const [id, aportadoCentavos] of Object.entries(aportesCentavos)) {
+        const balancesCentavos = {};
+        Object.entries(aportesCentavos).forEach(([id, aportadoCentavos]) => {
             const cuotaCentavos = cuotasMiembro[id] ?? baseCuotaCentavos;
-            const balanceCentavos = aportadoCentavos - cuotaCentavos;
-            const nombreDisplay = mapaNombres[id] || "Desconocido";
+            balancesCentavos[id] = aportadoCentavos - cuotaCentavos;
+        });
+
+        return {
+            totalHogarCentavos,
+            totalADividirCentavos,
+            aportesCentavos,
+            cuotasMiembro,
+            balancesCentavos,
+            baseCuotaCentavos,
+            restoCuotaCentavos,
+            idsMiembros
+        };
+    }
+
+    _construirCompensaciones(balancesCentavos, mapaNombres, pagosRegistrados = []) {
+        const nombres = mapaNombres || {};
+        const deudores = [];
+        const acreedores = [];
+
+        Object.entries(balancesCentavos || {}).forEach(([id, balanceCentavos]) => {
+            const nombreDisplay = nombres[id] || "Desconocido";
             if (balanceCentavos < 0) {
                 deudores.push({ id, nombre: nombreDisplay, montoCentavos: Math.abs(balanceCentavos) });
             } else if (balanceCentavos > 0) {
                 acreedores.push({ id, nombre: nombreDisplay, montoCentavos: balanceCentavos });
             }
-        }
+        });
 
         deudores.sort((a, b) => b.montoCentavos - a.montoCentavos);
         acreedores.sort((a, b) => b.montoCentavos - a.montoCentavos);
 
-        const pagosRegistrados = gastosHogar.filter(g => g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda');
-
-        let compensaciones = [];
+        const compensaciones = [];
         let i = 0, j = 0;
+
         while (i < deudores.length && j < acreedores.length) {
-            let deudor = deudores[i];
-            let acreedor = acreedores[j];
-            let montoTransferenciaCentavos = Math.min(deudor.montoCentavos, acreedor.montoCentavos);
-            
-            const pagosEntreEllos = pagosRegistrados.filter(p => 
+            const deudor = deudores[i];
+            const acreedor = acreedores[j];
+            const montoTransferenciaCentavos = Math.min(deudor.montoCentavos, acreedor.montoCentavos);
+
+            const pagosEntreEllos = (pagosRegistrados || []).filter(p =>
                 p.pagador_id === deudor.id && p.receptor_id === acreedor.id
             );
             pagosEntreEllos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
             const ultimoPago = pagosEntreEllos.length > 0 ? pagosEntreEllos[0] : null;
 
-            compensaciones.push({ 
-                de_id: deudor.id, de: deudor.nombre, 
-                para_id: acreedor.id, para: acreedor.nombre, 
+            compensaciones.push({
+                de_id: deudor.id, de: deudor.nombre,
+                para_id: acreedor.id, para: acreedor.nombre,
                 monto: AppUtils.aPesos(montoTransferenciaCentavos),
                 ultimoPagoInfo: ultimoPago ? { monto: ultimoPago.monto, fecha: ultimoPago.fecha } : null
             });
-            
+
             deudor.montoCentavos -= montoTransferenciaCentavos;
             acreedor.montoCentavos -= montoTransferenciaCentavos;
             if (deudor.montoCentavos <= 0) i++;
             if (acreedor.montoCentavos <= 0) j++;
         }
 
-        const aportes = {};
-        Object.entries(aportesCentavos).forEach(([id, centavos]) => {
-            aportes[id] = AppUtils.aPesos(centavos);
-        });
+        return compensaciones;
+    }
 
-        const cuotas = {};
-        Object.entries(cuotasMiembro).forEach(([id, centavos]) => {
-            cuotas[id] = AppUtils.aPesos(centavos);
-        });
+    _esPagoDeuda(g) {
+        return g.tipo === 'pagoDeuda' || g.categoria === 'Pago de Deuda';
+    }
 
-        return {
-            totalHogar: AppUtils.aPesos(totalHogarCentavos),
-            cuotaPorPersona,
-            cuotasMiembro: cuotas,
-            aportes,
-            compensaciones,
-            totalADividir: AppUtils.aPesos(totalADividirCentavos)
-        };
+    _esIngreso(g) {
+        return g.tipo === 'ingreso' || g.categoria === 'Ingreso';
+    }
+
+    _normalizarCategoria(str) {
+        return (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     }
 
     // 3. RESUMEN UNIFICADO
