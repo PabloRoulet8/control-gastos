@@ -1,5 +1,8 @@
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { SessionManager } from "./services/SessionManager.js";
+
+const sessionManager = new SessionManager();
 
 const urlParams = new URLSearchParams(window.location.search);
 const joinCode = urlParams.get('join');
@@ -14,13 +17,17 @@ onAuthStateChanged(auth, async (user) => {
     const isLoginPage = window.location.pathname.includes('login.html');
 
     if (!user) {
+        sessionManager.stop();
         if (!isLoginPage) {
             window.location.href = "login.html"; 
         }
     } else if (user && !user.emailVerified) {
+        sessionManager.stop();
         alert("⚠️ Tu cuenta no está verificada. Por favor, revisá tu correo electrónico y hacé clic en el enlace de confirmación.");
         await signOut(auth);
         if (!isLoginPage) window.location.href = "login.html";
+    } else {
+        sessionManager.start();
     }
 });
 

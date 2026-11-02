@@ -8,6 +8,7 @@ import {
     signInWithPopup
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { ToastManager } from "./ui/ToastManager.js";
+import { SESSION_TIMEOUT_MESSAGE, SESSION_TIMEOUT_NOTICE_KEY } from "./services/SessionManager.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const toast = new ToastManager();
@@ -21,6 +22,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnGoogle = document.getElementById('btn-google');
 
     let isLoginMode = true; // Empieza en modo Login
+
+    // Aviso de cierre de sesión por inactividad (OWASP A01).
+    try {
+        if (sessionStorage.getItem(SESSION_TIMEOUT_NOTICE_KEY) === '1') {
+            sessionStorage.removeItem(SESSION_TIMEOUT_NOTICE_KEY);
+            toast.mostrar(SESSION_TIMEOUT_MESSAGE, 'info', 6000);
+        }
+    } catch (error) {
+        // sessionStorage puede estar bloqueado; se omite el aviso.
+    }
 
     // ==========================================
     // ALTERNAR ENTRE LOGIN Y REGISTRO
