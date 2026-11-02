@@ -485,6 +485,9 @@ export class FormUI {
         inputReferencia,
         grupoReferencia,
         seccionStockUI,
+        contenedorOpcionCuotas,
+        grupoFondo,
+        checkPagadoFondo,
         checkEsCuotas,
         divCuotasConfig,
         inputCantidadCuotas,
@@ -498,6 +501,14 @@ export class FormUI {
         if (inputReferencia) inputReferencia.value = '';
         FormUI.actualizarVisibilidadElemento(grupoReferencia, false);
         FormUI.actualizarVisibilidadElemento(seccionStockUI, false);
+        FormUI.actualizarVisibilidadElemento(contenedorOpcionCuotas, false);
+        FormUI.actualizarVisibilidadElemento(grupoFondo, false);
+
+        if (checkPagadoFondo) {
+            checkPagadoFondo.checked = checkPagadoFondo.defaultChecked;
+            checkPagadoFondo.disabled = true;
+        }
+
         FormUI.resetearCuotas({
             checkEsCuotas,
             divCuotasConfig,
