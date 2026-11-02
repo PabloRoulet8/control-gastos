@@ -10,6 +10,18 @@ export class HistorialRenderer {
         this.btnCerrarFiltros = document.getElementById('btn-cerrar-filtros');
         this.btnAplicarFiltros = document.getElementById('btn-aplicar-filtros');
         this.btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
+
+        this.onCargarMas = null;
+        this.sentinel = null;
+        this.estadoPaginacion = { hayMas: false, cargando: false };
+        this.observer = typeof IntersectionObserver !== 'undefined'
+            ? new IntersectionObserver((entries) => {
+                const visible = entries.some(entry => entry.isIntersecting);
+                if (!visible) return;
+                if (this.estadoPaginacion.cargando || !this.estadoPaginacion.hayMas) return;
+                if (typeof this.onCargarMas === 'function') this.onCargarMas();
+            }, { rootMargin: '250px 0px' })
+            : null;
         
         this.initModalEvents();
         
@@ -60,6 +72,45 @@ export class HistorialRenderer {
             if (window.lucide) window.lucide.createIcons();
         }
     }
+
+    configurarCargaInfinita(onCargarMas) {
+        this.onCargarMas = onCargarMas;
+    }
+
+    setEstadoPaginacion({ hayMas, cargando } = {}) {
+        this.estadoPaginacion = {
+            ...this.estadoPaginacion,
+            ...(typeof hayMas === 'boolean' ? { hayMas } : {}),
+            ...(typeof cargando === 'boolean' ? { cargando } : {})
+        };
+        this.actualizarSentinel();
+    }
+
+    actualizarSentinel() {
+        if (!this.sentinel) return;
+
+        const { hayMas, cargando } = this.estadoPaginacion;
+        this.sentinel.textContent = cargando
+            ? 'Cargando más movimientos...'
+            : (hayMas ? 'Deslizá para cargar más' : 'No hay más movimientos.');
+
+        if (!this.observer) return;
+        this.observer.unobserve(this.sentinel);
+        if (hayMas && !cargando) this.observer.observe(this.sentinel);
+    }
+
+    montarSentinelCarga() {
+        if (!this.listaGastosUI) return;
+
+        if (this.sentinel && this.observer) this.observer.unobserve(this.sentinel);
+
+        this.sentinel = document.createElement('div');
+        this.sentinel.id = 'sentinel-carga-infinita';
+        this.sentinel.setAttribute('aria-hidden', 'true');
+        this.sentinel.style.cssText = 'padding: 18px 0 6px; text-align: center; color: var(--text-muted); font-size: 0.85rem;';
+        this.listaGastosUI.appendChild(this.sentinel);
+        this.actualizarSentinel();
+    }
     
     cerrarModal() {
         if (this.modalFiltros) {
@@ -106,6 +157,9 @@ export class HistorialRenderer {
         
         if (gastosFiltrados.length === 0) {
             this.listaGastosUI.innerHTML = '<p class="text-center text-muted p-20" style="color: var(--text-muted);">No hay movimientos con estos filtros.</p>';
+            if (this.sentinel && this.observer) this.observer.unobserve(this.sentinel);
+            this.sentinel = null;
+            if (this.estadoPaginacion.hayMas) this.montarSentinelCarga();
             return;
         }
         
@@ -217,6 +271,8 @@ export class HistorialRenderer {
             });
         });
         
+        this.montarSentinelCarga();
+
         if (window.lucide) {
             window.lucide.createIcons();
         }

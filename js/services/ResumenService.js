@@ -41,6 +41,63 @@ export class ResumenService {
         };
     }
 
+    // 2. PROYECCIÓN DE TARJETAS POR MES DE IMPUTACIÓN
+    // Agrupa exclusivamente los consumos de tarjeta de crédito por el campo
+    // `mes_imputacion`. Para registros legacy sin ese campo se usa el mes de
+    // la fecha como fallback, sin alterar la regla de cierre.
+    calcularProyeccionTarjetas(gastos, mesActual = '') {
+        const proyeccion = new Map();
+        let totalGeneralCentavos = 0;
+
+        (gastos || []).forEach(g => {
+            if (!g || !this._esTarjetaCredito(g)) return;
+            if (this._esIngreso(g) || this._esPagoDeuda(g)) return;
+
+            const mes = this._mesImputacion(g);
+            if (!/^\d{4}-\d{2}$/.test(mes)) return;
+            if (mesActual && mes < mesActual) return;
+
+            const montoCentavos = AppUtils.aCentavos(g.monto);
+            const acumulado = proyeccion.get(mes) || { mes, totalCentavos: 0, cantidad: 0 };
+            acumulado.totalCentavos += montoCentavos;
+            acumulado.cantidad += 1;
+            proyeccion.set(mes, acumulado);
+            totalGeneralCentavos += montoCentavos;
+        });
+
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+        const detalle = Array.from(proyeccion.values())
+            .sort((a, b) => a.mes.localeCompare(b.mes))
+            .map(item => {
+                const [anio, mes] = item.mes.split('-').map(Number);
+                return {
+                    mes: item.mes,
+                    etiqueta: `${meses[mes - 1] || item.mes} ${anio}`,
+                    cantidad: item.cantidad,
+                    total: AppUtils.aPesos(item.totalCentavos)
+                };
+            });
+
+        return {
+            detalle,
+            total: AppUtils.aPesos(totalGeneralCentavos)
+        };
+    }
+
+    _esTarjetaCredito(gasto) {
+        const metodo = this._normalizarCategoria(gasto?.metodo_pago).replace(/-/g, ' ');
+        return metodo.includes('tarjeta') && metodo.includes('credito');
+    }
+
+    _mesImputacion(gasto) {
+        const mesImputacion = String(gasto?.mes_imputacion || '').trim();
+        if (/^\d{4}-\d{2}$/.test(mesImputacion)) return mesImputacion;
+
+        const fecha = String(gasto?.fecha || '').trim();
+        return /^\d{4}-\d{2}/.test(fecha) ? fecha.slice(0, 7) : '';
+    }
+
     // 2. RESUMEN HOGAR (NUEVA LÓGICA DE DOBLE CONTABILIDAD)
     calcularHogar(gastosHogar, mapaNombres, fondos = []) {
         const {

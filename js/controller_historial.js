@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let todosLosGastos = [], mapaNombres = {}, categoriasGlobales = [];
     let cargaActual = 0;
+    let ultimoDocumento = null;
+    let hayMasPaginas = true;
+    let cargandoPagina = false;
+    const TAMANO_PAGINA = 20;
+
+    renderer.configurarCargaInfinita(() => cargarSiguientePagina());
 
     const obtenerOpcionesConsulta = () => {
         const mes = filtroMes?.value;
@@ -47,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             fechaInicio: AppUtils.getFechaLocal(inicio),
             fechaFin: '9999-12-31',
-            limite: 500,
             orden: 'desc'
         };
     };
@@ -171,24 +176,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    async function cargarDatos() {
-        const idCarga = ++cargaActual;
-        const contexto = ambitoActual === 'hogar' ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' };
-        const gastos = await api.obtenerGastosPorRango(contexto, obtenerOpcionesConsulta()) || [];
-
-        if (idCarga !== cargaActual) return;
-
-        todosLosGastos = gastos;
-
-        if (todosLosGastos.length > 0) {
+    const ordenarGastos = () => {
+        if (todosLosGastos.length > 1) {
             todosLosGastos.sort((a, b) => {
                 const timeA = a.timestamp?.seconds ? a.timestamp.seconds : new Date(a.fecha).getTime() / 1000;
                 const timeB = b.timestamp?.seconds ? b.timestamp.seconds : new Date(b.fecha).getTime() / 1000;
                 return timeB - timeA;
             });
         }
-        
-        procesarFiltrosYRenderizar();
+    };
+
+    const obtenerContexto = () => (
+        ambitoActual === 'hogar' ? { tipo: 'hogar', id: hogarId } : { tipo: 'personal' }
+    );
+
+    async function cargarDatos() {
+        const idCarga = ++cargaActual;
+        ultimoDocumento = null;
+        hayMasPaginas = true;
+        cargandoPagina = false;
+        renderer.setEstadoPaginacion({ hayMas: true, cargando: false });
+
+        try {
+            const resultado = await api.obtenerHistorialPaginado(obtenerContexto(), {
+                ...obtenerOpcionesConsulta(),
+                ultimoDocumento: null,
+                limite: TAMANO_PAGINA
+            });
+
+            if (idCarga !== cargaActual) return;
+
+            todosLosGastos = resultado.gastos || [];
+            ultimoDocumento = resultado.ultimoDocumento || null;
+            hayMasPaginas = Boolean(resultado.hayMas && ultimoDocumento);
+
+            ordenarGastos();
+            renderer.setEstadoPaginacion({ hayMas: hayMasPaginas, cargando: false });
+            procesarFiltrosYRenderizar();
+        } catch (error) {
+            if (idCarga !== cargaActual) return;
+            console.error('No se pudo cargar el historial:', error);
+            renderer.mostrarError();
+        }
+    }
+
+    async function cargarSiguientePagina() {
+        if (cargandoPagina || !hayMasPaginas || !ultimoDocumento) return;
+
+        const idCarga = cargaActual;
+        cargandoPagina = true;
+        renderer.setEstadoPaginacion({ hayMas: true, cargando: true });
+
+        try {
+            const resultado = await api.obtenerHistorialPaginado(obtenerContexto(), {
+                ...obtenerOpcionesConsulta(),
+                ultimoDocumento,
+                limite: TAMANO_PAGINA
+            });
+
+            if (idCarga !== cargaActual) return;
+
+            if (!resultado.gastos || resultado.gastos.length === 0) {
+                hayMasPaginas = false;
+                return;
+            }
+
+            todosLosGastos = [...todosLosGastos, ...resultado.gastos];
+            ultimoDocumento = resultado.ultimoDocumento || ultimoDocumento;
+            hayMasPaginas = Boolean(resultado.hayMas && resultado.ultimoDocumento);
+
+            ordenarGastos();
+            procesarFiltrosYRenderizar();
+        } catch (error) {
+            console.error('No se pudo cargar la siguiente página del historial:', error);
+            hayMasPaginas = false;
+        } finally {
+            if (idCarga === cargaActual) {
+                cargandoPagina = false;
+                renderer.setEstadoPaginacion({ hayMas: hayMasPaginas, cargando: false });
+            }
+        }
     }
 
     [filtroTipo, filtroResponsable, filtroCategoria].forEach(f => f?.addEventListener('change', procesarFiltrosYRenderizar));

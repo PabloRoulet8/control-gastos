@@ -1,5 +1,5 @@
 import { db, auth } from "../firebase-config.js"; 
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp, writeBatch, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, startAfter, serverTimestamp, writeBatch, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { AppUtils } from "../utils/AppUtils.js";
 
 export class GastoRepository {
@@ -148,6 +148,55 @@ export class GastoRepository {
 
     async obtenerGastosPorRango(contexto, rango = {}) {
         return this.obtenerGastos(contexto, rango);
+    }
+
+    // Historial paginado por cursor. Devuelve además el último DocumentSnapshot
+    // para poder pedir la página siguiente con startAfter.
+    async obtenerHistorialPaginado(contexto, opciones = {}) {
+        const usuarioActual = auth.currentUser;
+        if (!usuarioActual) {
+            return { gastos: [], ultimoDocumento: null, hayMas: false };
+        }
+
+        const tipoConsulta = typeof contexto === 'object' ? contexto.tipo : (contexto === 'personal' ? 'personal' : 'hogar');
+        const idConsulta = typeof contexto === 'object' ? contexto.id : contexto;
+
+        const rutaColeccion = tipoConsulta === 'personal'
+            ? collection(db, 'usuarios', usuarioActual.uid, 'gastos')
+            : collection(db, 'hogares', idConsulta, 'gastos');
+
+        const {
+            ultimoDocumento = null,
+            limite = 20,
+            fechaInicio = null,
+            fechaFin = null
+        } = opciones || {};
+
+        const limiteNumerico = Number(limite);
+        const tamanoPagina = Number.isFinite(limiteNumerico) && limiteNumerico > 0
+            ? Math.trunc(limiteNumerico)
+            : 20;
+
+        const restricciones = [];
+        if (fechaInicio) restricciones.push(where('fecha', '>=', fechaInicio));
+        if (fechaFin) restricciones.push(where('fecha', '<=', fechaFin));
+        restricciones.push(orderBy('fecha', 'desc'));
+
+        if (ultimoDocumento) {
+            restricciones.push(startAfter(ultimoDocumento));
+        }
+
+        restricciones.push(limit(tamanoPagina));
+
+        const snapshot = await getDocs(query(rutaColeccion, ...restricciones));
+        const documentos = snapshot.docs;
+        const gastos = documentos.map(documento => ({ id: documento.id, ...documento.data() }));
+
+        return {
+            gastos,
+            ultimoDocumento: documentos.length > 0 ? documentos[documentos.length - 1] : null,
+            hayMas: documentos.length === tamanoPagina
+        };
     }
 
     async obtenerGastosPorCompra(compraId, contexto) {

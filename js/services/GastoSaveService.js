@@ -51,6 +51,7 @@ export class GastoSaveService {
                 metodoPago: datosFormulario.metodoPago,
                 tipo,
                 referencia: datosFormulario.referencia,
+                postCierre: datosFormulario.postCierre,
                 usarFondo
             });
 

@@ -160,24 +160,30 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    const calcularMontosTarjetas = (todosLosGastos, gastosMes, mesActual) => {
-        const gastosTarjetaMes = gastosMes.filter(g => {
-            if (!g.metodo_pago) return false;
-            const metodo = g.metodo_pago.toLowerCase();
-            return metodo.includes('tarjeta') || metodo.includes('credito');
-        });
+    const obtenerMesImputacion = (gasto) => {
+        const mesImputacion = String(gasto?.mes_imputacion || '').trim();
+        if (/^\d{4}-\d{2}$/.test(mesImputacion)) return mesImputacion;
+        const fecha = String(gasto?.fecha || '').trim();
+        return /^\d{4}-\d{2}/.test(fecha) ? fecha.slice(0, 7) : '';
+    };
+
+    const esGastoTarjeta = (gasto) => {
+        const metodo = String(gasto?.metodo_pago || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+        return metodo.includes('tarjeta') && metodo.includes('credito');
+    };
+
+    const calcularMontosTarjetas = (todosLosGastos, mesActual) => {
+        const gastosTarjetaMes = todosLosGastos.filter(g => (
+            esGastoTarjeta(g) && obtenerMesImputacion(g) === mesActual
+        ));
         const montoTarjetasMes = AppUtils.sumarMontos(gastosTarjetaMes.map(g => g.monto));
 
-        const [year, month] = mesActual.split('-').map(Number);
-        const inicioMesActual = new Date(year, month - 1, 1).toISOString().split('T')[0];
-
-        const gastosTarjetaTotal = todosLosGastos.filter(g => {
-            if (!g.metodo_pago || !g.fecha) return false;
-            const metodo = g.metodo_pago.toLowerCase();
-            const esTarjeta = metodo.includes('tarjeta') || metodo.includes('credito');
-            const fechaMayorOIgual = g.fecha >= inicioMesActual;
-            return esTarjeta && fechaMayorOIgual;
-        });
+        const gastosTarjetaTotal = todosLosGastos.filter(g => (
+            esGastoTarjeta(g) && obtenerMesImputacion(g) >= mesActual
+        ));
         const montoTarjetasTotal = AppUtils.sumarMontos(gastosTarjetaTotal.map(g => g.monto));
 
         return { montoTarjetasMes, montoTarjetasTotal };
@@ -222,7 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); 
                 
-                renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, 0);
+                const proyeccionTarjetas = resumenService.calcularProyeccionTarjetas(todosLosGastos, mesActual);
+                renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, proyeccionTarjetas);
                 renderer.mostrarComunes(gastosMes, categoriasPersonales, true, gastosMesAnt); 
 
             } else if (ambitoActual === 'hogar' && hogarId) {
@@ -256,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     dataHogar.presupuestos_compartidos || []
                 );
 
-                renderer.renderizarHogar(resumenHogar, dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || []);
+                renderer.renderizarHogar(resumenHogar, dataHogar.nombre, kpisTotales, dataHogar.presupuestos_compartidos || [], gastosMes, userId, dataHogar.categorias_compartidas || [], resumenService.calcularProyeccionTarjetas(todosLosGastos, mesActual));
                 renderer.mostrarComunes(gastosMes, dataHogar.categorias_compartidas || [], true, gastosMesAnt); 
 
             } else if (ambitoActual === 'unificado') {
@@ -325,8 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             chartManager.inicializar(todosLosGastos, mesActual, mesAnterior);
 
-            const gastosMesGlobal = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
-            const montosTarjetas = calcularMontosTarjetas(todosLosGastos, gastosMesGlobal, mesActual);
+            const montosTarjetas = calcularMontosTarjetas(todosLosGastos, mesActual);
             const elMes = document.getElementById('monto-tarjetas-mes');
             const elTotal = document.getElementById('monto-tarjetas-total');
             if (elMes) elMes.innerHTML = `<strong>${AppUtils.formatearARS(montosTarjetas.montoTarjetasMes)}</strong>`;

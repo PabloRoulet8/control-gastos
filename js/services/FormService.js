@@ -5,6 +5,7 @@ export class FormService {
     static METODOS_PAGO_VALIDOS = ['efectivo', 'tarjeta-credito'];
     static MIN_CUOTAS = 2;
     static MAX_CUOTAS = 36;
+    static DIA_CIERRE_TARJETA = 24;
 
     static parsearMonto(valor) {
         if (typeof valor === 'number') {
@@ -89,11 +90,56 @@ export class FormService {
         return Number.isNaN(fechaParseada.getTime()) ? null : fechaParseada;
     }
 
+    static esTarjetaCredito(metodoPago) {
+        const metodo = String(metodoPago || '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[_\s]+/g, '-');
+
+        return metodo.includes('tarjeta') && metodo.includes('credito');
+    }
+
     static formatearFecha(fecha) {
         const anio = fecha.getFullYear();
         const mes = String(fecha.getMonth() + 1).padStart(2, '0');
         const dia = String(fecha.getDate()).padStart(2, '0');
         return `${anio}-${mes}-${dia}`;
+    }
+
+    static sumarMeses(fecha, meses) {
+        const base = fecha instanceof Date ? fecha : this.parsearFecha(fecha);
+        if (!base || Number.isNaN(base.getTime())) return null;
+
+        const diaOriginal = base.getDate();
+        const destino = new Date(base.getFullYear(), base.getMonth() + Number(meses || 0), 1);
+        const ultimoDiaDestino = new Date(destino.getFullYear(), destino.getMonth() + 1, 0).getDate();
+        destino.setDate(Math.min(diaOriginal, ultimoDiaDestino));
+        return destino;
+    }
+
+    // Un gasto de tarjeta de crédito comprado después del cierre (día 24 por
+    // defecto) se imputa al mes siguiente. El check manual "post-cierre"
+    // sigue funcionando como override explícito.
+    static requiereDesplazamientoCierre(fecha, metodoPago, postCierre = false) {
+        if (postCierre) return true;
+
+        const base = fecha instanceof Date ? fecha : this.parsearFecha(fecha);
+        if (!base || Number.isNaN(base.getTime())) return false;
+
+        return this.esTarjetaCredito(metodoPago) && base.getDate() > this.DIA_CIERRE_TARJETA;
+    }
+
+    static calcularMesImputacion({ fecha, metodoPago, postCierre = false } = {}) {
+        const base = fecha instanceof Date ? fecha : this.parsearFecha(fecha);
+        if (!base || Number.isNaN(base.getTime())) return '';
+
+        const fechaImputada = this.requiereDesplazamientoCierre(base, metodoPago, postCierre)
+            ? this.sumarMeses(base, 1)
+            : base;
+
+        return this.formatearFecha(fechaImputada).slice(0, 7);
     }
 
     static calcularFechasCuotas(fechaBase, cantidadCuotas, postCierre = false) {
@@ -103,13 +149,9 @@ export class FormService {
 
         return Array.from({ length: cuotas }, (_, indice) => {
             const desplazamiento = (postCierre ? 1 : 0) + indice;
-            const fechaCuota = new Date(
-                base.getFullYear(),
-                base.getMonth() + desplazamiento,
-                base.getDate()
-            );
-            return this.formatearFecha(fechaCuota);
-        });
+            const fechaCuota = this.sumarMeses(base, desplazamiento);
+            return fechaCuota ? this.formatearFecha(fechaCuota) : '';
+        }).filter(Boolean);
     }
 
     static determinarTipo(ambito) {
@@ -135,10 +177,14 @@ export class FormService {
         metodoPago,
         tipo,
         referencia = '',
+        postCierre = false,
         usarFondo
     }) {
         const montoNumerico = this.parsearMonto(monto);
         if (montoNumerico === null) return null;
+
+        const metodoNormalizado = String(metodoPago || '').trim().toLowerCase();
+        const mesImputacion = this.calcularMesImputacion({ fecha, metodoPago: metodoNormalizado, postCierre });
 
         return {
             fecha,
@@ -148,9 +194,10 @@ export class FormService {
                 ? inventario.map(item => ({ ...item }))
                 : [],
             responsable,
-            metodo_pago: String(metodoPago || '').trim().toLowerCase(),
+            metodo_pago: metodoNormalizado,
             tipo,
             referencia: String(referencia ?? '').trim(),
+            ...(mesImputacion ? { mes_imputacion: mesImputacion } : {}),
             ...(typeof usarFondo === 'boolean' ? { usar_fondo: usarFondo } : {})
         };
     }
@@ -176,7 +223,8 @@ export class FormService {
             return [];
         }
 
-        const fechas = this.calcularFechasCuotas(fecha, cuotas, postCierre);
+        const desplazaCierre = this.requiereDesplazamientoCierre(fecha, metodoPago, postCierre);
+        const fechas = this.calcularFechasCuotas(fecha, cuotas, desplazaCierre);
         if (fechas.length !== cuotas) return [];
 
         const camposFondo = typeof usarFondo === 'boolean' ? { usar_fondo: usarFondo } : {};
@@ -199,6 +247,7 @@ export class FormService {
                 responsable,
                 metodo_pago: String(metodoPago || '').trim().toLowerCase(),
                 tipo,
+                mes_imputacion: fechaCuota.slice(0, 7),
                 referencia: `${prefijoReferencia}(Cuota ${numeroCuota} de ${cuotas}) - Total: $${totalFormateado}`,
                 es_cuota: true,
                 compra_id: compraId,

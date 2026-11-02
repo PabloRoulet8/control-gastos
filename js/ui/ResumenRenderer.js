@@ -54,7 +54,34 @@ export class ResumenRenderer {
         return htmlFondos;
     }
 
-    renderizarPersonal(data, fondos, gastosMes, kpis) {
+    generarHtmlProyeccionTarjetas(proyeccion) {
+        const detalle = Array.isArray(proyeccion?.detalle) ? proyeccion.detalle : [];
+        if (detalle.length === 0) return '';
+
+        const filas = detalle.map(item => `
+            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding: 12px 0; gap: 12px;">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-weight: 700; color: var(--text-main);">${AppUtils.escapeHTML(item.etiqueta)}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">${item.cantidad} movimiento${item.cantidad === 1 ? '' : 's'}</span>
+                </div>
+                <span style="font-weight: 800; color: var(--primary-color); white-space: nowrap;">${AppUtils.formatearARS(item.total)}</span>
+            </div>`).join('');
+
+        return `
+            <div class="card dashboard-card mt-20" id="proyeccion-tarjetas" style="border-top: 4px solid var(--primary-color);">
+                <h2 style="color: var(--primary-color); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="credit-card"></i> Proyección de Tarjetas
+                </h2>
+                <p class="text-sm-gray mb-15">Vencimientos agrupados por mes de imputación (incluye cuotas futuras).</p>
+                ${filas}
+                <div class="flex-between" style="padding-top: 14px; margin-top: 4px;">
+                    <span style="font-weight: 700; color: var(--text-main);">Total proyectado</span>
+                    <span style="font-weight: 800; color: var(--primary-color); font-size: 1.1rem;">${AppUtils.formatearARS(proyeccion.total)}</span>
+                </div>
+            </div>`;
+    }
+
+    renderizarPersonal(data, fondos, gastosMes, kpis, proyeccionTarjetas = null) {
         if(this.contenedorDinamico) {
             this.contenedorDinamico.innerHTML = `
                 <div class="card dashboard-card" style="border-top: 4px solid var(--primary-color);">
@@ -88,11 +115,12 @@ export class ResumenRenderer {
 
                     ${this.generarHtmlFondos(fondos, gastosMes)}
                 </div>
+                ${this.generarHtmlProyeccionTarjetas(proyeccionTarjetas)}
             `;
         }
     }
 
-    renderizarHogar(data, nombreHogar, kpis, fondos, gastosMes, currentUserId, categoriasHogar) {
+    renderizarHogar(data, nombreHogar, kpis, fondos, gastosMes, currentUserId, categoriasHogar, proyeccionTarjetas = null) {
         const normalizeCat = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
         const mapCategorias = {};
@@ -211,6 +239,8 @@ export class ResumenRenderer {
                         <div style="font-size: 1.6rem; font-weight: bold; color: var(--text-main); margin-top: 5px;">${AppUtils.formatearARS(data.cuotasMiembro?.[currentUserId] ?? data.cuotaPorPersona)}</div>
                     </div>
                 </div>
+
+                ${this.generarHtmlProyeccionTarjetas(proyeccionTarjetas)}
 
                 <div class="card dashboard-card mt-20" style="border-top: 4px solid var(--primary-color);">
                      <h2 style="color: var(--primary-color); margin-bottom: 10px;"><i data-lucide="credit-card"></i> Liquidación de Deudas</h2>
