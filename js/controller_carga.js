@@ -302,6 +302,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             agregarProducto: item => agregarProductoInventario(item)
         });
 
+        // La IA puede indicar si el gasto se paga con el fondo común.
+        // Solo se aplica si el toggle está disponible (hogar con fondo para la categoría).
+        const fondoDisponible = Boolean(
+            grupoFondo &&
+            grupoFondo.style.display !== 'none' &&
+            checkPagadoFondo &&
+            !checkPagadoFondo.disabled
+        );
+
+        if (typeof datos.usar_fondo === 'boolean' && fondoDisponible) {
+            checkPagadoFondo.checked = datos.usar_fondo;
+        }
+
         resultado.avisos.forEach(aviso => {
             toast.mostrar(aviso.mensaje, aviso.tipo || 'info', aviso.duracion || 4000);
         });
