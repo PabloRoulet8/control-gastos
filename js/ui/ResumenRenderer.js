@@ -269,7 +269,7 @@ export class ResumenRenderer {
                                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Saldo Total Acumulado</span>
                                <span style="font-size: 1.35rem; font-weight: 800; color: ${Math.abs(saldoTotalAcumulado) < 0.005 ? 'var(--text-main)' : '#d32f2f'};">${AppUtils.formatearARS(saldoTotalAcumulado)}</span>
                           </div>
-                          ${hayArrastre ? `<div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">(Meses anteriores: <span style="color: ${colorSaldoPeriodo(saldoUsuarioMesesAnteriores)}; font-weight: 600;">${AppUtils.formatearARS(saldoMesesAnteriores)}</span> · Este mes: <span style="color: ${colorSaldoPeriodo(saldoUsuarioMesSeleccionado)}; font-weight: 600;">${AppUtils.formatearARS(saldoMesSeleccionado)}</span>)</div>` : ''}
+                          ${hayArrastre ? `<div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">(Meses anteriores: <span style="color: ${colorSaldoPeriodo(saldoUsuarioMesesAnteriores)}; font-weight: 600;">${AppUtils.formatearARS(Math.abs(saldoMesesAnteriores))}</span> · Este mes: <span style="color: ${colorSaldoPeriodo(saldoUsuarioMesSeleccionado)}; font-weight: 600;">${AppUtils.formatearARS(Math.abs(saldoMesSeleccionado))}</span>)</div>` : ''}
                      </div>
                      <p class="text-sm-gray mb-15">Quién le transfiere a quién para quedar a mano:</p>
                      <ul class="lista-minimal">
