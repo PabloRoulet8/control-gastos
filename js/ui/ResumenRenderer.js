@@ -176,6 +176,16 @@ export class ResumenRenderer {
                 const colorDeudor = currentUserId === c.de_id ? '#DC2626' : '#64748b';
                 const colorAcreedor = currentUserId === c.para_id ? '#10B981' : '#64748b';
                 const labelStatus = currentUserId === c.de_id ? 'Vos debés' : (currentUserId === c.para_id ? 'Te deben' : '');
+
+                // Color del monto según la posición del usuario logueado:
+                // rojo si debe pagar (saldo en contra), verde si debe cobrar (saldo a favor),
+                // neutro si el saldo es $0 o el usuario no participa de la compensación.
+                const montoDeuda = Number(c.monto) || 0;
+                let colorMonto = 'var(--text-main)';
+                if (Math.abs(montoDeuda) >= 0.005) {
+                    if (currentUserId === c.de_id) colorMonto = '#ff5252';
+                    else if (currentUserId === c.para_id) colorMonto = '#10b981';
+                }
                 
                 htmlDeudas += `
                     <li class="flex-between border-bottom-gray" style="padding: 15px 0;">
@@ -191,7 +201,7 @@ export class ResumenRenderer {
                             </div>
                         </div>
                         <div style="text-align: right;">
-                            <span class="text-bold-dark" style="color: #d32f2f; font-size: 1.1rem;">${AppUtils.formatearARS(c.monto)}</span>
+                            <span class="text-bold-dark" style="color: ${colorMonto}; font-size: 1.1rem;">${AppUtils.formatearARS(c.monto)}</span>
                             ${textoUltimoPago}
                         </div>
                     </li>`;
@@ -247,7 +257,7 @@ export class ResumenRenderer {
                      <div style="background: var(--bg-app); border-radius: 8px; padding: 14px 15px; margin-bottom: 12px;">
                           <div class="flex-between" style="gap: 10px; align-items: baseline;">
                                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Saldo Total Acumulado</span>
-                               <span style="font-size: 1.35rem; font-weight: 800; color: #d32f2f;">${AppUtils.formatearARS(saldoTotalAcumulado)}</span>
+                               <span style="font-size: 1.35rem; font-weight: 800; color: ${Math.abs(saldoTotalAcumulado) < 0.005 ? 'var(--text-main)' : '#d32f2f'};">${AppUtils.formatearARS(saldoTotalAcumulado)}</span>
                           </div>
                           ${hayArrastre ? `<div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">(Meses anteriores: ${AppUtils.formatearARS(saldoMesesAnteriores)} · Este mes: ${AppUtils.formatearARS(saldoMesSeleccionado)})</div>` : ''}
                      </div>
