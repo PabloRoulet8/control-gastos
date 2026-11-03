@@ -159,18 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return inventarioDespues >= inventarioAntes && inventarioNuevo.length > 0;
     };
 
-    const solicitarPermisoMicrofonoInicial = async () => {
-        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-            return;
-        }
 
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => track.stop());
-        } catch (error) {
-            console.warn('Permiso de micrófono denegado o ignorado:', error?.name || error);
-        }
-    };
 
     const inicializarPagina = async (userId) => {
         store.setContexto({ currentUserIdGlobal: userId });
@@ -235,7 +224,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             actualizarOpcionFondo();
             actualizarVisibilidadLimpiar();
-            await solicitarPermisoMicrofonoInicial();
         } catch (error) {
             console.error("Error cargando perfil:", error);
         }
@@ -407,13 +395,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         procesarConIA(texto);
     };
 
-    const iniciarDictado = () => {
+    const iniciarDictado = async () => {
         if (!voiceService.isSupported()) {
             toast.mostrar('Tu navegador no soporta reconocimiento de voz. Probá con Chrome o Edge.', 'error', 6000);
             return;
         }
 
         if (voiceService.isRecording || isProcessing) return;
+
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                console.warn('Permiso de micrófono denegado por el usuario:', error?.name || error);
+            }
+        }
 
         cancelarProcesamientoIA();
         isProcessing = false;
@@ -482,6 +479,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         DraftService.limpiarBorradorLegacy();
         FormUI.limpiarFormularioGasto({
             formGasto,
+            selectCategoria,
             inputMonto: inputMontoGlobal,
             inputReferencia,
             grupoReferencia,
@@ -613,6 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 DraftService.limpiarBorradorLegacy();
                 FormUI.limpiarFormularioGasto({
                     formGasto,
+                    selectCategoria,
                     inputMonto: inputMontoGlobal,
                     inputReferencia,
                     grupoReferencia,
