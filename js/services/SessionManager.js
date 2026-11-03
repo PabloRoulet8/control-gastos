@@ -35,10 +35,6 @@ export class SessionManager {
         this.#timeoutMs = timeoutMs;
         this.#throttleMs = throttleMs;
         this.#chequeoMs = chequeoMs;
-
-        this.#registrarActividad = this.#registrarActividad.bind(this);
-        this.#verificarInactividad = this.#verificarInactividad.bind(this);
-        this.#manejarVisibilidad = this.#manejarVisibilidad.bind(this);
     }
 
     start() {
@@ -80,7 +76,7 @@ export class SessionManager {
         return this.#activo;
     }
 
-    #registrarActividad() {
+    #registrarActividad = () => {
         if (!this.#activo || this.#cerrandoPorInactividad) return;
 
         const ahora = Date.now();
@@ -88,23 +84,23 @@ export class SessionManager {
 
         this.#ultimoEventoProcesado = ahora;
         this.#ultimaActividad = ahora;
-    }
+    };
 
-    #verificarInactividad() {
+    #verificarInactividad = () => {
         if (!this.#activo || this.#cerrandoPorInactividad) return;
 
         if (Date.now() - this.#ultimaActividad < this.#timeoutMs) return;
 
         this.#cerrarPorInactividad();
-    }
+    };
 
-    #manejarVisibilidad() {
+    #manejarVisibilidad = () => {
         // Al volver a la pestaña verificamos de inmediato: el tiempo en segundo
         // plano también cuenta como inactividad.
         if (document.visibilityState === 'visible') {
             this.#verificarInactividad();
         }
-    }
+    };
 
     async #cerrarPorInactividad() {
         if (this.#cerrandoPorInactividad) return;
