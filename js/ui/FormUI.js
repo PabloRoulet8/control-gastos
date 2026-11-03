@@ -512,6 +512,7 @@ export class FormUI {
 
     static limpiarFormularioGasto({
         formGasto,
+        selectCategoria,
         inputMonto,
         inputReferencia,
         grupoReferencia,
@@ -525,7 +526,16 @@ export class FormUI {
         checkPostCierre,
         contenedorLimpiar
     } = {}) {
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+
         if (formGasto) formGasto.reset();
+        if (selectCategoria) {
+            selectCategoria.selectedIndex = 0;
+            selectCategoria.value = '';
+            selectCategoria.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         if (inputMonto) {
             inputMonto.value = '';
             inputMonto.readOnly = false;
