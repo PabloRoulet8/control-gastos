@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v31.9';
+const CACHE_NAME = 'gastos-v32.0';
 const ROOT_URL = new URL('./', self.location.href).href;
 const INDEX_URL = new URL('./index.html', self.location.href).href;
 const ESTATICOS_REGEX = /\.(?:js|css|png|jpe?g|gif|svg|webp|ico|json|woff2?|ttf)$/i;
@@ -44,6 +44,7 @@ const urlsToCache = [
     './js/services/InventarioService.js',
     './js/services/DraftService.js',
     './js/services/ResumenService.js',
+    './js/services/ExportService.js',
     './js/services/HogarService.js',
     './js/services/PerfilPublicoService.js',
     './js/services/SessionManager.js',

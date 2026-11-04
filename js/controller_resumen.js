@@ -1,5 +1,6 @@
 import { GastoRepository } from "./api/GastoRepository.js";
 import { ResumenService } from "./services/ResumenService.js";
+import { ExportService } from "./services/ExportService.js";
 import { ResumenRenderer } from "./ui/ResumenRenderer.js";
 import { ChartManager } from "./ui/ChartManager.js";
 import { ToastManager } from "./ui/ToastManager.js";
@@ -14,6 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const resumenService = new ResumenService();
     const renderer = new ResumenRenderer();
     const chartManager = new ChartManager(resumenService);
+
+    // Datos del mes en pantalla: la exportación los reutiliza sin volver a consultar Firebase.
+    let gastosMesVisible = [];
+    let mapaResponsablesVisible = {};
+    let mesVisible = '';
     
     const urlParams = new URLSearchParams(window.location.search);
     let ambitoActual = NavigationBuilder.normalizeAmbito(urlParams.get('ambito'));
@@ -53,6 +59,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const content = modalIngreso.querySelector('.modal-content');
                 if (content) content.classList.add('active'); 
             }, 10);
+        });
+    }
+
+    const btnExportarCSV = document.getElementById('btn-exportar-csv');
+    if (btnExportarCSV) {
+        btnExportarCSV.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            if (gastosMesVisible.length === 0) {
+                new ToastManager().mostrar('No hay gastos para exportar en este mes.');
+                return;
+            }
+
+            try {
+                ExportService.exportarCSV(gastosMesVisible, mesVisible, mapaResponsablesVisible);
+            } catch (error) {
+                console.error(error);
+                new ToastManager().mostrar('No se pudo generar el archivo CSV.');
+            }
         });
     }
 
@@ -200,6 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const mesActual = `${anioActual}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
             const mesAnterior = new Date(anioActual, hoy.getMonth() - 1, 1).toISOString().substring(0, 7);
             const rangoResumen = obtenerRangoResumen(hoy);
+
+            gastosMesVisible = [];
+            mapaResponsablesVisible = {};
+            mesVisible = mesActual;
             
             const userData = await api.obtenerUsuario(userId) || {};
             
@@ -228,6 +257,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); 
                 
+                gastosMesVisible = gastosMes;
+                mapaResponsablesVisible = {
+                    [userId]: userData.nombre || auth.currentUser?.displayName || 'Usuario'
+                };
+                
                 const proyeccionTarjetas = resumenService.calcularProyeccionTarjetas(todosLosGastos, mesActual);
                 renderer.renderizarPersonal(resumenService.calcularPersonal(gastosMes, categoriasPersonales), userData.fondos || [], gastosMes, kpisTotales, proyeccionTarjetas);
                 renderer.mostrarComunes(gastosMes, categoriasPersonales, true, gastosMesAnt); 
@@ -250,6 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const gastosMes = todosLosGastos.filter(g => g.fecha?.startsWith(mesActual));
                 const gastosMesAnt = todosLosGastos.filter(g => g.fecha?.startsWith(mesAnterior)); 
+                
+                gastosMesVisible = gastosMes;
+                mapaResponsablesVisible = { ...mapaNombres };
                 
                 // LE PASAMOS LOS PRESUPUESTOS AL SERVICIO
                 const resumenHogar = resumenService.calcularHogar(gastosMes, mapaNombres, dataHogar.presupuestos_compartidos || []);
@@ -308,6 +345,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const gastosPersonalesMes = gastosPersonalesReales.filter(g => g.fecha?.startsWith(mesActual));
                 const personalMes = resumenService.calcularPersonal(gastosPersonalesMes, []).total;
+
+                gastosMesVisible = [...gastosPersonalesMes, ...gastosHogarMesListas];
+                mapaResponsablesVisible = {
+                    ...cacheUsuarios,
+                    [userId]: userData.nombre || auth.currentUser?.displayName || cacheUsuarios[userId] || 'Usuario'
+                };
 
                 todosLosGastos = [...gastosPersonalesReales, ...todosHogaresParaGraficos];
                 kpisTotales = calcularKPIsAnuales(todosLosGastos, anioActual);

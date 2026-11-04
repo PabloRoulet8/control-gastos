@@ -16,8 +16,11 @@
         <button data-nav="home" class="btn-icon-white" title="Volver al Inicio"><i data-lucide="home"></i></button>
         <h1 id="titulo-header" class="text-center flex-1">Cargando...</h1>
         
-        <!-- Nuevo contenedor para el botón de Ingresos -->
-        <div id="contenedor-btn-ingresos" style="min-width: 80px; text-align: right; display: flex; justify-content: flex-end; align-items: center;">
+        <!-- Contenedor para acciones del encabezado -->
+        <div id="contenedor-btn-ingresos" style="min-width: 80px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+            <button id="btn-exportar-csv" class="btn-icon-white" title="Exportar resumen mensual a CSV" aria-label="Exportar resumen mensual a CSV">
+                <i data-lucide="download"></i>
+            </button>
             <button id="btn-header-ingresos" style="display: none; background: none; border: none; color: var(--primary-color); font-weight: bold; cursor: pointer; font-size: 0.95rem;">
                 Ingresos
             </button>
@@ -128,7 +131,7 @@
     <div id="toast-container" class="toast"></div>
     <nav class="bottom-nav" id="nav-contextual"></nav>
     <script type="module" src="js/auth_guard.js?v=11.2"></script>
-    <script type="module" src="js/controller_resumen.js?v=11.2"></script>
+    <script type="module" src="js/controller_resumen.js?v=11.3"></script>
     <script src="js/lucide-init.js?v=1"></script>
     <script src="js/pwa.js?v=1"></script>
 </body>
