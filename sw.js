@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v32.0';
+const CACHE_NAME = 'gastos-v32.1';
 const ROOT_URL = new URL('./', self.location.href).href;
 const INDEX_URL = new URL('./index.html', self.location.href).href;
 const ESTATICOS_REGEX = /\.(?:js|css|png|jpe?g|gif|svg|webp|ico|json|woff2?|ttf)$/i;
