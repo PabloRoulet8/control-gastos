@@ -73,7 +73,6 @@ service cloud.firestore {
         'usar_fondo',
         'es_cuota',
         'compra_id',
-        'cuotas',
         'usuario_id',
         'creador_email',
         'timestamp',
