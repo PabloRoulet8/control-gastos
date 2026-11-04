@@ -18,6 +18,8 @@ const LOGIN_URL = 'login.html';
  * saturar el hilo principal del navegador.
  */
 export class SessionManager {
+    static #instancia = null;
+
     #timeoutMs;
     #throttleMs;
     #chequeoMs;
@@ -32,9 +34,24 @@ export class SessionManager {
         throttleMs = ACTIVITY_THROTTLE_MS,
         chequeoMs = INACTIVITY_CHECK_MS
     } = {}) {
+        // Singleton estricto: cualquier intento de instanciar devuelve la
+        // instancia existente para no duplicar listeners globales.
+        if (SessionManager.#instancia) {
+            return SessionManager.#instancia;
+        }
+
         this.#timeoutMs = timeoutMs;
         this.#throttleMs = throttleMs;
         this.#chequeoMs = chequeoMs;
+        SessionManager.#instancia = this;
+    }
+
+    static getInstance(opciones = {}) {
+        if (!SessionManager.#instancia) {
+            new SessionManager(opciones);
+        }
+
+        return SessionManager.#instancia;
     }
 
     start() {

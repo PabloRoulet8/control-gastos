@@ -2,7 +2,7 @@ import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { SessionManager } from "./services/SessionManager.js";
 
-const sessionManager = new SessionManager();
+const sessionManager = SessionManager.getInstance();
 
 const urlParams = new URLSearchParams(window.location.search);
 const joinCode = urlParams.get('join');

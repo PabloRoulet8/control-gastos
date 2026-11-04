@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-v32.1';
+const CACHE_NAME = 'gastos-v32.2';
 const ROOT_URL = new URL('./', self.location.href).href;
 const INDEX_URL = new URL('./index.html', self.location.href).href;
 const ESTATICOS_REGEX = /\.(?:js|css|png|jpe?g|gif|svg|webp|ico|json|woff2?|ttf)$/i;
@@ -170,7 +170,7 @@ self.addEventListener('activate', event => {
         const cacheNames = await caches.keys();
         await Promise.all(
             cacheNames
-                .filter(cacheName => cacheName !== CACHE_NAME)
+                .filter(cacheName => cacheName.startsWith('gastos-') && cacheName !== CACHE_NAME)
                 .map(cacheName => caches.delete(cacheName))
         );
         await self.clients.claim();
