@@ -40,6 +40,27 @@ export class VoiceService {
         this.onReadyToConsolidate = typeof onReadyToConsolidate === 'function' ? onReadyToConsolidate : () => {};
         this.onError = typeof onError === 'function' ? onError : () => {};
         this.onFatalError = typeof onFatalError === 'function' ? onFatalError : () => {};
+
+        // Inicializar ToastManager para errores visibles en móvil
+        this._initToastManager();
+    }
+
+    _initToastManager() {
+        if (typeof window !== 'undefined' && window.ToastManager) {
+            this.toast = new window.ToastManager();
+        } else {
+            this.toast = null;
+        }
+    }
+
+    _showVoiceError(errorCode) {
+        const mensaje = `Error de voz: ${errorCode}`;
+        console.error(mensaje);
+        if (this.toast) {
+            this.toast.mostrar(mensaje, 'error', 5000);
+        } else {
+            alert(mensaje); // Fallback si no hay ToastManager
+        }
     }
 
     isSupported() {
@@ -102,11 +123,13 @@ export class VoiceService {
             const fatales = ['not-allowed', 'service-not-allowed', 'audio-capture'];
             if (fatales.includes(codigo)) {
                 this.onFatalError(codigo);
+                this._showVoiceError(codigo);
                 this.limpiarTemporizador();
                 return;
             }
 
             this.onError(codigo);
+            this._showVoiceError(codigo);
         };
 
         this.reconocimiento.onend = () => {
