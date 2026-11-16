@@ -255,12 +255,20 @@ export class HistorialRenderer {
                 // entidades heredadas antes de escapar para evitar el doble escape.
                 const refHtml = gasto.referencia ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${AppUtils.escapeHTML(gasto.referencia)}</div>` : '';
                 
+                // Línea 1: Fecha y Método de pago
+                const metaLinea1 = `${fechaCorta}${metodoPago}`;
+                // Línea 2: Responsable y Origen
+                const metaLinea2 = `${responsableMeta}${fondoMeta}`;
+                
                 // Sacamos el símbolo $ harcodeado del HTML porque AppUtils.formatearARS ya lo incluye
                 item.innerHTML = `
                     <div class="gasto-info">
                         <strong>${etiquetaCategoria}</strong> 
                         ${refHtml}
-                        <span class="fecha">${fechaCorta}${metodoPago}${responsableMeta}${fondoMeta}</span>
+                        <div class="gasto-meta">
+                            <span class="fecha">${metaLinea1}</span>
+                            <span class="responsable-origen">${metaLinea2}</span>
+                        </div>
                     </div>
                     <div class="gasto-acciones">
                         <span class="monto" style="color: ${colorMonto};">${prefijoMonto}${AppUtils.formatearARS(gasto.monto)}</span>

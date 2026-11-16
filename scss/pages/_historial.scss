@@ -37,6 +37,7 @@
     border-radius: $border-radius;
     margin-bottom: 10px;
     transition: all 0.2s ease;
+    gap: 12px; // Espacio garantizado entre info y acciones
     
     &:hover {
         background: rgba(255, 255, 255, 0.06);
@@ -46,6 +47,7 @@
         display: flex; 
         flex-direction: column;
         flex: 1;
+        min-width: 0; // Permite que el texto se trunque si es necesario
         
         strong { 
             color: var(--text-main); 
@@ -53,9 +55,21 @@
             margin-bottom: 4px; 
         }
         
-        .fecha { 
-            font-size: 0.8rem; 
-            color: var(--text-muted); 
+        .gasto-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            
+            .fecha,
+            .responsable-origen {
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                display: block;
+            }
+            
+            .responsable-origen {
+                // Ya hereda color var(--text-muted) del padre
+            }
         }
     }
     
@@ -63,11 +77,13 @@
         display: flex; 
         align-items: center; 
         gap: 12px;
+        flex-shrink: 0; // Evita que el monto se comprima
         
         .monto { 
             font-weight: 700; 
             font-size: 1.1rem; 
             color: var(--text-main);
+            white-space: nowrap; // Evita salto de línea en el monto
         }
         
         .btn-eliminar {
