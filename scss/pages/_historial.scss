@@ -60,15 +60,14 @@
             flex-direction: column;
             gap: 2px;
             
-            .fecha,
-            .responsable-origen {
+            .gasto-meta-linea1,
+            .gasto-meta-linea2 {
                 font-size: 0.8rem;
                 color: var(--text-muted);
                 display: block;
-            }
-            
-            .responsable-origen {
-                // Ya hereda color var(--text-muted) del padre
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                overflow: hidden;
             }
         }
     }
@@ -78,6 +77,8 @@
         align-items: center; 
         gap: 12px;
         flex-shrink: 0; // Evita que el monto se comprima
+        margin-left: auto;
+        padding-left: 8px;
         
         .monto { 
             font-weight: 700; 

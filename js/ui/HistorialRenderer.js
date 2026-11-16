@@ -233,40 +233,42 @@ export class HistorialRenderer {
                 
                 const etiquetaCategoria = esPago ? 'Pago de Deuda' : AppUtils.escapeHTML(gasto.categoria || 'Sin categoría');
 
-                let metaLinea1 = fechaCorta;
-                let metaLinea2 = '';
-
+                // La referencia se persiste como texto crudo. `escapeHTML` normaliza
+                // entidades heredadas antes de escapar para evitar el doble escape.
+                const refHtml = gasto.referencia ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${AppUtils.escapeHTML(gasto.referencia)}</div>` : '';
+                
+                // Construir metadata en dos líneas limpias (sin spans anidados ni viñetas)
+                let metaLinea1Html = '';
+                let metaLinea2Html = '';
+                
                 if (esPago) {
-                    // PAGO DE DEUDA: Línea 1 = solo Fecha, Línea 2 = "Pagador → Receptor"
+                    // PAGO DE DEUDA: Línea 1 = Fecha, Línea 2 = "Pagador → Receptor"
+                    metaLinea1Html = `<div class="gasto-meta-linea1">${fechaCorta}</div>`;
                     const pagador = mapaNombres?.[gasto.pagador_id] || '';
                     const receptor = mapaNombres?.[gasto.receptor_id] || '';
                     if (pagador && receptor) {
-                        metaLinea2 = `<span style="color: var(--text-muted);">${AppUtils.escapeHTML(pagador)} → ${AppUtils.escapeHTML(receptor)}</span>`;
+                        metaLinea2Html = `<div class="gasto-meta-linea2">${AppUtils.escapeHTML(pagador)} → ${AppUtils.escapeHTML(receptor)}</div>`;
                     } else if (pagador || receptor) {
-                        metaLinea2 = `<span style="color: var(--text-muted);">${AppUtils.escapeHTML(pagador || receptor)}</span>`;
+                        metaLinea2Html = `<div class="gasto-meta-linea2">${AppUtils.escapeHTML(pagador || receptor)}</div>`;
                     }
                 } else {
                     // GASTOS REGULARES E INGRESOS: Línea 1 = Fecha • Método, Línea 2 = Responsable • Origen
                     const metodoPago = gasto.metodo_pago ? ` • ${AppUtils.escapeHTML(gasto.metodo_pago)}` : '';
-                    metaLinea1 = `${fechaCorta}${metodoPago}`;
-
+                    metaLinea1Html = `<div class="gasto-meta-linea1">${fechaCorta}${metodoPago}</div>`;
+                    
                     const nombreResponsable = mapaNombres?.[idDelResponsable] || '';
-                    const responsableMeta = nombreResponsable
-                        ? `<span style="color: var(--text-muted);">${AppUtils.escapeHTML(nombreResponsable)}</span>`
+                    const origenTexto = typeof gasto.usar_fondo === 'boolean'
+                        ? (gasto.usar_fondo ? 'Fondo común' : 'Bolsillo')
                         : '';
-
-                    const fondoMeta = typeof gasto.usar_fondo === 'boolean'
-                        ? `<span style="color: ${gasto.usar_fondo ? '#10b981' : '#94a3b8'};" title="${gasto.usar_fondo ? 'Pagado con plata del fondo común' : 'Pagado del bolsillo del responsable'}">${gasto.usar_fondo ? 'Fondo común' : 'Bolsillo'}</span>`
-                        : '';
-
-                    // Construir línea 2 filtrando valores vacíos
-                    const partesLinea2 = [responsableMeta, fondoMeta].filter(Boolean);
-                    metaLinea2 = partesLinea2.length > 0 ? partesLinea2.join(' • ') : '';
+                    
+                    if (nombreResponsable && origenTexto) {
+                        metaLinea2Html = `<div class="gasto-meta-linea2">${AppUtils.escapeHTML(nombreResponsable)} • ${origenTexto}</div>`;
+                    } else if (nombreResponsable) {
+                        metaLinea2Html = `<div class="gasto-meta-linea2">${AppUtils.escapeHTML(nombreResponsable)}</div>`;
+                    } else if (origenTexto) {
+                        metaLinea2Html = `<div class="gasto-meta-linea2">${origenTexto}</div>`;
+                    }
                 }
-                
-                // La referencia se persiste como texto crudo. `escapeHTML` normaliza
-                // entidades heredadas antes de escapar para evitar el doble escape.
-                const refHtml = gasto.referencia ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${AppUtils.escapeHTML(gasto.referencia)}</div>` : '';
                 
                 // Sacamos el símbolo $ harcodeado del HTML porque AppUtils.formatearARS ya lo incluye
                 item.innerHTML = `
@@ -274,8 +276,8 @@ export class HistorialRenderer {
                         <strong>${etiquetaCategoria}</strong> 
                         ${refHtml}
                         <div class="gasto-meta">
-                            <span class="fecha">${metaLinea1}</span>
-                            <span class="responsable-origen">${metaLinea2}</span>
+                            ${metaLinea1Html}
+                            ${metaLinea2Html}
                         </div>
                     </div>
                     <div class="gasto-acciones">
