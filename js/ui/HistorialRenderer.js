@@ -232,33 +232,41 @@ export class HistorialRenderer {
                 }
                 
                 const etiquetaCategoria = esPago ? 'Pago de Deuda' : AppUtils.escapeHTML(gasto.categoria || 'Sin categoría');
-                const metodoPago = gasto.metodo_pago ? ` • ${AppUtils.escapeHTML(gasto.metodo_pago)}` : '';
 
-                let nombreResponsable = mapaNombres?.[idDelResponsable] || '';
+                let metaLinea1 = fechaCorta;
+                let metaLinea2 = '';
+
                 if (esPago) {
+                    // PAGO DE DEUDA: Línea 1 = solo Fecha, Línea 2 = "Pagador → Receptor"
                     const pagador = mapaNombres?.[gasto.pagador_id] || '';
                     const receptor = mapaNombres?.[gasto.receptor_id] || '';
-                    nombreResponsable = pagador && receptor
-                        ? `${pagador} → ${receptor}`
-                        : (pagador || receptor);
+                    if (pagador && receptor) {
+                        metaLinea2 = `<span style="color: var(--text-muted);">${AppUtils.escapeHTML(pagador)} → ${AppUtils.escapeHTML(receptor)}</span>`;
+                    } else if (pagador || receptor) {
+                        metaLinea2 = `<span style="color: var(--text-muted);">${AppUtils.escapeHTML(pagador || receptor)}</span>`;
+                    }
+                } else {
+                    // GASTOS REGULARES E INGRESOS: Línea 1 = Fecha • Método, Línea 2 = Responsable • Origen
+                    const metodoPago = gasto.metodo_pago ? ` • ${AppUtils.escapeHTML(gasto.metodo_pago)}` : '';
+                    metaLinea1 = `${fechaCorta}${metodoPago}`;
+
+                    const nombreResponsable = mapaNombres?.[idDelResponsable] || '';
+                    const responsableMeta = nombreResponsable
+                        ? `<span style="color: var(--text-muted);">${AppUtils.escapeHTML(nombreResponsable)}</span>`
+                        : '';
+
+                    const fondoMeta = typeof gasto.usar_fondo === 'boolean'
+                        ? `<span style="color: ${gasto.usar_fondo ? '#10b981' : '#94a3b8'};" title="${gasto.usar_fondo ? 'Pagado con plata del fondo común' : 'Pagado del bolsillo del responsable'}">${gasto.usar_fondo ? 'Fondo común' : 'Bolsillo'}</span>`
+                        : '';
+
+                    // Construir línea 2 filtrando valores vacíos
+                    const partesLinea2 = [responsableMeta, fondoMeta].filter(Boolean);
+                    metaLinea2 = partesLinea2.length > 0 ? partesLinea2.join(' • ') : '';
                 }
-
-                const responsableMeta = nombreResponsable
-                    ? ` • <span style="color: var(--text-muted);">${AppUtils.escapeHTML(nombreResponsable)}</span>`
-                    : '';
-
-                const fondoMeta = typeof gasto.usar_fondo === 'boolean'
-                    ? ` • <span style="color: ${gasto.usar_fondo ? '#10b981' : '#94a3b8'};" title="${gasto.usar_fondo ? 'Pagado con plata del fondo común' : 'Pagado del bolsillo del responsable'}">${gasto.usar_fondo ? 'Fondo común' : 'Bolsillo'}</span>`
-                    : '';
                 
                 // La referencia se persiste como texto crudo. `escapeHTML` normaliza
                 // entidades heredadas antes de escapar para evitar el doble escape.
                 const refHtml = gasto.referencia ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${AppUtils.escapeHTML(gasto.referencia)}</div>` : '';
-                
-                // Línea 1: Fecha y Método de pago
-                const metaLinea1 = `${fechaCorta}${metodoPago}`;
-                // Línea 2: Responsable y Origen
-                const metaLinea2 = `${responsableMeta}${fondoMeta}`;
                 
                 // Sacamos el símbolo $ harcodeado del HTML porque AppUtils.formatearARS ya lo incluye
                 item.innerHTML = `
